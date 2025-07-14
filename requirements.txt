@@ -1,0 +1,14 @@
+PyQt5
+browserforge[all]
+camoufox[geoip]
+undetected-chromedriver
+selenium
+requests==2.31.0
+psutil
+keyboard
+pynput
+humanize
+setuptools
+playwright
+urllib3<3
+chardet<5
