@@ -187,9 +187,32 @@ echo -e "${YELLOW}Starting services...${NC}"
 BACKEND_CMD="cd $CURRENT_DIR && python3 -m uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT"
 run_command "pm2 start \"$BACKEND_CMD\" --name nexads-backend"
 
-# Save PM2 processes
+# Verify PM2 process started
+sleep 2
+if pm2 list | grep -q "nexads-backend"; then
+    echo -e "${GREEN}✓ Backend service started successfully${NC}"
+else
+    echo -e "${RED}✗ Backend service failed to start${NC}"
+    echo -e "${YELLOW}Trying to start backend directly...${NC}"
+    # Fallback: start backend directly in background
+    nohup python3 -m uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT > backend.log 2>&1 &
+    echo $! > backend.pid
+    echo -e "${YELLOW}Backend started directly (PID saved to backend.pid)${NC}"
+fi
+
+# Save PM2 processes and setup startup (if possible)
 run_command "pm2 save"
-run_command "pm2 startup" false
+
+# Try to setup PM2 startup, but don't fail if it doesn't work
+echo -e "${YELLOW}Setting up PM2 startup (this may require manual setup)...${NC}"
+if pm2 startup 2>/dev/null | grep -q "sudo env"; then
+    STARTUP_CMD=$(pm2 startup 2>/dev/null | grep "sudo env" | head -1)
+    echo -e "${YELLOW}To enable PM2 auto-start on boot, run this command manually:${NC}"
+    echo -e "${YELLOW}$STARTUP_CMD${NC}"
+    echo -e "${YELLOW}Then run: pm2 save${NC}"
+else
+    echo -e "${YELLOW}PM2 startup configuration not available - processes will need manual restart after reboot${NC}"
+fi
 
 echo -e "${GREEN}✓ Services started${NC}"
 
