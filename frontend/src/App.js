@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   AppBar,
@@ -83,13 +82,13 @@ function App() {
       fetchConfig();
       fetchProxies();
       fetchStats();
-      
+
       // Set up polling
       const interval = setInterval(() => {
         fetchStatus();
         fetchStats();
       }, 5000);
-      
+
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
@@ -199,11 +198,11 @@ function App() {
     const newConfig = { ...config };
     const keys = path.split('.');
     let current = newConfig;
-    
+
     for (let i = 0; i < keys.length - 1; i++) {
       current = current[keys[i]];
     }
-    
+
     current[keys[keys.length - 1]] = value;
     setConfig(newConfig);
   };
@@ -443,7 +442,7 @@ function App() {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={config.browser.headless_mode === 'True'}
+                        checked={config.browser?.headless_mode === 'True'}
                         onChange={(e) => updateConfig('browser.headless_mode', e.target.checked ? 'True' : 'False')}
                       />
                     }
@@ -451,7 +450,7 @@ function App() {
                   />
                 </FormGroup>
               </FormControl>
-              
+
               <FormControlLabel
                 control={
                   <Checkbox
@@ -461,7 +460,7 @@ function App() {
                 }
                 label="Disable uBlock"
               />
-              
+
               <FormControlLabel
                 control={
                   <Checkbox
@@ -471,7 +470,7 @@ function App() {
                 }
                 label="Random Activity"
               />
-              
+
               <FormControlLabel
                 control={
                   <Checkbox

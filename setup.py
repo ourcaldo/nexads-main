@@ -18,6 +18,99 @@ def run_command(command, check=True):
         print(f"Error: {e.stderr}")
         return False
 
+def display_system_info(config):
+    """Display comprehensive system information"""
+    print("\n" + "="*60)
+    print("           NEXADS CONTROL PANEL - SYSTEM INFO")
+    print("="*60)
+    
+    # Environment Variables
+    print("\n📋 ENVIRONMENT VARIABLES:")
+    print(f"   DOMAIN: {config['DOMAIN']}")
+    print(f"   FRONTEND_PORT: {config['FRONTEND_PORT']}")
+    print(f"   BACKEND_PORT: {config['BACKEND_PORT']}")
+    print(f"   SSL: {config['SSL']}")
+    print(f"   USERNAME: {config['USERNAME']}")
+    print(f"   PASSWORD: {config['PASSWORD']}")
+    
+    # URLs
+    protocol = 'https' if config['SSL'] == 'true' else 'http'
+    print(f"\n🌐 ACCESS URLS:")
+    print(f"   Frontend: {protocol}://{config['DOMAIN']}")
+    print(f"   Backend API: {protocol}://{config['DOMAIN']}/api")
+    print(f"   Health Check: {protocol}://{config['DOMAIN']}/api/health")
+    
+    # SSL Status
+    print(f"\n🔒 SSL STATUS:")
+    if config['SSL'] == 'true':
+        ssl_result = subprocess.run(['sudo', 'certbot', 'certificates'], capture_output=True, text=True)
+        if ssl_result.returncode == 0 and config['DOMAIN'] in ssl_result.stdout:
+            print("   ✓ SSL Certificate: ACTIVE")
+        else:
+            print("   ✗ SSL Certificate: FAILED/NOT FOUND")
+    else:
+        print("   ⚠ SSL Certificate: DISABLED")
+    
+    # Nginx Configuration
+    print(f"\n⚙️ NGINX CONFIGURATION:")
+    print(f"   Config File: /etc/nginx/sites-available/nexads")
+    print(f"   Enabled Link: /etc/nginx/sites-enabled/nexads")
+    
+    # Check nginx status
+    nginx_result = subprocess.run(['sudo', 'systemctl', 'is-active', 'nginx'], capture_output=True, text=True)
+    print(f"   Nginx Status: {'✓ RUNNING' if nginx_result.stdout.strip() == 'active' else '✗ NOT RUNNING'}")
+    
+    # PM2 Status
+    print(f"\n🚀 SERVICE STATUS:")
+    pm2_result = subprocess.run(['pm2', 'list'], capture_output=True, text=True)
+    if 'nexads-backend' in pm2_result.stdout:
+        print("   ✓ Backend Service: RUNNING (PM2)")
+    else:
+        print("   ✗ Backend Service: NOT RUNNING")
+    
+    # Port Status
+    print(f"\n🔌 PORT STATUS:")
+    try:
+        import socket
+        def check_port(port):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = sock.connect_ex(('127.0.0.1', int(port)))
+            sock.close()
+            return result == 0
+        
+        backend_status = "✓ OPEN" if check_port(config['BACKEND_PORT']) else "✗ CLOSED"
+        print(f"   Backend Port {config['BACKEND_PORT']}: {backend_status}")
+        
+        nginx_status = "✓ OPEN" if check_port('80') else "✗ CLOSED"
+        print(f"   HTTP Port 80: {nginx_status}")
+        
+        if config['SSL'] == 'true':
+            ssl_status = "✓ OPEN" if check_port('443') else "✗ CLOSED"
+            print(f"   HTTPS Port 443: {ssl_status}")
+    except:
+        print("   Could not check port status")
+    
+    # File Locations
+    print(f"\n📁 IMPORTANT FILE LOCATIONS:")
+    print(f"   Project Root: {os.getcwd()}")
+    print(f"   Core Config: {os.getcwd()}/core/config.json")
+    print(f"   Proxy File: {os.getcwd()}/core/proxy.txt")
+    print(f"   Environment: {os.getcwd()}/.env")
+    print(f"   Nginx Config: /etc/nginx/sites-available/nexads")
+    print(f"   SSL Certificates: /etc/letsencrypt/live/{config['DOMAIN']}/ (if SSL enabled)")
+    
+    # Authentication
+    print(f"\n🔐 AUTHENTICATION:")
+    print(f"   Username: {config['USERNAME']}")
+    print(f"   Password: {config['PASSWORD']}")
+    
+    print("\n" + "="*60)
+    print("Setup completed! Your NexAds control panel is ready.")
+    if config['SSL'] == 'false' and config['DOMAIN'] != 'localhost':
+        print("\nNote: SSL setup failed. To retry SSL later, run:")
+        print(f"sudo certbot --nginx -d {config['DOMAIN']}")
+    print("="*60)
+
 def get_user_input():
     """Get configuration from user"""
     print("=== NexAds Web Panel Setup ===")
@@ -172,12 +265,50 @@ def setup_ssl(config):
     if config['SSL'] == 'true':
         print("Setting up SSL...")
         
-        # Get SSL certificate
-        if run_command(f"sudo certbot --nginx -d {config['DOMAIN']} --non-interactive --agree-tos --email admin@{config['DOMAIN']}"):
+        # Check if domain resolves to this server
+        print(f"Checking DNS resolution for {config['DOMAIN']}...")
+        
+        # First, try to get certificate with webroot method
+        print("Attempting SSL certificate generation...")
+        ssl_cmd = f"sudo certbot --nginx -d {config['DOMAIN']} --non-interactive --agree-tos --email admin@{config['DOMAIN']} --redirect"
+        
+        if run_command(ssl_cmd):
             print("✓ SSL certificate installed")
         else:
-            print("✗ SSL setup failed")
-            return False
+            print("⚠ SSL setup failed - continuing without SSL")
+            print("Note: Make sure your domain points to this server's IP address")
+            print("You can run the following command later to setup SSL:")
+            print(f"sudo certbot --nginx -d {config['DOMAIN']} --non-interactive --agree-tos --email admin@{config['DOMAIN']}")
+            
+            # Update nginx config to work without SSL
+            nginx_config = f"""server {{
+    listen 80;
+    server_name {config['DOMAIN']};
+    
+    location / {{
+        root /home/{os.getenv('USER')}/nexads-panel/frontend/build;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }}
+    
+    location /api {{
+        proxy_pass http://127.0.0.1:{config['BACKEND_PORT']};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+}}"""
+            
+            with open('/tmp/nexads', 'w') as f:
+                f.write(nginx_config)
+            
+            run_command("sudo mv /tmp/nexads /etc/nginx/sites-available/nexads")
+            run_command("sudo systemctl reload nginx")
+            
+            # Update .env to reflect no SSL
+            config['SSL'] = 'false'
+            create_env_file(config)
     
     return True
 
@@ -229,10 +360,8 @@ def main():
         # Start services
         start_services(config)
         
-        print("\n=== Setup Complete ===")
-        print(f"Frontend: http{'s' if config['SSL'] == 'true' else ''}://{config['DOMAIN']}")
-        print(f"Backend API: http{'s' if config['SSL'] == 'true' else ''}://{config['DOMAIN']}/api")
-        print(f"Login: {config['USERNAME']} / {config['PASSWORD']}")
+        # Display comprehensive system information
+        display_system_info(config)
         
     except KeyboardInterrupt:
         print("\nSetup cancelled by user")
