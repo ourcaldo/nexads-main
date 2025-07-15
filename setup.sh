@@ -111,7 +111,7 @@ cleanup_previous_deployment() {
     # Remove ALL nexads-related SSL certificates
     run_command "sudo certbot delete --cert-name nexads.nexpocket.com --non-interactive" false
     run_command "sudo certbot delete --cert-name nexads --non-interactive" false
-    
+
     # Remove any leftover SSL certificates for this domain if it exists
     if [ -n "$domain" ] && [[ "$domain" != "localhost" ]] && [[ "$domain" != "0.0.0.0" ]] && [[ "$domain" =~ \. ]]; then
         run_command "sudo certbot delete --cert-name $domain --non-interactive" false
@@ -513,91 +513,6 @@ server {
 }
 EOF
 )
-
-    echo "$config" | sudo tee /etc/nginx/sites-available/nexads > /dev/null
-    run_command "sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/"
-    run_command "sudo nginx -t"
-    run_command "sudo systemctl reload nginx"
-}
-
-# Function to create nginx configuration
-create_nginx_config() {
-    print_status "Creating nginx configuration..."
-
-    if [ "$use_ssl" = true ]; then
-        config=$(cat << EOF
-server {
-    listen 80;
-    server_name $domain;
-    return 301 https://\$server_name\$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name $domain;
-
-    ssl_certificate /etc/letsencrypt/live/$domain/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;
-
-    location / {
-        proxy_pass http://localhost:$frontend_port;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location /api {
-        proxy_pass http://localhost:$backend_port/api;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-)
-    else
-        config=$(cat << EOF
-server {
-    listen 80;
-    server_name $domain;
-
-    location / {
-        proxy_pass http://localhost:$frontend_port;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location /api {
-        proxy_pass http://localhost:$backend_port/api;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-)
-    fi
 
     echo "$config" | sudo tee /etc/nginx/sites-available/nexads > /dev/null
     run_command "sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/"
