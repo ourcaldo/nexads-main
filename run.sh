@@ -76,19 +76,11 @@ run_command "sudo systemctl disable nexads-automation.service" false
 run_command "sudo rm -f /etc/nginx/sites-enabled/nexads" false
 run_command "sudo rm -f /etc/nginx/sites-available/nexads" false
 
-# Remove ALL SSL certificates to prevent conflicts
-run_command "sudo certbot delete --cert-name nexads.nexpocket.com --non-interactive" false
-run_command "sudo certbot delete --cert-name app.camarjaya.co.id --non-interactive" false
+# Remove ONLY nexads SSL certificate if it exists
 run_command "sudo certbot delete --cert-name $DOMAIN --non-interactive" false
 
-# Remove any SSL certificate references from all nginx configs
-run_command "sudo find /etc/nginx -name '*.conf' -o -name '*nginx*' | sudo xargs grep -l 'ssl_certificate' | sudo xargs sed -i '/ssl_certificate/d'" false
-run_command "sudo find /etc/nginx -name '*.conf' -o -name '*nginx*' | sudo xargs grep -l 'ssl_stapling/d'" false
-
-# Remove SSL directories
-run_command "sudo rm -rf /etc/letsencrypt/live/nexads.nexpocket.com" false
-run_command "sudo rm -rf /etc/letsencrypt/live/app.camarjaya.co.id" false
-run_command "sudo rm -rf /etc/nginx/ssl-certificates" false
+# Remove ONLY nexads SSL directory
+run_command "sudo rm -rf /etc/letsencrypt/live/$DOMAIN" false
 
 # Reload nginx
 run_command "sudo systemctl reload nginx" false
