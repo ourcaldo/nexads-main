@@ -98,39 +98,154 @@ run_command() {
 
 # Function to cleanup previous deployment
 cleanup_previous_deployment() {
-    print_status "Cleaning up previous deployment..."
+    print_header "Cleaning Up Previous Deployment"
 
-    # Stop PM2 processes
-    run_command "pm2 stop nexads-backend nexads-frontend" false
-    run_command "pm2 delete nexads-backend nexads-frontend" false
-
-    # Remove nginx configuration completely
-    run_command "sudo rm -f /etc/nginx/sites-available/nexads*" false
-    run_command "sudo rm -f /etc/nginx/sites-enabled/nexads*" false
+    # Remove existing nginx config
+    print_status "Removing existing nginx configuration..."
+    run_command "sudo rm -f /etc/nginx/sites-available/nexads" false
+    run_command "sudo rm -f /etc/nginx/sites-enabled/nexads" false
 
     # Remove ALL nexads-related SSL certificates
-    run_command "sudo certbot delete --cert-name nexads.nexpocket.com --non-interactive" false
-    run_command "sudo certbot delete --cert-name nexads --non-interactive" false
-
-    # Remove any leftover SSL certificates for this domain if it exists
     if [ -n "$domain" ] && [[ "$domain" != "localhost" ]] && [[ "$domain" != "0.0.0.0" ]] && [[ "$domain" =~ \. ]]; then
+        print_status "Removing existing SSL certificates for $domain..."
         run_command "sudo certbot delete --cert-name $domain --non-interactive" false
     fi
 
-    # Kill processes on ports
-    run_command "sudo fuser -k 8000/tcp" false
-    run_command "sudo fuser -k 5000/tcp" false
-
-    # Stop nginx service to clear any bad configs
-    run_command "sudo systemctl stop nginx" false
-    
     # Remove default nginx config that might have SSL references
     run_command "sudo rm -f /etc/nginx/sites-enabled/default" false
+
+    # Stop PM2 processes
+    print_status "Stopping any running PM2 processes..."
+    run_command "pm2 stop nexads-backend nexads-frontend" false
+    run_command "pm2 delete nexads-backend nexads-frontend" false
+
+    # Kill processes on ports
+    print_status "Freeing up ports..."
+    run_command "sudo fuser -k 8000/tcp" false
+    run_command "sudo fuser -k 5000/tcp" false
+}
+
+# Function to create nginx configuration
+create_nginx_config() {
+    print_header "Creating Nginx Configuration"
+
+    local ssl_config=""
+    local listen_directives="listen 80;"
+    
+    if [ "$use_ssl" = true ]; then
+        # Dynamic SSL paths based on domain
+        local ssl_cert_path="/etc/letsencrypt/live/${domain}/fullchain.pem"
+        local ssl_key_path="/etc/letsencrypt/live/${domain}/privkey.pem"
+        
+        listen_directives="listen 443 ssl; listen [::]:443 ssl;"
+        
+        ssl_config=$(cat <<EOF
+    ssl_certificate ${ssl_cert_path};
+    ssl_certificate_key ${ssl_key_path};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers EECDH+AESGCM:EDH+AESGCM;
+    ssl_ecdh_curve secp384r1;
+    ssl_session_timeout  10m;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 8.8.8.8 8.8.4.4 valid=300s;
+    resolver_timeout 5s;
+EOF
+        )
+    fi
+
+    local nginx_config=$(cat <<EOF
+server {
+    ${listen_directives}
+    server_name ${domain};
+
+    ${ssl_config}
+
+    location / {
+        proxy_pass http://localhost:${frontend_port};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location /api {
+        proxy_pass http://localhost:${backend_port}/api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # Redirect HTTP to HTTPS if SSL is enabled
+    $([ "$use_ssl" = true ] && echo 'if ($scheme != "https") {
+        return 301 https://$host$request_uri;
+    }')
+}
+EOF
+    )
+
+    print_status "Creating nginx configuration file..."
+    echo "$nginx_config" | sudo tee /etc/nginx/sites-available/nexads > /dev/null
+    
+    run_command "sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/"
+    run_command "sudo nginx -t"
+    
+    # Ensure nginx is running before trying to reload
+    if ! systemctl is-active --quiet nginx; then
+        print_status "Starting nginx service..."
+        run_command "sudo systemctl start nginx"
+    else
+        print_status "Reloading nginx service..."
+        run_command "sudo systemctl reload nginx"
+    fi
+}
+
+# Function to setup SSL with certbot
+setup_ssl() {
+    print_header "Setting Up SSL Certificate"
+
+    # First create basic HTTP config
+    print_status "Creating temporary HTTP configuration..."
+    create_nginx_config
+    
+    # Install certbot if not already installed
+    if ! command -v certbot &> /dev/null; then
+        print_status "Installing certbot..."
+        run_command "sudo apt install -y certbot python3-certbot-nginx"
+    fi
+    
+    # Obtain certificate
+    print_status "Obtaining SSL certificate for $domain..."
+    if sudo certbot --nginx -d "$domain" --non-interactive --agree-tos --email "$ssl_email" --redirect; then
+        print_status "SSL certificate successfully obtained"
+        
+        # Update nginx config with SSL settings
+        print_status "Updating nginx configuration with SSL settings..."
+        create_nginx_config
+    else
+        print_error "Failed to obtain SSL certificate"
+        print_warning "Continuing without SSL - you can manually configure SSL later with:"
+        print_warning "sudo certbot --nginx -d $domain"
+        use_ssl=false
+        create_nginx_config
+    fi
 }
 
 # Main configuration function
 configure_environment() {
-    print_header "nexAds Environment Configuration"
+    print_header "Environment Configuration"
 
     # Domain/IP configuration
     echo
@@ -244,6 +359,9 @@ configure_environment() {
     echo "Frontend Port: $frontend_port"
     echo "Backend Port: $backend_port"
     echo "SSL Enabled: $use_ssl"
+    if [ "$use_ssl" = true ]; then
+        echo "SSL Email: $ssl_email"
+    fi
     echo "Admin Username: $auth_username"
     echo "Admin Password: $auth_password"
 
@@ -295,6 +413,8 @@ EOF
 
     if [ "$use_ssl" = true ]; then
         echo "SSL_EMAIL=$ssl_email" >> .env
+        echo "SSL_CERT_PATH=/etc/letsencrypt/live/$domain/fullchain.pem" >> .env
+        echo "SSL_KEY_PATH=/etc/letsencrypt/live/$domain/privkey.pem" >> .env
     fi
 
     cat >> .env << EOF
@@ -463,70 +583,25 @@ install_dependencies() {
     print_status "Dependencies installed successfully"
 }
 
-# Function to create basic nginx configuration (without SSL)
-create_basic_nginx_config() {
-    print_status "Creating basic nginx configuration..."
-
-    config=$(cat << EOF
-server {
-    listen 80;
-    server_name $domain;
-
-    location / {
-        proxy_pass http://localhost:$frontend_port;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-
-    location /api {
-        proxy_pass http://localhost:$backend_port/api;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-)
-
-    echo "$config" | sudo tee /etc/nginx/sites-available/nexads > /dev/null
-    run_command "sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/"
-    
-    # Test nginx config, but don't fail if SSL certificates are missing
-    if sudo nginx -t 2>/dev/null; then
-        run_command "sudo systemctl reload nginx"
-    else
-        print_warning "Nginx test failed (likely missing SSL certificates). Will be fixed after certbot runs."
-        run_command "sudo systemctl start nginx" false
-    fi
-}
-
 # Function to start services
 start_services() {
-    print_status "Starting services with PM2..."
+    print_header "Starting Services"
 
     # Start backend
+    print_status "Starting backend service..."
     cd backend
     run_command "pm2 start main.py --name nexads-backend --interpreter python3"
     cd ..
 
     # Build and start frontend
+    print_status "Building and starting frontend service..."
     cd frontend
     run_command "npm run build"
-    run_command "pm2 serve build/ $frontend_port --name nexads-frontend"
+    run_command "pm2 serve build/ $frontend_port --name nexads-frontend --spa"
     cd ..
 
     # Save PM2 configuration
+    print_status "Saving PM2 configuration..."
     run_command "pm2 save"
     run_command "pm2 startup" false
 
@@ -552,20 +627,12 @@ main() {
     # Install dependencies
     install_dependencies
 
-    # Setup nginx configuration - PROPER ORDER for SSL
+    # Setup nginx configuration
     if [ "$use_ssl" = true ]; then
-        print_status "Setting up SSL configuration..."
-        # 1. Create basic HTTP config first
-        create_basic_nginx_config
-        # 2. Get SSL certificate with deploy-hook to only reload on success
-        print_status "Obtaining SSL certificate..."
-        run_command "sudo apt install -y certbot python3-certbot-nginx"
-        print_status "Temporarily disabling strict nginx check before certbot..."
-        run_command "sudo certbot --nginx -d $domain --non-interactive --agree-tos --email $ssl_email --redirect --deploy-hook 'systemctl reload nginx'"
-        print_status "SSL certificate obtained and nginx configured automatically"
+        setup_ssl
     else
         print_status "Creating nginx configuration without SSL..."
-        create_basic_nginx_config
+        create_nginx_config
     fi
 
     # Start services
