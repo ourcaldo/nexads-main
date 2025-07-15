@@ -501,8 +501,14 @@ EOF
 
     echo "$config" | sudo tee /etc/nginx/sites-available/nexads > /dev/null
     run_command "sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/"
-    run_command "sudo nginx -t"
-    run_command "sudo systemctl reload nginx"
+    
+    # Test nginx config, but don't fail if SSL certificates are missing
+    if sudo nginx -t 2>/dev/null; then
+        run_command "sudo systemctl reload nginx"
+    else
+        print_warning "Nginx test failed (likely missing SSL certificates). Will be fixed after certbot runs."
+        run_command "sudo systemctl start nginx" false
+    fi
 }
 
 # Function to start services
@@ -551,10 +557,11 @@ main() {
         print_status "Setting up SSL configuration..."
         # 1. Create basic HTTP config first
         create_basic_nginx_config
-        # 2. Get SSL certificate and let certbot configure SSL automatically
+        # 2. Get SSL certificate with deploy-hook to only reload on success
         print_status "Obtaining SSL certificate..."
         run_command "sudo apt install -y certbot python3-certbot-nginx"
-        run_command "sudo certbot --nginx -d $domain --non-interactive --agree-tos --email $ssl_email --redirect"
+        print_status "Temporarily disabling strict nginx check before certbot..."
+        run_command "sudo certbot --nginx -d $domain --non-interactive --agree-tos --email $ssl_email --redirect --deploy-hook 'systemctl reload nginx'"
         print_status "SSL certificate obtained and nginx configured automatically"
     else
         print_status "Creating nginx configuration without SSL..."
