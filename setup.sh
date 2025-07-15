@@ -104,18 +104,25 @@ cleanup_previous_deployment() {
     run_command "pm2 stop nexads-backend nexads-frontend" false
     run_command "pm2 delete nexads-backend nexads-frontend" false
 
-    # Remove nginx configuration
-    run_command "sudo rm -f /etc/nginx/sites-available/nexads" false
-    run_command "sudo rm -f /etc/nginx/sites-enabled/nexads" false
+    # Remove nginx configuration completely
+    run_command "sudo rm -f /etc/nginx/sites-available/nexads*" false
+    run_command "sudo rm -f /etc/nginx/sites-enabled/nexads*" false
 
-    # Remove SSL certificates (only nexads related)
+    # Remove ALL nexads-related SSL certificates
+    run_command "sudo certbot delete --cert-name nexads.nexpocket.com --non-interactive" false
     run_command "sudo certbot delete --cert-name nexads --non-interactive" false
+    
+    # Remove any leftover SSL certificates for this domain if it exists
+    if [ -n "$domain" ] && [[ "$domain" != "localhost" ]] && [[ "$domain" != "0.0.0.0" ]] && [[ "$domain" =~ \. ]]; then
+        run_command "sudo certbot delete --cert-name $domain --non-interactive" false
+    fi
 
     # Kill processes on ports
     run_command "sudo fuser -k 8000/tcp" false
     run_command "sudo fuser -k 5000/tcp" false
 
-    # Reload nginx
+    # Test and reload nginx to clear any bad configs
+    run_command "sudo nginx -t" false
     run_command "sudo systemctl reload nginx" false
 }
 
@@ -633,14 +640,15 @@ main() {
     # Configure environment
     configure_environment
 
+    # Install dependencies first to avoid conflicts
+    install_dependencies
+
     # Clean up previous deployment
     cleanup_previous_deployment
 
-    # Install dependencies
-    install_dependencies
-
     # Setup nginx configuration
     if [ "$use_ssl" = true ]; then
+        print_status "Setting up SSL configuration..."
         setup_ssl
     else
         print_status "Creating nginx configuration without SSL..."
