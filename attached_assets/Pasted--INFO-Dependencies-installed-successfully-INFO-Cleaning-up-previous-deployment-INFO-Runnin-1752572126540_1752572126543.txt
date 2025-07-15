@@ -1,0 +1,31 @@
+[INFO] Dependencies installed successfully
+[INFO] Cleaning up previous deployment...
+[INFO] Running: pm2 stop nexads-backend nexads-frontend
+[PM2][ERROR] Process or Namespace nexads-backend not found
+[INFO] Running: pm2 delete nexads-backend nexads-frontend
+[PM2][ERROR] Process or Namespace nexads-backend not found
+[INFO] Running: sudo rm -f /etc/nginx/sites-available/nexads*
+[INFO] Running: sudo rm -f /etc/nginx/sites-enabled/nexads*
+[INFO] Running: sudo certbot delete --cert-name nexads.nexpocket.com --non-interactive
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+No certificate found with name nexads.nexpocket.com (expected /etc/letsencrypt/renewal/nexads.nexpocket.com.conf).
+Ask for help or search for solutions at https://community.letsencrypt.org. See the logfile /var/log/letsencrypt/letsencrypt.log or re-run Certbot with -v for more details.
+[INFO] Running: sudo certbot delete --cert-name nexads --non-interactive
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+No certificate found with name nexads (expected /etc/letsencrypt/renewal/nexads.conf).
+Ask for help or search for solutions at https://community.letsencrypt.org. See the logfile /var/log/letsencrypt/letsencrypt.log or re-run Certbot with -v for more details.
+[INFO] Running: sudo fuser -k 8000/tcp
+[INFO] Running: sudo fuser -k 5000/tcp
+[INFO] Running: sudo nginx -t
+nginx: [emerg] cannot load certificate "/etc/letsencrypt/live/nexads.nexpocket.com/fullchain.pem": BIO_new_file() failed (SSL: error:80000002:system library::No such file or directory:calling fopen(/etc/letsencrypt/live/nexads.nexpocket.com/fullchain.pem, r) error:10000080:BIO routines::no such file)
+nginx: configuration file /etc/nginx/nginx.conf test failed
+[INFO] Running: sudo systemctl reload nginx
+nginx.service is not active, cannot reload.
+[INFO] Creating nginx configuration without SSL...
+[INFO] Creating basic nginx configuration...
+[INFO] Running: sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/
+[INFO] Running: sudo nginx -t
+nginx: [emerg] cannot load certificate "/etc/letsencrypt/live/nexads.nexpocket.com/fullchain.pem": BIO_new_file() failed (SSL: error:80000002:system library::No such file or directory:calling fopen(/etc/letsencrypt/live/nexads.nexpocket.com/fullchain.pem, r) error:10000080:BIO routines::no such file)
+nginx: configuration file /etc/nginx/nginx.conf test failed
+[ERROR] Command failed: sudo nginx -t
+nexpocket@cloud-2:~/nexads-main$
