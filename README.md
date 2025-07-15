@@ -15,6 +15,28 @@ A web-based control panel for managing the nexAds automation tool.
 
 ## Quick Start
 
+### Automated Setup (Recommended)
+
+1. Run the automated setup script:
+   ```bash
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+
+2. Follow the interactive prompts to configure:
+   - Domain/IP settings
+   - Port configuration
+   - Authentication credentials
+   - SSL settings
+
+3. The script will automatically:
+   - Install dependencies
+   - Configure nginx
+   - Set up SSL (if using domain)
+   - Deploy the application
+
+### Manual Setup
+
 1. Run the deployment script:
    ```bash
    python3 deploy.py
@@ -24,9 +46,7 @@ A web-based control panel for managing the nexAds automation tool.
 
 3. Access the panel at your configured domain
 
-4. Login with default credentials:
-   - Username: `admin`
-   - Password: `admin123`
+4. Login with your configured credentials (default: admin/admin123)
 
 ## Manual Installation
 

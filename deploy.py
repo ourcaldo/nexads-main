@@ -167,7 +167,11 @@ server {{
     run_command("sudo systemctl reload nginx")
 
 def create_env_file(domain, frontend_port, backend_port, use_ssl):
-    """Create .env file"""
+    """Create .env file if it doesn't exist"""
+    if os.path.exists('.env'):
+        print("Using existing .env file...")
+        return
+    
     print("Creating .env file...")
     
     protocol = "https" if use_ssl else "http"
@@ -205,21 +209,34 @@ def start_services():
 def main():
     print("=== nexAds Deployment Script ===")
     
-    # Get user input
-    domain = input("Enter domain (e.g., google.com) or press Enter for localhost: ").strip()
-    if not domain:
-        domain = get_local_ip()
+    # Check if running in automated mode
+    auto_mode = len(sys.argv) > 1 and sys.argv[1] == '--auto'
     
-    frontend_port = input("Enter frontend port (default: 4000): ").strip()
-    if not frontend_port:
-        frontend_port = "4000"
-    
-    backend_port = input("Enter backend port (default: 8000): ").strip()
-    if not backend_port:
-        backend_port = "8000"
-    
-    # Determine SSL usage
-    use_ssl = not (domain.replace('.', '').isdigit() or domain == "localhost" or domain.startswith("192.168.") or domain.startswith("10.") or domain.startswith("172."))
+    if auto_mode:
+        # Get configuration from environment variables
+        domain = os.getenv('DOMAIN', get_local_ip())
+        frontend_port = os.getenv('FRONTEND_PORT', '5000')
+        backend_port = os.getenv('BACKEND_PORT', '8000')
+        use_ssl = os.getenv('USE_SSL', 'false').lower() == 'true'
+        
+        print("Running in automated mode...")
+        print(f"Configuration loaded from environment:")
+    else:
+        # Get user input
+        domain = input("Enter domain (e.g., google.com) or press Enter for localhost: ").strip()
+        if not domain:
+            domain = get_local_ip()
+        
+        frontend_port = input("Enter frontend port (default: 5000): ").strip()
+        if not frontend_port:
+            frontend_port = "5000"
+        
+        backend_port = input("Enter backend port (default: 8000): ").strip()
+        if not backend_port:
+            backend_port = "8000"
+        
+        # Determine SSL usage
+        use_ssl = not (domain.replace('.', '').isdigit() or domain == "localhost" or domain.startswith("192.168.") or domain.startswith("10.") or domain.startswith("172."))
     
     print(f"\nConfiguration:")
     print(f"Domain: {domain}")
@@ -227,10 +244,11 @@ def main():
     print(f"Backend Port: {backend_port}")
     print(f"SSL: {'Yes' if use_ssl else 'No'}")
     
-    confirm = input("\nProceed with deployment? (y/N): ").strip().lower()
-    if confirm != 'y':
-        print("Deployment cancelled.")
-        return
+    if not auto_mode:
+        confirm = input("\nProceed with deployment? (y/N): ").strip().lower()
+        if confirm != 'y':
+            print("Deployment cancelled.")
+            return
     
     try:
         # Clean up previous deployment
