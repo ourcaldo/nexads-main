@@ -1,0 +1,38 @@
+{
+  "social": {
+    "Facebook": [
+      "facebook.com",
+      "fb.me",
+      "m.facebook.com",
+      "l.facebook.com"
+    ],
+    "Instagram": [
+      "instagram.com",
+      "l.instagram.com"
+    ],
+    "Linkedin": [
+      "linkedin.com",
+      "lnkd.in",
+      "linkedin.android"
+    ],
+    "Snapchat": [
+      "snapchat.com"
+    ],
+    "Telegram": [
+      "web.telegram.org",
+      "org.telegram.messenger"
+    ],
+    "Threads": [
+      "threads.net",
+      "l.threads.net"
+    ],
+    "Tiktok": [
+      "tiktok.com"
+    ],
+    "Twitter": [
+      "Twitter.com",
+      "t.co",
+      "x.com"
+    ]
+  }
+}

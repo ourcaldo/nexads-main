@@ -1,0 +1,50 @@
+{
+    "proxy": {
+        "type": "http",
+        "credentials": "",
+        "file": "proxy.txt"
+    },
+    "browser": {
+        "headless_mode": "True",
+        "disable_ublock": true,
+        "random_activity": true,
+        "auto_accept_cookies": true,
+        "prevent_redirects": true,
+        "activities": [
+            "scroll",
+            "hover",
+            "click"
+        ]
+    },
+    "delay": {
+        "min_time": 3,
+        "max_time": 10
+    },
+    "session": {
+        "enabled": true,
+        "count": 0,
+        "max_time": 100
+    },
+    "threads": 1,
+    "os_fingerprint": [
+        "windows",
+        "macos",
+        "linux"
+    ],
+    "device_type": {
+        "mobile": 70,
+        "desktop": 30
+    },
+    "referrer": {
+        "types": [
+            "random"
+        ],
+        "organic_keywords": "How Insurance Adjusters Review Injury Claims Without Missing a Detail\nHow a Lawyer Can Help You Get a Higher Insurance Settlement Offer camar"
+    },
+    "urls": [],
+    "ads": {
+        "ctr": 1.0,
+        "min_time": 30,
+        "max_time": 60
+    }
+}
