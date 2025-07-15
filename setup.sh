@@ -121,9 +121,11 @@ cleanup_previous_deployment() {
     run_command "sudo fuser -k 8000/tcp" false
     run_command "sudo fuser -k 5000/tcp" false
 
-    # Test and reload nginx to clear any bad configs
-    run_command "sudo nginx -t" false
-    run_command "sudo systemctl reload nginx" false
+    # Stop nginx service to clear any bad configs
+    run_command "sudo systemctl stop nginx" false
+    
+    # Remove default nginx config that might have SSL references
+    run_command "sudo rm -f /etc/nginx/sites-enabled/default" false
 }
 
 # Main configuration function
@@ -461,23 +463,6 @@ install_dependencies() {
     print_status "Dependencies installed successfully"
 }
 
-# Function to setup SSL
-setup_ssl() {
-    print_status "Setting up SSL for domain: $domain"
-
-    # Install certbot
-    run_command "sudo apt install -y certbot python3-certbot-nginx"
-
-    # Create basic nginx config first without SSL
-    create_basic_nginx_config
-
-    # Get SSL certificate
-    print_status "Obtaining SSL certificate..."
-    run_command "sudo certbot --nginx -d $domain --non-interactive --agree-tos --email $ssl_email --redirect"
-
-    print_status "SSL certificate obtained and nginx configured automatically"
-}
-
 # Function to create basic nginx configuration (without SSL)
 create_basic_nginx_config() {
     print_status "Creating basic nginx configuration..."
@@ -549,22 +534,28 @@ main() {
     # Check requirements
     check_requirements
 
+    # Clean up previous deployment FIRST - before anything else
+    cleanup_previous_deployment
+
     # Backup existing configuration
     backup_config
 
     # Configure environment
     configure_environment
 
-    # Install dependencies first to avoid conflicts
+    # Install dependencies
     install_dependencies
 
-    # Clean up previous deployment
-    cleanup_previous_deployment
-
-    # Setup nginx configuration
+    # Setup nginx configuration - PROPER ORDER for SSL
     if [ "$use_ssl" = true ]; then
         print_status "Setting up SSL configuration..."
-        setup_ssl
+        # 1. Create basic HTTP config first
+        create_basic_nginx_config
+        # 2. Get SSL certificate and let certbot configure SSL automatically
+        print_status "Obtaining SSL certificate..."
+        run_command "sudo apt install -y certbot python3-certbot-nginx"
+        run_command "sudo certbot --nginx -d $domain --non-interactive --agree-tos --email $ssl_email --redirect"
+        print_status "SSL certificate obtained and nginx configured automatically"
     else
         print_status "Creating nginx configuration without SSL..."
         create_basic_nginx_config
