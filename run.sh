@@ -77,7 +77,7 @@ run_command "sudo rm -f /etc/nginx/sites-enabled/nexads" false
 run_command "sudo rm -f /etc/nginx/sites-available/nexads" false
 
 # Remove ONLY nexads SSL certificates
-run_command "sudo certbot delete --cert-name nexads" false
+run_command "sudo certbot delete --cert-name $DOMAIN --non-interactive" false
 
 # Reload nginx
 run_command "sudo systemctl reload nginx" false
@@ -160,7 +160,8 @@ fi
 if [ "$SSL" = "true" ]; then
     echo -e "${YELLOW}Setting up SSL...${NC}"
     
-    SSL_CMD="sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect"
+    # Non-interactive SSL setup with proper email and agreement flags
+    SSL_CMD="sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --register-unsafely-without-email --redirect"
     
     if run_command "$SSL_CMD" false; then
         echo -e "${GREEN}✓ SSL certificate installed${NC}"
@@ -168,10 +169,11 @@ if [ "$SSL" = "true" ]; then
         echo -e "${YELLOW}⚠ SSL setup failed - continuing without SSL${NC}"
         echo -e "${YELLOW}Note: Make sure your domain points to this server's IP address${NC}"
         echo -e "${YELLOW}You can run the following command later to setup SSL:${NC}"
-        echo -e "${YELLOW}sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN${NC}"
+        echo -e "${YELLOW}sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --register-unsafely-without-email${NC}"
         
         # Update SSL to false in .env
         sed -i 's/SSL=true/SSL=false/' .env
+        SSL="false"
     fi
 fi
 
@@ -241,6 +243,6 @@ echo -e "\n${GREEN}============================================================$
 echo -e "${GREEN}Setup completed! Your NexAds control panel is ready.${NC}"
 if [ "$SSL" = "false" ] && [ "$DOMAIN" != "localhost" ]; then
     echo -e "\n${YELLOW}Note: SSL setup failed. To retry SSL later, run:${NC}"
-    echo -e "${YELLOW}sudo certbot --nginx -d $DOMAIN${NC}"
+    echo -e "${YELLOW}sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos --register-unsafely-without-email${NC}"
 fi
 echo -e "${GREEN}============================================================${NC}"
