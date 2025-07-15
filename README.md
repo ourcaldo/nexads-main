@@ -35,18 +35,9 @@ A web-based control panel for managing the nexAds automation tool.
    - Set up SSL (if using domain)
    - Deploy the application
 
-### Manual Setup
+4. Access the panel at your configured domain
 
-1. Run the deployment script:
-   ```bash
-   python3 deploy.py
-   ```
-
-2. Follow the prompts to configure your domain and ports
-
-3. Access the panel at your configured domain
-
-4. Login with your configured credentials (default: admin/admin123)
+5. Login with your configured credentials (default: admin/admin123)
 
 ## Manual Installation
 

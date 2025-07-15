@@ -68,17 +68,56 @@ validate_domain() {
 
 # Function to get local IP
 get_local_ip() {
-    hostname -I | awk '{print $1}'
+    hostname -I | awk '{print $1}' 2>/dev/null || echo "0.0.0.0"
 }
 
 # Function to check if port is available
 check_port() {
     local port=$1
-    if netstat -tuln | grep -q ":$port "; then
+    if netstat -tuln 2>/dev/null | grep -q ":$port "; then
         return 1
     else
         return 0
     fi
+}
+
+# Function to run command safely
+run_command() {
+    local command="$1"
+    local check="${2:-true}"
+    
+    print_status "Running: $command"
+    if [ "$check" = "true" ]; then
+        if ! eval "$command"; then
+            print_error "Command failed: $command"
+            exit 1
+        fi
+    else
+        eval "$command" || true
+    fi
+}
+
+# Function to cleanup previous deployment
+cleanup_previous_deployment() {
+    print_status "Cleaning up previous deployment..."
+    
+    # Stop PM2 processes
+    run_command "pm2 stop nexads-backend nexads-frontend" false
+    run_command "pm2 delete nexads-backend nexads-frontend" false
+    
+    # Remove nginx configuration
+    run_command "sudo rm -f /etc/nginx/sites-available/nexads" false
+    run_command "sudo rm -f /etc/nginx/sites-enabled/nexads" false
+    
+    # Remove SSL certificates (only nexads related)
+    run_command "sudo certbot delete --cert-name nexads" false
+    
+    # Kill processes on ports
+    run_command "sudo fuser -k 8000/tcp" false
+    run_command "sudo fuser -k 5000/tcp" false
+    
+    # Reload nginx
+    run_command "sudo systemctl reload nginx" false
 }
 
 # Main configuration function
@@ -289,7 +328,7 @@ check_requirements() {
     fi
     
     # Check available disk space (require at least 1GB)
-    available_space=$(df / | awk 'NR==2 {print $4}')
+    available_space=$(df / | awk 'NR==2 {print $4}' 2>/dev/null || echo "999999999")
     if [ "$available_space" -lt 1048576 ]; then
         print_warning "Low disk space detected. At least 1GB free space is recommended."
     fi
@@ -306,7 +345,7 @@ backup_config() {
     
     if [ -f /etc/nginx/sites-enabled/nexads ]; then
         print_status "Backing up existing nginx configuration..."
-        sudo cp /etc/nginx/sites-enabled/nexads /tmp/nexads.nginx.backup.$(date +%Y%m%d_%H%M%S)
+        sudo cp /etc/nginx/sites-enabled/nexads /tmp/nexads.nginx.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
     fi
 }
 
@@ -316,34 +355,162 @@ install_dependencies() {
     
     # Update package list
     print_status "Updating package list..."
-    sudo apt update -y
+    run_command "sudo apt update -y"
     
     # Install basic dependencies
     print_status "Installing basic dependencies..."
-    sudo apt install -y curl wget git nginx python3 python3-pip nodejs npm openssl
+    run_command "sudo apt install -y curl wget git nginx python3 python3-pip openssl"
+    
+    # Check if we need to update Node.js
+    node_version=$(node --version 2>/dev/null | sed 's/v//' | cut -d'.' -f1 || echo "0")
+    if [ "$node_version" -lt 16 ]; then
+        print_status "Updating Node.js to version 18..."
+        run_command "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
+        run_command "sudo apt install -y nodejs"
+    else
+        print_status "Node.js version is sufficient (v$node_version)"
+    fi
     
     # Install PM2
-    print_status "Installing PM2..."
-    sudo npm install -g pm2
+    print_status "Installing/updating PM2..."
+    run_command "sudo npm install -g pm2@latest"
     
     # Install Python dependencies
     print_status "Installing Python dependencies..."
     if [ -f core/requirements.txt ]; then
-        pip3 install -r core/requirements.txt
+        run_command "pip3 install -r core/requirements.txt"
     fi
     
     # Install backend dependencies
-    pip3 install fastapi uvicorn python-multipart aiofiles bcrypt python-jose[cryptography]
+    run_command "pip3 install fastapi uvicorn python-multipart aiofiles bcrypt python-jose[cryptography]"
     
     # Install frontend dependencies
     if [ -d frontend ]; then
         print_status "Installing frontend dependencies..."
         cd frontend
-        npm install
+        run_command "npm install"
         cd ..
     fi
     
     print_status "Dependencies installed successfully"
+}
+
+# Function to setup SSL
+setup_ssl() {
+    print_status "Setting up SSL for domain: $domain"
+    
+    # Install certbot
+    run_command "sudo apt install -y certbot python3-certbot-nginx"
+    
+    # Get SSL certificate
+    run_command "sudo certbot --nginx -d $domain --non-interactive --agree-tos --email $ssl_email"
+}
+
+# Function to create nginx configuration
+create_nginx_config() {
+    print_status "Creating nginx configuration..."
+    
+    if [ "$use_ssl" = true ]; then
+        config=$(cat << EOF
+server {
+    listen 80;
+    server_name $domain;
+    return 301 https://\$server_name\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name $domain;
+    
+    ssl_certificate /etc/letsencrypt/live/$domain/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;
+    
+    location / {
+        proxy_pass http://localhost:$frontend_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    location /api {
+        proxy_pass http://localhost:$backend_port/api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+)
+    else
+        config=$(cat << EOF
+server {
+    listen 80;
+    server_name $domain;
+    
+    location / {
+        proxy_pass http://localhost:$frontend_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    location /api {
+        proxy_pass http://localhost:$backend_port/api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+)
+    fi
+    
+    echo "$config" | sudo tee /etc/nginx/sites-available/nexads > /dev/null
+    run_command "sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/"
+    run_command "sudo nginx -t"
+    run_command "sudo systemctl reload nginx"
+}
+
+# Function to start services
+start_services() {
+    print_status "Starting services with PM2..."
+    
+    # Start backend
+    cd backend
+    run_command "pm2 start main.py --name nexads-backend --interpreter python3"
+    cd ..
+    
+    # Build and start frontend
+    cd frontend
+    run_command "npm run build"
+    run_command "pm2 serve build/ $frontend_port --name nexads-frontend"
+    cd ..
+    
+    # Save PM2 configuration
+    run_command "pm2 save"
+    run_command "pm2 startup" false
+    
+    print_status "Services started successfully"
 }
 
 # Main execution
@@ -359,34 +526,37 @@ main() {
     # Configure environment
     configure_environment
     
+    # Clean up previous deployment
+    cleanup_previous_deployment
+    
     # Install dependencies
     install_dependencies
     
-    # Run Python deployment script
-    print_header "Running Deployment"
-    print_status "Starting Python deployment script..."
+    # Setup nginx
+    create_nginx_config
     
-    # Export environment variables for deploy.py
-    export DOMAIN="$domain"
-    export FRONTEND_PORT="$frontend_port"
-    export BACKEND_PORT="$backend_port"
-    export USE_SSL="$use_ssl"
-    export AUTH_USERNAME="$auth_username"
-    export AUTH_PASSWORD="$auth_password"
-    export SECRET_KEY="$secret_key"
+    # Setup SSL if needed
+    if [ "$use_ssl" = true ]; then
+        setup_ssl
+    fi
     
-    # Run deployment script
-    python3 deploy.py --auto
+    # Start services
+    start_services
     
     print_header "Setup Complete"
     print_status "nexAds automation panel is now ready!"
     echo
+    protocol="http"
+    if [ "$use_ssl" = true ]; then
+        protocol="https"
+    fi
     echo "Access your panel at: $protocol://$domain"
     echo "Username: $auth_username"
     echo "Password: $auth_password"
     echo
     print_status "Configuration saved to .env file"
     print_status "Logs can be viewed with: sudo journalctl -u nexads-automation -f"
+    print_status "PM2 logs: pm2 logs"
 }
 
 # Run main function
