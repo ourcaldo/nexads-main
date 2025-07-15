@@ -1,0 +1,77 @@
+Masalahnya bukan di certbot, melainkan di urutan logika di skrip.
+
+Apa yang terjadi
+create_nginx_config menulis blok SSL penuh
+Di dalamnya sudah ada baris:
+
+nginx
+Copy
+Edit
+ssl_certificate /etc/letsencrypt/live/$domain/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;
+Setelah menulis file itu, fungsi langsung mem‑anggil:
+
+bash
+Copy
+Edit
+sudo nginx -t
+Karena sertifikat belum dibuat di langkah ini, NGINX gagal mem‑load berkas dan keluarlah error:
+cannot load certificate "/etc/letsencrypt/live/nexads.nexpocket.com/fullchain.pem"
+
+Kenapa sertifikat belum ada?
+Kamu baru menjalankan certbot di fungsi lain (setup_ssl).
+
+Tapi create_nginx_config dipanggil sebelum atau sekaligus dengan setup_ssl, sehingga urutannya terbalik.
+
+Cara memperbaiki
+Gunakan satu cara saja untuk membuat konfigurasi SSL.
+
+Opsi A – biarkan Certbot yang menulis blok SSL:
+
+bash
+Copy
+Edit
+# 1. Tulis config HTTP saja
+create_basic_nginx_config
+# 2. Dapatkan sertifikat + auto‑edit config
+certbot --nginx --non-interactive --agree-tos --email "$ssl_email" -d "$domain" --redirect
+Jangan panggil lagi create_nginx_config.
+
+Opsi B – kamu tulis sendiri blok SSL:
+
+bash
+Copy
+Edit
+# 1. Ambil sertifikat tanpa menyentuh Nginx
+certbot certonly --standalone --non-interactive --agree-tos --email "$ssl_email" -d "$domain"
+# 2. Tulis file lewat create_nginx_config (sekarang cert sudah ada)
+create_nginx_config
+Di sini certbot tidak memodifikasi Nginx, jadi urutan aman.
+
+Hapus duplikasi fungsi
+Dalam main() cukup pilih salah satu jalur:
+
+bash
+Copy
+Edit
+if [ "$use_ssl" = true ]; then
+    setup_ssl          # Sudah cukup, jangan panggil create_nginx_config lagi
+else
+    create_basic_nginx_config
+fi
+Perbaiki penghapusan sertifikat lama (opsional, tapi bermanfaat)
+
+bash
+Copy
+Edit
+# Sebelumnya:
+sudo certbot delete --cert-name nexads
+# Lebih tepat:
+sudo certbot delete --cert-name "$domain"
+Tambahkan hook reload supaya Nginx hanya di‑reload setelah sertifikat berhasil dibuat:
+
+bash
+Copy
+Edit
+certbot --nginx ... --deploy-hook "systemctl reload nginx"
+Dengan urutan yang benar, nginx -t hanya dijalankan setelah berkas /etc/letsencrypt/live/$domain/fullchain.pem benar‑benar ada, sehingga error tersebut tidak akan muncul lagi.
