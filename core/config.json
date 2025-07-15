@@ -41,7 +41,14 @@
         ],
         "organic_keywords": "How Insurance Adjusters Review Injury Claims Without Missing a Detail\nHow a Lawyer Can Help You Get a Higher Insurance Settlement Offer camar"
     },
-    "urls": [],
+    "urls": [
+        {
+            "url": "google.com",
+            "random_page": false,
+            "min_time": 30,
+            "max_time": 60
+        }
+    ],
     "ads": {
         "ctr": 1.0,
         "min_time": 30,
