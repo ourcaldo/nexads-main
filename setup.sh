@@ -110,7 +110,7 @@ cleanup_previous_deployment() {
     run_command "sudo rm -f /etc/nginx/sites-enabled/nexads" false
     
     # Remove SSL certificates (only nexads related)
-    run_command "sudo certbot delete --cert-name nexads" false
+    run_command "sudo certbot delete --cert-name nexads --non-interactive" false
     
     # Kill processes on ports
     run_command "sudo fuser -k 8000/tcp" false
@@ -359,21 +359,60 @@ install_dependencies() {
     
     # Install basic dependencies
     print_status "Installing basic dependencies..."
-    run_command "sudo apt install -y curl wget git nginx python3 python3-pip openssl"
+    run_command "sudo apt install -y curl wget git nginx python3 python3-pip openssl build-essential"
     
-    # Check if we need to update Node.js
+    # Check and install Node.js
+    print_status "Checking Node.js installation..."
     node_version=$(node --version 2>/dev/null | sed 's/v//' | cut -d'.' -f1 || echo "0")
-    if [ "$node_version" -lt 16 ]; then
-        print_status "Updating Node.js to version 18..."
+    npm_check=$(which npm 2>/dev/null || echo "")
+    
+    if [ "$node_version" -lt 16 ] || [ -z "$npm_check" ]; then
+        print_status "Installing Node.js 18 and npm..."
+        # Remove any existing nodejs/npm
+        run_command "sudo apt remove -y nodejs npm" false
+        
+        # Install Node.js 18
         run_command "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
         run_command "sudo apt install -y nodejs"
+        
+        # Verify installation
+        node_version=$(node --version 2>/dev/null | sed 's/v//' | cut -d'.' -f1 || echo "0")
+        npm_version=$(npm --version 2>/dev/null || echo "none")
+        
+        if [ "$node_version" -lt 16 ] || [ "$npm_version" = "none" ]; then
+            print_error "Failed to install Node.js/npm properly. Trying alternative method..."
+            # Alternative installation method
+            run_command "wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash"
+            run_command "source ~/.bashrc && nvm install 18 && nvm use 18" false
+            # Create symlinks
+            run_command "sudo ln -sf ~/.nvm/versions/node/v18.*/bin/node /usr/local/bin/node" false
+            run_command "sudo ln -sf ~/.nvm/versions/node/v18.*/bin/npm /usr/local/bin/npm" false
+        fi
     else
         print_status "Node.js version is sufficient (v$node_version)"
+    fi
+    
+    # Verify npm is working
+    if ! npm --version >/dev/null 2>&1; then
+        print_error "npm is not working properly"
+        exit 1
     fi
     
     # Install PM2
     print_status "Installing/updating PM2..."
     run_command "sudo npm install -g pm2@latest"
+    
+    # Verify PM2 installation
+    if ! pm2 --version >/dev/null 2>&1; then
+        print_warning "PM2 installation failed, trying alternative method..."
+        run_command "npm install -g pm2@latest"
+        
+        # Add npm global bin to PATH if needed
+        if ! pm2 --version >/dev/null 2>&1; then
+            export PATH="$PATH:$(npm config get prefix)/bin"
+            echo 'export PATH="$PATH:$(npm config get prefix)/bin"' >> ~/.bashrc
+        fi
+    fi
     
     # Install Python dependencies
     print_status "Installing Python dependencies..."
@@ -382,13 +421,34 @@ install_dependencies() {
     fi
     
     # Install backend dependencies
-    run_command "pip3 install fastapi uvicorn python-multipart aiofiles bcrypt python-jose[cryptography]"
+    run_command "pip3 install fastapi uvicorn python-multipart aiofiles bcrypt python-jose[cryptography] passlib[bcrypt]"
     
     # Install frontend dependencies
     if [ -d frontend ]; then
         print_status "Installing frontend dependencies..."
         cd frontend
-        run_command "npm install"
+        
+        # Check if package.json exists
+        if [ ! -f package.json ]; then
+            print_error "package.json not found in frontend directory"
+            cd ..
+            exit 1
+        fi
+        
+        # Install with retry mechanism
+        for i in {1..3}; do
+            if npm install; then
+                break
+            else
+                print_warning "npm install failed, attempt $i/3"
+                if [ $i -eq 3 ]; then
+                    print_error "Failed to install frontend dependencies after 3 attempts"
+                    cd ..
+                    exit 1
+                fi
+                sleep 2
+            fi
+        done
         cd ..
     fi
     
@@ -402,8 +462,57 @@ setup_ssl() {
     # Install certbot
     run_command "sudo apt install -y certbot python3-certbot-nginx"
     
+    # Create basic nginx config first without SSL
+    create_basic_nginx_config
+    
     # Get SSL certificate
+    print_status "Obtaining SSL certificate..."
     run_command "sudo certbot --nginx -d $domain --non-interactive --agree-tos --email $ssl_email"
+    
+    # Update nginx config with SSL
+    create_nginx_config
+}
+
+# Function to create basic nginx configuration (without SSL)
+create_basic_nginx_config() {
+    print_status "Creating basic nginx configuration..."
+    
+    config=$(cat << EOF
+server {
+    listen 80;
+    server_name $domain;
+    
+    location / {
+        proxy_pass http://localhost:$frontend_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    location /api {
+        proxy_pass http://localhost:$backend_port/api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+)
+    
+    echo "$config" | sudo tee /etc/nginx/sites-available/nexads > /dev/null
+    run_command "sudo ln -sf /etc/nginx/sites-available/nexads /etc/nginx/sites-enabled/"
+    run_command "sudo nginx -t"
+    run_command "sudo systemctl reload nginx"
 }
 
 # Function to create nginx configuration
@@ -532,12 +641,11 @@ main() {
     # Install dependencies
     install_dependencies
     
-    # Setup nginx
-    create_nginx_config
-    
-    # Setup SSL if needed
+    # Setup SSL and nginx
     if [ "$use_ssl" = true ]; then
         setup_ssl
+    else
+        create_nginx_config
     fi
     
     # Start services
