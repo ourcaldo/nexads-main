@@ -1,0 +1,93 @@
+✓ Backend setup complete
+Setting up frontend...
+
+changed 1 package, and audited 1549 packages in 3s
+
+283 packages are looking for funding
+  run `npm fund` for details
+
+9 vulnerabilities (3 moderate, 6 high)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+Error running command: npm run build
+Error:
+✓ Frontend setup complete
+Setting up nginx...
+✓ Nginx configured
+Starting services...
+[PM2] Starting /usr/bin/bash in fork_mode (1 instance)
+[PM2] Done.
+┌────┬───────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name              │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼───────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 3  │ nexads-backend    │ default     │ N/A     │ fork    │ 1049218  │ 0      │ 1    │ stopped   │ 0%       │ 0b       │ nexpock… │ disabled │
+│ 0  │ nexjob            │ default     │ 0.39.7  │ fork    │ 996092   │ 37h    │ 0    │ online    │ 0%       │ 60.8mb   │ nexpock… │ disabled │
+└────┴───────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+[PM2] Saving current process list...
+[PM2] Successfully saved in /home/nexpocket/.pm2/dump.pm2
+
+Error running command: pm2 startup
+Error:
+✓ Services started
+
+============================================================
+           NEXADS CONTROL PANEL - SYSTEM INFO
+============================================================
+
+📋 ENVIRONMENT VARIABLES:
+   DOMAIN: localhost
+   FRONTEND_PORT: 4000
+   BACKEND_PORT: 8000
+   SSL: false
+   USERNAME: admin
+   PASSWORD: admin123
+
+🌐 ACCESS URLS:
+   Frontend: http://localhost
+   Backend API: http://localhost/api
+   Health Check: http://localhost/api/health
+
+🔒 SSL STATUS:
+   ⚠ SSL Certificate: DISABLED
+
+⚙️ NGINX CONFIGURATION:
+   Config File: /etc/nginx/sites-available/nexads
+   Enabled Link: /etc/nginx/sites-enabled/nexads
+   Nginx Status: ✓ RUNNING
+
+🚀 SERVICE STATUS:
+   ✓ Backend Service: RUNNING (PM2)
+
+🔌 PORT STATUS:
+   Backend Port 8000: ✗ CLOSED
+   HTTP Port 80: ✓ OPEN
+
+📁 IMPORTANT FILE LOCATIONS:
+   Project Root: /home/nexpocket/nexads-main
+   Core Config: /home/nexpocket/nexads-main/core/config.json
+   Proxy File: /home/nexpocket/nexads-main/core/proxy.txt
+   Environment: /home/nexpocket/nexads-main/.env
+   Nginx Config: /etc/nginx/sites-available/nexads
+   SSL Certificates: /etc/letsencrypt/live/localhost/ (if SSL enabled)
+
+🔐 AUTHENTICATION:
+   Username: admin
+   Password: admin123
+
+============================================================
+Setup completed! Your NexAds control panel is ready.
+============================================================
+Setup completed. Your NexAds control panel should be accessible now.
+nexpocket@cloud-2:~/nexads-main$ pm2 list
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ nexads-backend     │ fork     │ 15   │ errored   │ 0%       │ 0b       │
+│ 0  │ nexjob             │ fork     │ 0    │ online    │ 0%       │ 60.4mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+nexpocket@cloud-2:~/nexads-main$
