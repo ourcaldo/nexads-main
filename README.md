@@ -1,229 +1,103 @@
-# nexAds Web Interface
 
-A comprehensive web-based control panel for managing the nexAds automation system.
+# nexAds Automation Panel
+
+A web-based control panel for managing the nexAds automation tool.
 
 ## Features
 
-- **Dashboard**: Real-time status monitoring with system metrics
-- **Configuration Management**: Web-based config editor with validation
-- **Proxy Management**: Upload and manage proxy lists
-- **Log Viewer**: Real-time log monitoring with filtering
+- **Web Dashboard**: Modern, responsive interface for managing automation
+- **Real-time Control**: Start, stop, and restart automation from the web interface
+- **Configuration Management**: Edit all settings through the web interface
+- **Proxy Management**: Add, edit, and manage proxy lists
+- **Live Logs**: View system logs in real-time
 - **Authentication**: Secure login system
-- **Process Control**: Start, stop, pause, and resume automation
-- **Production Ready**: SSL support, nginx configuration, PM2 process management
+- **Production Ready**: Automatic nginx setup with SSL support
 
-## Quick Setup
+## Quick Start
 
-1. **Run the setup script**:
+1. Run the deployment script:
    ```bash
-   python3 setup.py
+   python3 deploy.py
    ```
 
-2. **Follow the prompts**:
-   - Enter your domain (or press Enter for localhost)
-   - Set frontend port (default: 4000)
-   - Set backend port (default: 8000)
-   - Choose SSL configuration
+2. Follow the prompts to configure your domain and ports
 
-3. **Access the panel**:
-   - Open your browser and navigate to your configured domain
-   - Login with: `admin` / `admin123`
+3. Access the panel at your configured domain
+
+4. Login with default credentials:
+   - Username: `admin`
+   - Password: `admin123`
 
 ## Manual Installation
 
-### Prerequisites
+If you prefer to install manually:
 
-```bash
-# Install Node.js 18+
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+1. Install dependencies:
+   ```bash
+   pip3 install -r core/requirements.txt
+   pip3 install fastapi uvicorn python-multipart aiofiles bcrypt python-jose[cryptography]
+   ```
 
-# Install PM2
-sudo npm install -g pm2
+2. Install frontend dependencies:
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   cd ..
+   ```
 
-# Install nginx
-sudo apt-get install -y nginx
+3. Start the backend:
+   ```bash
+   cd backend
+   python3 main.py
+   ```
 
-# Install certbot (for SSL)
-sudo apt-get install -y certbot python3-certbot-nginx
-```
-
-### Backend Setup
-
-```bash
-# Install Python dependencies
-pip3 install -r backend/requirements.txt
-
-# Start backend
-cd backend
-python3 main.py
-```
-
-### Frontend Setup
-
-```bash
-# Install dependencies
-cd frontend
-npm install
-
-# Build for production
-npm run build
-
-# Start frontend
-npm start
-```
+4. Serve the frontend (in another terminal):
+   ```bash
+   cd frontend
+   npm start
+   ```
 
 ## Configuration
 
-### Environment Variables
+The system uses environment variables for configuration. See `.env.example` for available options.
 
-Create a `.env` file in the root directory:
+## Security
 
-```env
-DOMAIN=your-domain.com
-FRONTEND_PORT=4000
-BACKEND_PORT=8000
-SSL_ENABLED=true
-AUTH_USERNAME=admin
-AUTH_PASSWORD=admin123
-JWT_SECRET=your-secret-key
-```
-
-### Nginx Configuration
-
-The setup script automatically configures nginx, but you can manually configure it:
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    
-    location /api {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    
-    location / {
-        proxy_pass http://localhost:4000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
+- Change default credentials in production
+- Use SSL for public deployments
+- Restrict access with firewall rules
+- Regular security updates
 
 ## API Endpoints
 
-### Authentication
-- `POST /api/auth/login` - Login and get JWT token
-
-### Configuration
-- `GET /api/config` - Get current configuration
+- `POST /api/auth/login` - Authentication
+- `GET /api/config` - Get configuration
 - `POST /api/config` - Update configuration
-
-### Proxy Management
-- `GET /api/proxies` - Get proxy list
-- `POST /api/proxies` - Update proxy list
-
-### Automation Control
-- `GET /api/status` - Get automation status
-- `POST /api/automation` - Control automation (start/stop/pause/resume)
-
-### Logs
+- `GET /api/proxy` - Get proxy list
+- `POST /api/proxy` - Update proxy list
+- `GET /api/automation/status` - Get automation status
+- `POST /api/automation/start` - Start automation
+- `POST /api/automation/stop` - Stop automation
+- `POST /api/automation/restart` - Restart automation
 - `GET /api/logs` - Get system logs
 
-## Security Features
+## Systemd Service
 
-- JWT-based authentication
-- HTTPS/SSL support
-- Security headers (X-Frame-Options, CSP, etc.)
-- No indexing (robots.txt)
-- Input validation and sanitization
-- CORS protection
-
-## Process Management
-
-The system uses systemd services for reliable process management:
-
-- Automatic restart on failure
-- Proper logging via journald
-- Clean shutdown handling
-- Resource monitoring
-
-## Monitoring
-
-The dashboard provides real-time monitoring of:
-
-- Process status (running/stopped/paused)
-- System metrics (CPU, memory usage)
-- Uptime tracking
-- Log analysis
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Port already in use**:
-   ```bash
-   sudo lsof -i :4000  # Check what's using the port
-   sudo kill -9 <PID>  # Kill the process
-   ```
-
-2. **Permission denied**:
-   ```bash
-   sudo chown -R $USER:$USER .
-   chmod +x setup.py
-   ```
-
-3. **SSL certificate issues**:
-   ```bash
-   sudo certbot renew --dry-run
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
-
-4. **Service not starting**:
-   ```bash
-   pm2 logs nexads-backend
-   pm2 logs nexads-frontend
-   journalctl -u nexads-automation -f
-   ```
-
-### Log Locations
-
-- Backend logs: `pm2 logs nexads-backend`
-- Frontend logs: `pm2 logs nexads-frontend`
-- Automation logs: `journalctl -u nexads-automation`
-- Nginx logs: `/var/log/nginx/`
-
-## Development
-
-### Backend Development
+The automation runs as a systemd service for reliability:
 
 ```bash
-cd backend
-pip3 install -r requirements.txt
-uvicorn main:app --reload --port 8000
+# Check status
+sudo systemctl status nexads-automation
+
+# View logs
+sudo journalctl -u nexads-automation -f
+
+# Manual control
+sudo systemctl start nexads-automation
+sudo systemctl stop nexads-automation
 ```
 
-### Frontend Development
+## Support
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Production Deployment
-
-The setup script handles production deployment automatically:
-
-1. Builds optimized frontend
-2. Configures nginx with security headers
-3. Sets up SSL certificates
-4. Starts services with PM2
-5. Configures automatic startup
-
-## License
-
-This project is for educational purposes only.
+For issues and questions, please refer to the documentation or create an issue in the repository.
