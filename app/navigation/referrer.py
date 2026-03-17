@@ -13,13 +13,15 @@ _REFERRERS_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "refer
 
 
 async def setup_request_interceptor(page):
-    """Block Google login pages via request interception."""
-    await page.route(
-        "**/*",
-        lambda route: route.abort()
-        if "accounts.google.com" in route.request.url
-        else route.continue_()
-    )
+    """Block Google login pages via request interception. Returns the handler so it can be removed."""
+    async def _handler(route):
+        if "accounts.google.com" in route.request.url:
+            await route.abort()
+        else:
+            await route.continue_()
+
+    await page.route("**/*", _handler)
+    return _handler
 
 
 async def accept_google_cookies(page):
@@ -151,7 +153,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
     retry_count = 0
     main_domain = target_domain.removeprefix('www.').split('/')[0]
 
-    await setup_request_interceptor(page)
+    interceptor_handler = await setup_request_interceptor(page)
 
     while retry_count < max_retries:
         try:
@@ -218,6 +220,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
                 continue
 
             print(f"Worker {worker_id}: Successfully navigated to domain: {page.url}")
+            await page.unroute("**/*", interceptor_handler)
             return True
 
         except Exception as e:
@@ -228,6 +231,10 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
             continue
 
     print(f"Worker {worker_id}: Max retries reached for organic search")
+    try:
+        await page.unroute("**/*", interceptor_handler)
+    except Exception:
+        pass
     return False
 
 
@@ -237,7 +244,11 @@ def get_social_referrer() -> str:
         with open(_REFERRERS_PATH, 'r') as f:
             referrers = json.load(f)
         social = random.choice(list(referrers['social'].values()))
-        return f"https://{random.choice(social)}"
+        url = random.choice(social)
+        # Only prepend scheme if not already present
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = f"https://{url}"
+        return url
     except Exception as e:
         print(f"Error loading referrers: {str(e)}")
         return ""
