@@ -64,8 +64,6 @@ class nexAds:
         self.failed_ads_sessions = 0
         self.pending_ads_sessions = 0
         self._ad_click_success = {}
-        self.lock = multiprocessing.Lock()
-        self.manager = multiprocessing.Manager()
         self.rate_limiter = RateLimiter()
 
     def load_config(self):
