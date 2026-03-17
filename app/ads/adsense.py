@@ -6,8 +6,6 @@ AdSense ad detection, interaction, vignette handling, and smart click.
 import random
 import asyncio
 
-from app.browser.activities import add_cursor_trail
-
 
 async def detect_adsense_ads(page):
     """Detect and return all visible AdSense ad elements on the current page."""
@@ -251,8 +249,6 @@ async def smart_click(page, worker_id: int, current_domain: str,
         if not box:
             print(f"Worker {worker_id}: Could not get element position")
             return False
-
-        await add_cursor_trail(page)
 
         try:
             await page.mouse.move(

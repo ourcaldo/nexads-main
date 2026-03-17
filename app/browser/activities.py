@@ -1,50 +1,11 @@
 """
 nexads/browser/activities.py
-Human-like browser activities: scroll, hover, click, and cursor trail.
+Human-like browser activities: scroll, hover, click.
 """
 
 import random
 import asyncio
 import time
-
-
-async def add_cursor_trail(page):
-    """Inject a cursor trail effect into the page for human-like appearance."""
-    await page.evaluate(
-        """
-        if (!window._cursorTrailAdded) {
-            const style = document.createElement('style');
-            style.innerHTML = `
-                .cursor-trail {
-                    position: fixed;
-                    width: 10px;
-                    height: 10px;
-                    background-color: red;
-                    border-radius: 50%;
-                    pointer-events: none;
-                    z-index: 10000;
-                    opacity: 0.5;
-                    transition: opacity 0.3s, transform 0.3s;
-                }
-            `;
-            document.head.appendChild(style);
-
-            document.addEventListener('mousemove', (event) => {
-                const trailDot = document.createElement('div');
-                trailDot.classList.add('cursor-trail');
-                document.body.appendChild(trailDot);
-                trailDot.style.left = `${event.clientX}px`;
-                trailDot.style.top = `${event.clientY}px`;
-                setTimeout(() => {
-                    trailDot.style.opacity = '0';
-                    setTimeout(() => trailDot.remove(), 300);
-                }, 50);
-            });
-
-            window._cursorTrailAdded = true;
-        }
-        """
-    )
 
 
 async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn, running: bool):
@@ -116,8 +77,6 @@ async def random_hover(page, browser, worker_id: int, ensure_correct_tab_fn, run
         if not box:
             print(f"Worker {worker_id}: Could not get element position")
             return
-
-        await add_cursor_trail(page)
 
         steps = random.randint(5, 15)
         target_x = box['x'] + random.randint(0, int(box['width']))
