@@ -27,8 +27,11 @@ class WorkerContext:
     """Shared state passed to every worker function."""
     config: dict
     running: bool
-    ads_session_flags: list
-    pending_ads_sessions: int
+    pending_ads_sessions: object  # multiprocessing.Value proxy
+    session_counts: object        # multiprocessing.Manager dict proxy
+    successful_sessions: object   # multiprocessing.Manager dict proxy
+    ads_session_counts: object    # multiprocessing.Manager dict proxy
+    successful_ads_sessions: object  # multiprocessing.Manager dict proxy
 
 
 class SessionFailedException(Exception):
@@ -261,6 +264,12 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
     except Exception as e:
         print(f"Worker {worker_id}: FATAL ERROR: {str(e)}")
     finally:
+        # Write stats back to shared Manager dicts
+        ctx.session_counts[worker_id] = session_count
+        ctx.successful_sessions[worker_id] = successful_sessions
+        ctx.ads_session_counts[worker_id] = ads_session_count
+        ctx.successful_ads_sessions[worker_id] = successful_ads_sessions
+
         print(
             f"Worker {worker_id}: Session completed - "
             f"Total: {session_count}, "
@@ -270,7 +279,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
 
 async def run_worker_async(config_path: str, worker_id: int,
-                           ads_session_flags: list, pending_ads_sessions: int):
+                           pending_ads_sessions, session_counts,
+                           successful_sessions, ads_session_counts,
+                           successful_ads_sessions):
     """Top-level async entry point for a multiprocessing worker."""
     import json
     try:
@@ -280,8 +291,11 @@ async def run_worker_async(config_path: str, worker_id: int,
         ctx = WorkerContext(
             config=config,
             running=True,
-            ads_session_flags=ads_session_flags,
             pending_ads_sessions=pending_ads_sessions,
+            session_counts=session_counts,
+            successful_sessions=successful_sessions,
+            ads_session_counts=ads_session_counts,
+            successful_ads_sessions=successful_ads_sessions,
         )
         await worker_session(ctx, worker_id)
     except Exception as e:
@@ -289,11 +303,16 @@ async def run_worker_async(config_path: str, worker_id: int,
 
 
 def run_worker(config_path: str, worker_id: int,
-               ads_session_flags: list, pending_ads_sessions: int):
+               pending_ads_sessions, session_counts,
+               successful_sessions, ads_session_counts,
+               successful_ads_sessions):
     """Wrapper to run async worker in a fresh event loop (called by multiprocessing)."""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(
-        run_worker_async(config_path, worker_id, ads_session_flags, pending_ads_sessions)
+        run_worker_async(config_path, worker_id,
+                         pending_ads_sessions, session_counts,
+                         successful_sessions, ads_session_counts,
+                         successful_ads_sessions)
     )
     loop.close()

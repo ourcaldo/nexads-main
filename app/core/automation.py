@@ -53,17 +53,11 @@ class nexAds:
         self.load_config()
         self.workers = []
         self.running = False
-        self.session_counts = {}
-        self.successful_sessions = {}
-        self.ads_session_counts = {}
-        self.successful_ads_sessions = {}
         self.start_time = None
         self.total_sessions = 0
         self.ads_sessions = 0
         self.calculate_session_distribution()
-        self.failed_ads_sessions = 0
-        self.pending_ads_sessions = 0
-        self._ad_click_success = {}
+        self.manager = None
         self.rate_limiter = RateLimiter()
 
     def load_config(self):
@@ -105,11 +99,6 @@ class nexAds:
             self.total_sessions = self.config['threads'] * self.config['session']['count']
 
         self.ads_sessions = max(1, int(self.total_sessions * (self.config['ads']['ctr'] / 100)))
-        self.pending_ads_sessions = self.ads_sessions
-        self.ads_session_flags = [False] * self.total_sessions
-        for i in random.sample(range(self.total_sessions),
-                               min(self.ads_sessions, self.total_sessions)):
-            self.ads_session_flags[i] = True
 
     def get_random_delay(self, min_time=None, max_time=None) -> int:
         """Generate a random delay between min and max time."""
@@ -127,11 +116,16 @@ class nexAds:
 
         self.running = True
         self.start_time = datetime.now()
-        self.session_counts = {}
-        self.successful_sessions = {}
-        self.ads_session_counts = {}
-        self.successful_ads_sessions = {}
-        self.failed_ads_sessions = 0
+
+        # Create shared state via Manager so workers can write back stats
+        self.manager = multiprocessing.Manager()
+        shared = {
+            'pending_ads_sessions': self.manager.Value('i', self.ads_sessions),
+            'session_counts': self.manager.dict(),
+            'successful_sessions': self.manager.dict(),
+            'ads_session_counts': self.manager.dict(),
+            'successful_ads_sessions': self.manager.dict(),
+        }
 
         print(f"Starting nexAds with {self.config['threads']} threads")
         print(f"Total sessions planned: {self.total_sessions} (Ads: {self.ads_sessions})")
@@ -139,10 +133,21 @@ class nexAds:
         self.workers = []
 
         for i in range(self.config['threads']):
+            worker_id = i + 1
+            # Initialize per-worker counters in shared dicts
+            shared['session_counts'][worker_id] = 0
+            shared['successful_sessions'][worker_id] = 0
+            shared['ads_session_counts'][worker_id] = 0
+            shared['successful_ads_sessions'][worker_id] = 0
+
             p = multiprocessing.Process(
                 target=run_worker,
-                args=(self.config_path, i + 1,
-                      self.ads_session_flags, self.pending_ads_sessions)
+                args=(self.config_path, worker_id,
+                      shared['pending_ads_sessions'],
+                      shared['session_counts'],
+                      shared['successful_sessions'],
+                      shared['ads_session_counts'],
+                      shared['successful_ads_sessions'])
             )
             p.start()
             self.workers.append(p)
@@ -155,10 +160,10 @@ class nexAds:
 
         print("\nAll workers completed")
 
-        total_sessions = sum(self.session_counts.values())
-        successful_sessions = sum(self.successful_sessions.values())
-        total_ads_sessions = sum(self.ads_session_counts.values())
-        successful_ads_sessions = sum(self.successful_ads_sessions.values())
+        total_sessions = sum(shared['session_counts'].values())
+        successful_sessions = sum(shared['successful_sessions'].values())
+        total_ads_sessions = sum(shared['ads_session_counts'].values())
+        successful_ads_sessions = sum(shared['successful_ads_sessions'].values())
 
         print(f"Total sessions attempted: {total_sessions}")
         print(f"Successful sessions: {successful_sessions} "
@@ -166,10 +171,20 @@ class nexAds:
         print(f"Total ads sessions attempted: {total_ads_sessions}")
         print(f"Successful ads sessions: {successful_ads_sessions} "
               f"({successful_ads_sessions / max(1, total_ads_sessions) * 100:.1f}%)")
-        print(f"Failed ads sessions: {self.failed_ads_sessions}")
         print(f"Actual CTR: "
               f"{successful_ads_sessions / max(1, successful_sessions) * 100:.2f}% "
               f"(Target: {self.config['ads']['ctr']}%)")
+
+        self._shutdown_manager()
+
+    def _shutdown_manager(self):
+        """Shut down the multiprocessing Manager server process."""
+        if self.manager:
+            try:
+                self.manager.shutdown()
+            except Exception:
+                pass
+            self.manager = None
 
     def stop(self):
         """Stop the nexAds automation and terminate all workers."""
@@ -183,6 +198,8 @@ class nexAds:
             if worker.is_alive():
                 worker.terminate()
                 worker.join(timeout=10)
+
+        self._shutdown_manager()
 
         runtime = datetime.now() - self.start_time
         print(f"nexAds stopped. Total runtime: {runtime}")
