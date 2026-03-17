@@ -45,10 +45,15 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
             for link in all_links:
                 try:
                     href = await link.get_attribute('href')
-                    if href and target_url in href:
-                        matching_links.append((link, 'exact'))
-                    elif href and target_domain in href:
-                        matching_links.append((link, 'domain'))
+                    if not href:
+                        continue
+                    href_domain = extract_domain(href)
+                    if href_domain and href_domain == extract_domain(target_url):
+                        # Exact domain match — prefer exact URL match within that
+                        if target_url in href:
+                            matching_links.append((link, 'exact'))
+                        else:
+                            matching_links.append((link, 'domain'))
                 except:
                     continue
 
