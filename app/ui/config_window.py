@@ -183,7 +183,8 @@ class ConfigWindow(QMainWindow):
                     else:
                         self.config["referrer"]["types"] = [old_type]
                     del self.config["referrer"]["type"]
-            except:
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                print(f"Warning: Config file is invalid ({e}), falling back to defaults.")
                 self.config = default_config
         else:
             self.config = default_config
@@ -660,9 +661,11 @@ class ConfigWindow(QMainWindow):
             self.scroll_check.setChecked(True)
             self.hover_check.setChecked(True)
             self.click_check.setChecked(True)
-        elif not any([self.scroll_check.isChecked(), self.hover_check.isChecked(), self.click_check.isChecked()]):
-            # Only uncheck if none are selected (to prevent infinite loop)
-            self.mix_check.setChecked(False)
+        else:
+            # Unchecking Mix clears all sub-options so state stays in sync
+            self.scroll_check.setChecked(False)
+            self.hover_check.setChecked(False)
+            self.click_check.setChecked(False)
 
     def toggle_session_options(self):
         """Show/hide session options based on checkbox state."""
