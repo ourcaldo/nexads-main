@@ -2,10 +2,10 @@
     "proxy": {
         "type": "http",
         "credentials": "",
-        "file": "proxy.txt"
+        "file": "C:/Users/Administrator/Desktop/nexads/proxy.txt"
     },
     "browser": {
-        "headless_mode": "True",
+        "headless_mode": "False",
         "disable_ublock": true,
         "random_activity": true,
         "auto_accept_cookies": true,
@@ -28,8 +28,7 @@
     "threads": 1,
     "os_fingerprint": [
         "windows",
-        "macos",
-        "linux"
+        "macos"
     ],
     "device_type": {
         "mobile": 70,
@@ -37,13 +36,21 @@
     },
     "referrer": {
         "types": [
-            "random"
+            "direct",
+            "social"
         ],
         "organic_keywords": "How Insurance Adjusters Review Injury Claims Without Missing a Detail\nHow a Lawyer Can Help You Get a Higher Insurance Settlement Offer camar"
     },
-    "urls": [],
+    "urls": [
+        {
+            "url": "https://www.effectivegatecpm.com/bvh3zxwjeg?key=de7c9c14eb1bdf932a1e404106b99655",
+            "random_page": true,
+            "min_time": 30,
+            "max_time": 60
+        }
+    ],
     "ads": {
-        "ctr": 1.0,
+        "ctr": 10.0,
         "min_time": 30,
         "max_time": 60
     }
