@@ -25,15 +25,20 @@ class RateLimiter:
     """Async-compatible rate limiter capped at max_calls_per_minute."""
 
     def __init__(self, max_calls_per_minute: int = 300):
-        import asyncio
         self.max_calls = max_calls_per_minute
         self.calls = []
-        self.lock = asyncio.Lock()
+        self._lock = None  # created lazily inside the event loop
+
+    def _get_lock(self):
+        import asyncio
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     async def wait_if_needed(self):
         import asyncio
         import time as _time
-        async with self.lock:
+        async with self._get_lock():
             now = _time.time()
             self.calls = [t for t in self.calls if now - t < 60]
             if len(self.calls) >= self.max_calls:
