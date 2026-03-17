@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "*"
+    ]
+  },
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true,
+    "superpowers@claude-plugins-official": true,
+    "agenthub@claude-code-skills": true,
+    "code-review@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true
+  }
+}

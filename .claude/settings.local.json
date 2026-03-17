@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp:*)",
+      "Bash(python main.py --help)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''main.py''\\).read\\(\\)\\); print\\(''main.py: syntax OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''ui.py''\\).read\\(\\)\\); print\\(''ui.py: syntax OK''\\)\")",
+      "mcp__exa__web_search_exa",
+      "Bash(python:*)",
+      "mcp__exa__crawling_exa"
+    ]
+  },
+  "enabledPlugins": {
+    "agenthub@claude-code-skills": true
+  }
+}
