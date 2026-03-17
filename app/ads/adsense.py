@@ -60,7 +60,7 @@ async def interact_with_vignette_ad(page, worker_id: int, extract_domain_fn) -> 
         print(f"Worker {worker_id}: Attempting to interact with vignette ad")
         current_domain = extract_domain_fn(page.url)
 
-        radio_buttons = await page.query_selector_all('input[type="radio"]:visible')
+        radio_buttons = await page.query_selector_all('input[type="radio"]')
         if radio_buttons:
             print(f"Worker {worker_id}: Found {len(radio_buttons)} radio buttons in vignette")
             radio = random.choice(radio_buttons)
@@ -82,7 +82,7 @@ async def interact_with_vignette_ad(page, worker_id: int, extract_domain_fn) -> 
                         continue
 
         buttons = await page.query_selector_all(
-            'button:visible, div[role="button"]:visible, a[role="button"]:visible'
+            'button, div[role="button"], a[role="button"]'
         )
         if buttons:
             print(f"Worker {worker_id}: Found {len(buttons)} buttons in vignette")
@@ -95,7 +95,7 @@ async def interact_with_vignette_ad(page, worker_id: int, extract_domain_fn) -> 
                 except:
                     continue
 
-        images = await page.query_selector_all('img:visible, svg:visible')
+        images = await page.query_selector_all('img, svg')
         if images:
             print(f"Worker {worker_id}: Found {len(images)} images in vignette")
             for img in images:

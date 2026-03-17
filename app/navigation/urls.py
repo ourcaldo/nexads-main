@@ -35,7 +35,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
 
             print(f"Worker {worker_id}: Scanning page for links to {target_domain}")
 
-            all_links = await page.query_selector_all('a[href]:visible')
+            all_links = await page.query_selector_all('a[href]')
             if not all_links:
                 print(f"Worker {worker_id}: No visible links found on page")
                 retry_count += 1
@@ -129,7 +129,7 @@ async def random_navigation(page, worker_id: int, target_domain: str,
             print(f"Worker {worker_id}: Attempting random navigation")
             original_url = page.url
 
-            all_links = await page.query_selector_all('a[href]:visible')
+            all_links = await page.query_selector_all('a[href]')
             if not all_links:
                 print(f"Worker {worker_id}: No visible links found for random navigation")
                 retry_count += 1

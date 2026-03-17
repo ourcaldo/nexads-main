@@ -184,7 +184,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
 
             await page.wait_for_selector('div#search', state="visible", timeout=45000)
 
-            all_links = await page.query_selector_all('a[href]:visible')
+            all_links = await page.query_selector_all('a[href]')
             if not all_links:
                 print(f"Worker {worker_id}: No links found in search results")
                 return False

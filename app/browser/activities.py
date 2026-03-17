@@ -54,7 +54,7 @@ async def random_hover(page, browser, worker_id: int, ensure_correct_tab_fn, run
 
         print(f"Worker {worker_id}: Performing random hover")
 
-        elements = await page.query_selector_all('a, button, img, div, span:visible')
+        elements = await page.query_selector_all('a, button, img, div, span')
         if not elements:
             print(f"Worker {worker_id}: No hoverable elements found")
             return
