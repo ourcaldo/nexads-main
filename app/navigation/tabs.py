@@ -176,7 +176,11 @@ async def natural_exit(browser_context, worker_id: int, get_random_delay_fn):
                 await asyncio.sleep(get_random_delay_fn(1, 2))
             except Exception as e:
                 print(f"Worker {worker_id}: Error closing tab during natural exit: {str(e)}")
-                break
+                # Refresh page list and continue closing remaining tabs instead of breaking
+                try:
+                    pages = browser_context.pages
+                except Exception:
+                    break
 
         if pages:
             try:
