@@ -153,7 +153,7 @@ async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn) ->
 
     print(f"Worker {worker_id}: Found {len(visible_ads)} visible AdSense ads on page")
 
-    context = browser.contexts[0]
+    context = page.context
     tabs_before = len(context.pages)
     clicked = False
 
