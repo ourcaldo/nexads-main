@@ -87,18 +87,28 @@ class nexAds:
 
     def calculate_session_distribution(self):
         """Calculate how many sessions should include ad interactions based on CTR."""
-        if not self.config['session']['enabled'] or self.config['session']['count'] == 0:
-            threads = self.config['threads']
-            max_time_min = self.config['session']['max_time']
-            if max_time_min > 0:
-                sessions_per_hour_per_thread = 60 / max_time_min
-                self.total_sessions = int(threads * sessions_per_hour_per_thread)
-            else:
-                self.total_sessions = 100
-        else:
-            self.total_sessions = self.config['threads'] * self.config['session']['count']
+        session_enabled = self.config['session']['enabled']
+        session_count = self.config['session']['count']
+        threads = self.config['threads']
+        max_time_min = self.config['session']['max_time']
 
-        self.ads_sessions = max(1, int(self.total_sessions * (self.config['ads']['ctr'] / 100)))
+        if session_enabled and session_count > 0:
+            # Finite session mode: count is explicit
+            self.total_sessions = threads * session_count
+        elif max_time_min > 0:
+            # Time-bounded mode: estimate sessions from max_time
+            sessions_per_hour_per_thread = 60 / max_time_min
+            self.total_sessions = int(threads * sessions_per_hour_per_thread)
+        else:
+            # Unlimited mode: use a rolling window — recalculate ads_sessions
+            # every N sessions so CTR never exhausts
+            self.total_sessions = 0  # 0 = unlimited; ads_sessions used as rolling budget
+
+        if self.total_sessions > 0:
+            self.ads_sessions = max(1, int(self.total_sessions * (self.config['ads']['ctr'] / 100)))
+        else:
+            # Unlimited: start with a generous budget; workers will run indefinitely
+            self.ads_sessions = max(1, int(100 * (self.config['ads']['ctr'] / 100)))
 
     def get_random_delay(self, min_time=None, max_time=None) -> int:
         """Generate a random delay between min and max time."""
