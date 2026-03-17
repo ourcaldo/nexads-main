@@ -40,8 +40,9 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             k=1
         )[0]
 
-        screen = Screen(max_width=2800, max_height=2080) if device_type == 'mobile' \
-                else Screen(max_width=7680, max_height=4320)
+        # Mobile screens are smaller than desktop — cap accordingly
+        screen = Screen(max_width=430, max_height=932) if device_type == 'mobile' \
+                else Screen(max_width=1920, max_height=1080)
 
         options = {
             'headless': headless,
