@@ -81,13 +81,11 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 print(f"Worker {worker_id}: Session count limit reached")
                 break
 
-            # Determine if this is an ads session
+            # Determine if this is an ads session (single shared counter)
             is_ads_session = False
-            if ctx.pending_ads_sessions > 0:
+            if ctx.pending_ads_sessions.value > 0:
+                ctx.pending_ads_sessions.value -= 1
                 is_ads_session = True
-                ctx.pending_ads_sessions -= 1
-            elif session_count < len(ctx.ads_session_flags):
-                is_ads_session = ctx.ads_session_flags[session_count]
 
             if is_ads_session:
                 print(f"Worker {worker_id}: Starting AD INTERACTION session")
