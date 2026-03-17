@@ -6,7 +6,7 @@ AdSense ad detection, interaction, vignette handling, and smart click.
 import random
 import asyncio
 
-from nexads.browser.activities import add_cursor_trail
+from app.browser.activities import add_cursor_trail
 
 
 async def detect_adsense_ads(page):

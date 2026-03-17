@@ -9,15 +9,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from nexads.browser.setup import configure_browser, cleanup_browser
-from nexads.browser.activities import perform_random_activity
-from nexads.navigation.urls import extract_domain, navigate_to_url_by_click, random_navigation
-from nexads.navigation.referrer import (
+from app.browser.setup import configure_browser, cleanup_browser
+from app.browser.activities import perform_random_activity
+from app.navigation.urls import extract_domain, navigate_to_url_by_click, random_navigation
+from app.navigation.referrer import (
     get_random_keyword, perform_organic_search,
     accept_google_cookies, handle_gdpr_consent, get_social_referrer
 )
-from nexads.navigation.tabs import ensure_correct_tab, process_ads_tabs, natural_exit
-from nexads.ads.adsense import (
+from app.navigation.tabs import ensure_correct_tab, process_ads_tabs, natural_exit
+from app.ads.adsense import (
     interact_with_ads, check_and_handle_vignette, smart_click
 )
 

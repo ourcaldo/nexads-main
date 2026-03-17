@@ -7,7 +7,7 @@ import random
 import asyncio
 import time
 
-from nexads.navigation.urls import extract_domain
+from app.navigation.urls import extract_domain
 
 
 async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,

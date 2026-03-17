@@ -121,7 +121,7 @@ class nexAds:
 
     def start(self):
         """Start the nexAds automation with configured threads."""
-        from nexads.core.worker import run_worker
+        from app.core.worker import run_worker
 
         if self.running:
             print("Already running")

@@ -19,7 +19,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                                    accept_cookies_fn, check_vignette_fn,
                                    random_navigation_fn, config: dict):
     """Navigate to target URL by finding and clicking a matching link on the current page."""
-    from nexads.core.worker import SessionFailedException
+    from app.core.worker import SessionFailedException
 
     target_domain = extract_domain(target_url)
     max_retries = 2

@@ -18,13 +18,13 @@ def main():
 
     if args.config:
         from PyQt5.QtWidgets import QApplication
-        from nexads.ui.config_window import ConfigWindow
+        from app.ui.config_window import ConfigWindow
         app = QApplication(sys.argv)
         window = ConfigWindow()
         window.show()
         sys.exit(app.exec_())
     else:
-        from nexads.core.automation import nexAds
+        from app.core.automation import nexAds
         automation = nexAds()
         try:
             automation.start()
