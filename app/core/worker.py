@@ -116,7 +116,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         break
 
                     if (ctx.config['session']['max_time'] > 0 and
-                            (time.time() - session_start_time) >= ctx.config['session']['max_time'] * 60):
+                            (time.time() - session_start_time) >= ctx.config['session']['max_time'] * 60):  # max_time in minutes → convert to seconds
                         print(f"Worker {worker_id}: Max session time reached")
                         break
 
@@ -193,7 +193,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     await handle_gdpr_consent(page, worker_id)
                     await _check_vignette(page, worker_id)
 
-                    stay_time = random.randint(url_data['min_time'], url_data['max_time'])
+                    stay_time = random.randint(url_data['min_time'], url_data['max_time'])  # seconds
                     print(f"Worker {worker_id}: Staying on page for {stay_time} seconds")
 
                     activity_start = time.time()
