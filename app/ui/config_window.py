@@ -456,8 +456,8 @@ class ConfigWindow(QMainWindow):
         self.device_slider.valueChanged.connect(self.update_device_percentages)
         
         # Add columns to main layout
-        layout.addLayout(left_col, 60)  # 40% width
-        layout.addLayout(right_col, 40)  # 60% width
+        layout.addLayout(left_col, 40)   # 40% width
+        layout.addLayout(right_col, 60)  # 60% width
         tab.setLayout(layout)
         
         # Update activity options visibility
