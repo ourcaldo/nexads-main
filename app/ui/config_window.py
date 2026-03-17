@@ -530,7 +530,7 @@ class ConfigWindow(QMainWindow):
         self.url_input = QLineEdit()
         self.url_input.setPlaceholderText("Enter URL (use comma to separate multiple URLs for random selection)")
         self.add_url_btn = QPushButton("Add URL")
-        self.add_url_btn.clicked.connect(self.add_url_to_table)
+        self.add_url_btn.clicked.connect(lambda: self.add_url_to_table())
         self.url_input.returnPressed.connect(self.add_url_to_table)
         
         # Delete button - moved here next to Add button
