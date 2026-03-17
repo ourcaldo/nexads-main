@@ -166,6 +166,12 @@ class nexAds:
             )
             p.start()
             self.workers.append(p)
+            # Stagger worker startups — avoids simultaneous proxy connections
+            # and looks more natural; skip delay after the last worker
+            if i < self.config['threads'] - 1:
+                stagger = random.randint(2, 5)
+                print(f"Staggering next worker by {stagger}s...")
+                time.sleep(stagger)
 
         try:
             while any(p.is_alive() for p in self.workers):
