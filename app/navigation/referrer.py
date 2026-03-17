@@ -149,7 +149,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
     """Perform a real Google search and click the first result matching the target domain."""
     max_retries = 3
     retry_count = 0
-    main_domain = target_domain.replace('www.', '').split('/')[0]
+    main_domain = target_domain.removeprefix('www.').split('/')[0]
 
     await setup_request_interceptor(page)
 
