@@ -174,9 +174,8 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
             await search_input.click(click_count=3)
             await search_input.press("Backspace")
 
-            for char in keyword:
-                await search_input.press(char)
-                await page.wait_for_timeout(random.randint(50, 150))
+            # Use type() instead of press(char) loop — handles non-ASCII/unicode keywords
+            await page.keyboard.type(keyword, delay=random.randint(50, 150))
 
             await search_input.press("Enter")
             await page.wait_for_load_state("networkidle", timeout=45000)
