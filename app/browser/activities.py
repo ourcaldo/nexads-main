@@ -173,6 +173,9 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
                 print(f"Worker {worker_id}: Lost correct tab during activities")
                 return False
 
+            # Refresh domain after every tab check — page may have navigated
+            current_domain = extract_domain_fn(page.url)
+
             await check_vignette_fn(page, worker_id)
 
             activities = []
