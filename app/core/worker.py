@@ -96,6 +96,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             session_count += 1
             session_successful = False
             browser = None
+            context = None
 
             try:
                 # --- BROWSER INIT ---
@@ -201,11 +202,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         elapsed = time.time() - activity_start
                         remaining_time = stay_time - elapsed
 
-                        activity_success = await _perform_activity(
+                        await _perform_activity(
                             page, browser, worker_id, remaining_time, is_ads_session)
-
-                        if is_ads_session and activity_success:
-                            successful_ads_sessions += 1
 
                         if remaining_time > 0:
                             delay = min(random.uniform(0.5, 1.5), remaining_time)
@@ -237,12 +235,14 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
             finally:
                 try:
-                    if browser:
+                    if browser and context:
                         await process_ads_tabs(
                             context, worker_id, ctx.config,
                             _perform_activity, get_delay
                         )
                         await natural_exit(context, worker_id, get_delay)
+                        await cleanup_browser(browser, worker_id)
+                    elif browser:
                         await cleanup_browser(browser, worker_id)
                 except Exception as e:
                     print(f"Worker {worker_id}: Error during cleanup: {str(e)}")
