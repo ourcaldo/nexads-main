@@ -110,6 +110,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 page = await context.new_page()
                 ad_click_success = False
 
+                # Hoist random_navigation lambda outside URL loop — built once per session
+                def _random_nav(p, wid, td):
+                    return random_navigation(
+                        p, wid, td, _ensure_tab, _smart_click,
+                        accept_google_cookies, _check_vignette, ctx.config
+                    )
+
                 # --- URL PROCESSING ---
                 for url_index, url_data in enumerate(ctx.config['urls']):
                     if not ctx.running:
@@ -173,10 +180,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 page, url, worker_id,
                                 _ensure_tab, _smart_click,
                                 accept_google_cookies, _check_vignette,
-                                lambda p, wid, td: random_navigation(
-                                    p, wid, td, _ensure_tab, _smart_click,
-                                    accept_google_cookies, _check_vignette, ctx.config
-                                ),
+                                _random_nav,
                                 ctx.config
                             )
                         except SessionFailedException:
