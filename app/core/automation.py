@@ -201,5 +201,8 @@ class nexAds:
 
         self._shutdown_manager()
 
-        runtime = datetime.now() - self.start_time
-        print(f"nexAds stopped. Total runtime: {runtime}")
+        if self.start_time:
+            runtime = datetime.now() - self.start_time
+            print(f"nexAds stopped. Total runtime: {runtime}")
+        else:
+            print("nexAds stopped.")
