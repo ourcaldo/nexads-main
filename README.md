@@ -1,114 +1,61 @@
+# nexAds
 
-# nexAds Automation Panel
-
-A web-based control panel for managing the nexAds automation tool.
+An automation tool to boost traffic with browser fingerprint spoofing and human-like browsing behavior.
 
 ## Features
 
-- **Web Dashboard**: Modern, responsive interface for managing automation
-- **Real-time Control**: Start, stop, and restart automation from the web interface
-- **Configuration Management**: Edit all settings through the web interface
-- **Proxy Management**: Add, edit, and manage proxy lists
-- **Live Logs**: View system logs in real-time
-- **Authentication**: Secure login system
-- **Production Ready**: Automatic nginx setup with SSL support
+- **Anti-detect Browser**: Uses Camoufox (Firefox-based) with randomized fingerprints
+- **Multi-threaded**: Run multiple parallel browser sessions
+- **Proxy Support**: HTTP, HTTPS, SOCKS4, SOCKS5 (from file or credentials)
+- **Smart Referrers**: Direct, social media, or organic Google search referrers
+- **Human-like Behavior**: Random scrolling, clicking, hovering with cursor trails
+- **Ad Interaction**: Configurable CTR-based AdSense ad clicking
+- **GDPR/Cookie Handling**: Auto-accepts cookie consent popups
+- **Vignette Ad Support**: Detects and interacts with vignette ads
+- **GUI Configuration**: PyQt5 dark-mode configuration editor
 
-## Quick Start
+## Installation
 
-### Automated Setup (Recommended)
+```bash
+pip install -r requirements.txt
+```
 
-1. Run the automated setup script:
-   ```bash
-   chmod +x setup.sh
-   ./setup.sh
-   ```
+## Usage
 
-2. Follow the interactive prompts to configure:
-   - Domain/IP settings
-   - Port configuration
-   - Authentication credentials
-   - SSL settings
+### Run automation
+```bash
+python main.py
+```
 
-3. The script will automatically:
-   - Install dependencies
-   - Configure nginx
-   - Set up SSL (if using domain)
-   - Deploy the application
-
-4. Access the panel at your configured domain
-
-5. Login with your configured credentials (default: admin/admin123)
-
-## Manual Installation
-
-If you prefer to install manually:
-
-1. Install dependencies:
-   ```bash
-   pip3 install -r core/requirements.txt
-   pip3 install fastapi uvicorn python-multipart aiofiles bcrypt python-jose[cryptography]
-   ```
-
-2. Install frontend dependencies:
-   ```bash
-   cd frontend
-   npm install
-   npm run build
-   cd ..
-   ```
-
-3. Start the backend:
-   ```bash
-   cd backend
-   python3 main.py
-   ```
-
-4. Serve the frontend (in another terminal):
-   ```bash
-   cd frontend
-   npm start
-   ```
+### Open configuration GUI
+```bash
+python main.py --config
+```
 
 ## Configuration
 
-The system uses environment variables for configuration. See `.env.example` for available options.
+All settings are stored in `config.json`. Edit via the GUI (`--config`) or manually:
 
-## Security
+| Section | Key Fields |
+|---------|-----------|
+| **proxy** | `type` (http/https/socks4/socks5), `credentials`, `file` |
+| **browser** | `headless_mode` (True/False/virtual), `disable_ublock`, `random_activity`, `auto_accept_cookies`, `prevent_redirects`, `activities` (scroll/hover/click) |
+| **delay** | `min_time`, `max_time` (seconds between actions) |
+| **session** | `enabled`, `count` (0=unlimited), `max_time` (minutes) |
+| **threads** | Number of parallel browser workers |
+| **os_fingerprint** | List of OS to emulate: `windows`, `macos`, `linux` |
+| **device_type** | `mobile` / `desktop` percentage split |
+| **referrer** | `types` (direct/social/organic/random), `organic_keywords` |
+| **urls** | List of `{url, random_page, min_time, max_time}` |
+| **ads** | `ctr` (percentage), `min_time`, `max_time` (seconds on ad page) |
 
-- Change default credentials in production
-- Use SSL for public deployments
-- Restrict access with firewall rules
-- Regular security updates
+## Files
 
-## API Endpoints
-
-- `POST /api/auth/login` - Authentication
-- `GET /api/config` - Get configuration
-- `POST /api/config` - Update configuration
-- `GET /api/proxy` - Get proxy list
-- `POST /api/proxy` - Update proxy list
-- `GET /api/automation/status` - Get automation status
-- `POST /api/automation/start` - Start automation
-- `POST /api/automation/stop` - Stop automation
-- `POST /api/automation/restart` - Restart automation
-- `GET /api/logs` - Get system logs
-
-## Systemd Service
-
-The automation runs as a systemd service for reliability:
-
-```bash
-# Check status
-sudo systemctl status nexads-automation
-
-# View logs
-sudo journalctl -u nexads-automation -f
-
-# Manual control
-sudo systemctl start nexads-automation
-sudo systemctl stop nexads-automation
-```
-
-## Support
-
-For issues and questions, please refer to the documentation or create an issue in the repository.
+| File | Purpose |
+|------|---------|
+| `main.py` | Core automation engine |
+| `ui.py` | PyQt5 configuration GUI |
+| `config.json` | Runtime configuration |
+| `proxy.txt` | Proxy list (one per line) |
+| `referrers.json` | Social media referrer domains |
+| `requirements.txt` | Python dependencies |
