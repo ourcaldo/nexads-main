@@ -57,16 +57,27 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
         if proxy:
             proxy_type = config['proxy']['type'].lower()
             if '@' in proxy:
-                auth, server = proxy.split('@')
-                user, pwd = auth.split(':')
-                host, port = server.split(':')
+                # user:password@host:port — split on LAST @ to handle @ in password
+                at_idx = proxy.rfind('@')
+                auth = proxy[:at_idx]
+                server = proxy[at_idx + 1:]
+                # auth may be user:password — split on FIRST :
+                colon_idx = auth.find(':')
+                if colon_idx != -1:
+                    user = auth[:colon_idx]
+                    pwd = auth[colon_idx + 1:]
+                else:
+                    user, pwd = auth, ''
+                # server is host:port — split on LAST : to handle IPv6
+                host, port = server.rsplit(':', 1)
                 options['proxy'] = {
                     'server': f"{proxy_type}://{host}:{port}",
                     'username': user,
                     'password': pwd
                 }
             else:
-                host, port = proxy.split(':')
+                # host:port only — split on LAST : for IPv6 safety
+                host, port = proxy.rsplit(':', 1)
                 options['proxy'] = {
                     'server': f"{proxy_type}://{host}:{port}",
                     'username': None,
