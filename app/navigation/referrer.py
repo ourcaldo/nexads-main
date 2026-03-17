@@ -109,7 +109,7 @@ async def handle_gdpr_consent(page, worker_id: int):
         print(f"Worker {worker_id}: Clicked GDPR consent button")
 
         try:
-            await page.wait_for_selector(selector, state='hidden', timeout=5000)
+            await page.wait_for_selector(consent_selectors[0], state='hidden', timeout=5000)
         except:
             pass
 
