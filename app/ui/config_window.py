@@ -871,6 +871,19 @@ class ConfigWindow(QMainWindow):
                 "min_time": self.ads_min_time.value(),
                 "max_time": self.ads_max_time.value()
             }
+
+            # --- Validate min <= max before saving ---
+            errors = []
+            if config["delay"]["min_time"] > config["delay"]["max_time"]:
+                errors.append("Delay: min time must be ≤ max time")
+            if config["ads"]["min_time"] > config["ads"]["max_time"]:
+                errors.append("Ads time: min time must be ≤ max time")
+            for i, url_data in enumerate(config["urls"]):
+                if url_data["min_time"] > url_data["max_time"]:
+                    errors.append(f"URL row {i + 1}: min time must be ≤ max time")
+            if errors:
+                QMessageBox.warning(self, "Validation Error", "\n".join(errors))
+                return False
             
             # Save to file
             with open(self.config_path, 'w') as f:
