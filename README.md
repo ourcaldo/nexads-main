@@ -136,11 +136,9 @@ This will automatically:
 ### Auto-start behavior
 
 - Compose uses `restart: unless-stopped`, so it restarts automatically after reboot/deploy.
-- Runtime config is built from your mounted `config.json` without modifying your host file.
-- Default container overrides:
-  - `NEXADS_HEADLESS_MODE=virtual`
-  - `NEXADS_PROXY_FILE=proxy.txt`
-  - `NEXADS_PROFILE_DIR=profiles`
+- Container startup uses your `config.json` directly (no runtime env override required).
+- Set all behavior (`threads`, `urls`, `ads`, `referrer`, `browser`, etc.) in `config.json`.
+- For containerized runs, set `proxy.file` in `config.json` to `proxy.txt`.
 
 ### Files used by Compose
 

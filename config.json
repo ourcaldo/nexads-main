@@ -2,7 +2,7 @@
     "proxy": {
         "type": "http",
         "credentials": "",
-        "file": "C:/Users/Administrator/Desktop/nexads/proxy.txt"
+        "file": "proxy.txt"
     },
     "browser": {
         "headless_mode": "virtual",
