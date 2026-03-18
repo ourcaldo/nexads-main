@@ -7,6 +7,7 @@ import random
 import asyncio
 import time
 
+from app.browser.humanization import clamp, lognormal_seconds
 from app.navigation.urls import extract_domain
 
 
@@ -130,15 +131,46 @@ async def process_ads_tabs(browser_context, worker_id: int, config: dict,
                 ad_tabs_processed += 1
                 print(f"Worker {worker_id}: Processing ad tab: {current_url}")
 
-                stay_time = random.randint(
-                    config['ads']['min_time'],
-                    config['ads']['max_time']
+                min_ads = int(config['ads']['min_time'])
+                max_ads = int(config['ads']['max_time'])
+                if min_ads >= max_ads:
+                    base_stay = float(min_ads)
+                else:
+                    base_stay = lognormal_seconds((min_ads + max_ads) / 2, 0.55, min_ads, max_ads)
+
+                try:
+                    content_height = await page.evaluate(
+                        "Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)"
+                    )
+                except Exception:
+                    content_height = 1600
+
+                height_factor = clamp(content_height / 2600, 0.65, 2.1)
+                stay_time = int(round(clamp(base_stay * height_factor, 5, 120)))
+
+                # Realistic quick bounce behavior on some ad landings.
+                if random.random() < 0.18:
+                    stay_time = int(round(lognormal_seconds(8, 0.45, 5, 15)))
+
+                interaction_state = {"cursor_position": None}
+                print(
+                    f"Worker {worker_id}: Ad tab dwell target {stay_time}s "
+                    f"(content_height={int(content_height)})"
                 )
 
                 start_time = time.time()
                 while time.time() - start_time < stay_time:
-                    await perform_random_activity_fn(page, browser_context, worker_id, stay_time)
-                    await asyncio.sleep(get_random_delay_fn(1, 3))
+                    remaining = max(0.0, stay_time - (time.time() - start_time))
+                    if remaining <= 0:
+                        break
+
+                    await perform_random_activity_fn(
+                        page, browser_context, worker_id, remaining, True, interaction_state
+                    )
+
+                    idle_delay = min(lognormal_seconds(1.5, 0.45, 0.7, 3.8), remaining)
+                    if idle_delay > 0:
+                        await asyncio.sleep(idle_delay)
 
                 await page.close()
 
@@ -154,7 +186,7 @@ async def process_ads_tabs(browser_context, worker_id: int, config: dict,
 
 
 async def natural_exit(browser_context, worker_id: int, get_random_delay_fn):
-    """Perform natural exit by visiting Google then closing all tabs."""
+    """Perform varied, human-like session exit behavior."""
     try:
         try:
             pages = browser_context.pages
@@ -186,11 +218,49 @@ async def natural_exit(browser_context, worker_id: int, get_random_delay_fn):
             try:
                 page = pages[0]
                 if not page.is_closed():
-                    await page.goto("https://www.google.com", timeout=45000, wait_until="networkidle")
-                    await asyncio.sleep(get_random_delay_fn(2, 5))
+                    exit_roll = random.random()
+                    if exit_roll < 0.40:
+                        strategy = "close_direct"
+                    elif exit_roll < 0.60:
+                        strategy = "google"
+                    elif exit_roll < 0.75:
+                        strategy = "random_site"
+                    elif exit_roll < 0.90:
+                        strategy = "new_tab"
+                    else:
+                        strategy = "linger"
+
+                    print(f"Worker {worker_id}: Exit strategy = {strategy}")
+
+                    if strategy == "google":
+                        await page.goto("https://www.google.com", timeout=45000, wait_until="networkidle")
+                        await asyncio.sleep(lognormal_seconds(2.5, 0.45, 1.2, 6.0))
+                    elif strategy == "random_site":
+                        site = random.choice([
+                            "https://duckduckgo.com/",
+                            "https://www.bing.com/",
+                            "https://news.ycombinator.com/",
+                            "https://www.wikipedia.org/",
+                            "https://www.reddit.com/",
+                        ])
+                        await page.goto(site, timeout=45000, wait_until="networkidle")
+                        await asyncio.sleep(lognormal_seconds(2.2, 0.45, 1.0, 5.5))
+                    elif strategy == "new_tab":
+                        await page.goto("about:blank", timeout=20000, wait_until="domcontentloaded")
+                        await asyncio.sleep(lognormal_seconds(1.4, 0.4, 0.5, 3.0))
+                    elif strategy == "linger":
+                        if random.random() < 0.55:
+                            await page.evaluate(
+                                "(distance) => window.scrollBy(0, distance)",
+                                int(random.gauss(220, 90)),
+                            )
+                        await asyncio.sleep(lognormal_seconds(2.8, 0.5, 1.2, 7.0))
+                    else:
+                        await asyncio.sleep(lognormal_seconds(1.2, 0.4, 0.5, 3.0))
+
                     await page.close()
             except Exception as e:
-                print(f"Worker {worker_id}: Error during Google visit in natural exit: {str(e)}")
+                print(f"Worker {worker_id}: Error during natural exit strategy: {str(e)}")
 
         return True
 

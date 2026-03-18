@@ -9,7 +9,92 @@ import asyncio
 import json
 import pathlib
 
+from app.browser.humanization import gaussian_ms
+
 _REFERRERS_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "referrers.json"
+
+_FAST_BIGRAMS = {
+    "th", "he", "in", "er", "an", "re", "on", "at", "en", "nd", "ti", "es", "or", "te"
+}
+
+_NEIGHBOR_KEYS = {
+    "a": ["s", "q", "w", "z"],
+    "b": ["v", "g", "h", "n"],
+    "c": ["x", "d", "f", "v"],
+    "d": ["s", "e", "r", "f", "c", "x"],
+    "e": ["w", "s", "d", "r"],
+    "f": ["d", "r", "t", "g", "v", "c"],
+    "g": ["f", "t", "y", "h", "b", "v"],
+    "h": ["g", "y", "u", "j", "n", "b"],
+    "i": ["u", "j", "k", "o"],
+    "j": ["h", "u", "i", "k", "m", "n"],
+    "k": ["j", "i", "o", "l", "m"],
+    "l": ["k", "o", "p"],
+    "m": ["n", "j", "k"],
+    "n": ["b", "h", "j", "m"],
+    "o": ["i", "k", "l", "p"],
+    "p": ["o", "l"],
+    "q": ["w", "a"],
+    "r": ["e", "d", "f", "t"],
+    "s": ["a", "w", "e", "d", "x", "z"],
+    "t": ["r", "f", "g", "y"],
+    "u": ["y", "h", "j", "i"],
+    "v": ["c", "f", "g", "b"],
+    "w": ["q", "a", "s", "e"],
+    "x": ["z", "s", "d", "c"],
+    "y": ["t", "g", "h", "u"],
+    "z": ["a", "s", "x"],
+}
+
+
+def _typing_delay_ms(previous_char: str, char: str) -> int:
+    """Typing delay model with bigram and punctuation variation."""
+    delay = 85
+    pair = f"{previous_char}{char}".lower()
+    if pair in _FAST_BIGRAMS:
+        delay -= 18
+    if char.isspace():
+        delay += 45
+    if char in ",.;:!?":
+        delay += 35
+    return gaussian_ms(delay, 24, 30, 260)
+
+
+def _neighbor_typo(char: str) -> str:
+    neighbors = _NEIGHBOR_KEYS.get(char.lower())
+    if not neighbors:
+        return char
+    typo = random.choice(neighbors)
+    return typo.upper() if char.isupper() else typo
+
+
+async def _human_type_keyword(page, keyword: str):
+    """Type keyword with variable cadence and occasional typo correction."""
+    previous_char = ""
+    for char in keyword:
+        make_typo = (
+            char.isalpha()
+            and random.random() < 0.08
+            and len(char.strip()) > 0
+        )
+
+        if make_typo:
+            typo = _neighbor_typo(char)
+            if typo != char:
+                await page.keyboard.type(typo)
+                await page.wait_for_timeout(gaussian_ms(62, 18, 25, 150))
+                await page.keyboard.press("Backspace")
+                await page.wait_for_timeout(gaussian_ms(85, 22, 35, 190))
+
+        await page.keyboard.type(char)
+        await page.wait_for_timeout(_typing_delay_ms(previous_char, char))
+
+        if char.isspace() and random.random() < 0.35:
+            await page.wait_for_timeout(gaussian_ms(430, 120, 220, 780))
+        elif random.random() < 0.06:
+            await page.wait_for_timeout(gaussian_ms(320, 90, 140, 680))
+
+        previous_char = char
 
 
 async def setup_request_interceptor(page):
@@ -106,8 +191,8 @@ async def handle_gdpr_consent(page, worker_id: int):
             box['y'] + box['height'] / 2,
             steps=random.randint(5, 10)
         )
-        await page.wait_for_timeout(random.randint(300, 800))
-        await consent_button.click(delay=random.randint(50, 200))
+        await page.wait_for_timeout(gaussian_ms(500, 140, 220, 1100))
+        await consent_button.click(delay=gaussian_ms(105, 28, 45, 220))
         print(f"Worker {worker_id}: Clicked GDPR consent button")
 
         try:
@@ -174,8 +259,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
             await search_input.click(click_count=3)
             await search_input.press("Backspace")
 
-            # Use type() instead of press(char) loop — handles non-ASCII/unicode keywords
-            await page.keyboard.type(keyword, delay=random.randint(50, 150))
+            await _human_type_keyword(page, keyword)
 
             await search_input.press("Enter")
             await page.wait_for_load_state("networkidle", timeout=45000)
@@ -203,10 +287,10 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
                 return False
 
             await target_link.scroll_into_view_if_needed()
-            await page.wait_for_timeout(random.randint(500, 1500))
+            await page.wait_for_timeout(gaussian_ms(900, 260, 350, 2200))
 
             async with page.expect_navigation(timeout=45000):
-                await target_link.click(delay=random.randint(50, 200))
+                await target_link.click(delay=gaussian_ms(110, 30, 45, 220))
 
             await page.wait_for_load_state("networkidle", timeout=45000)
 
@@ -226,7 +310,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
             print(f"Worker {worker_id}: Organic search error (attempt {retry_count + 1}): {str(e)}")
             retry_count += 1
             if retry_count < max_retries:
-                await page.wait_for_timeout(2000)
+                await page.wait_for_timeout(gaussian_ms(2100, 280, 1300, 3200))
             continue
 
     print(f"Worker {worker_id}: Max retries reached for organic search")

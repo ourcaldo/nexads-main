@@ -1,38 +1,39 @@
 {
   "social": {
     "Facebook": [
-      "facebook.com",
-      "fb.me",
-      "m.facebook.com",
-      "l.facebook.com"
+      "https://www.facebook.com/",
+      "https://m.facebook.com/",
+      "https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2F&h=AT2x1",
+      "https://lm.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2F&h=AT3y2"
     ],
     "Instagram": [
-      "instagram.com",
-      "l.instagram.com"
+      "https://www.instagram.com/",
+      "https://l.instagram.com/?u=https%3A%2F%2Fexample.com%2F&e=AT0"
     ],
     "Linkedin": [
-      "linkedin.com",
-      "lnkd.in",
-      "linkedin.android"
+      "https://www.linkedin.com/feed/",
+      "https://lnkd.in/eXAmPle",
+      "https://www.linkedin.com/company/example/"
     ],
     "Snapchat": [
-      "snapchat.com"
+      "https://www.snapchat.com/"
     ],
     "Telegram": [
-      "web.telegram.org",
-      "org.telegram.messenger"
+      "https://web.telegram.org/a/",
+      "https://t.me/s/example"
     ],
     "Threads": [
-      "threads.net",
-      "l.threads.net"
+      "https://www.threads.net/",
+      "https://l.threads.net/?u=https%3A%2F%2Fexample.com%2F"
     ],
     "Tiktok": [
-      "tiktok.com"
+      "https://www.tiktok.com/",
+      "https://www.tiktok.com/@example/video/1234567890"
     ],
     "Twitter": [
-      "Twitter.com",
-      "t.co",
-      "x.com"
+      "https://x.com/",
+      "https://twitter.com/",
+      "https://t.co/AbCdEf12"
     ]
   }
 }

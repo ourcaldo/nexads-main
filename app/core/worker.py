@@ -6,11 +6,13 @@ Worker session logic: WorkerContext, worker_session, run_worker, run_worker_asyn
 import random
 import asyncio
 import time
+import pathlib
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.browser.setup import configure_browser, cleanup_browser
 from app.browser.activities import perform_random_activity
+from app.browser.humanization import lognormal_seconds
 from app.navigation.urls import extract_domain, navigate_to_url_by_click, random_navigation
 from app.navigation.referrer import (
     get_random_keyword, perform_organic_search,
@@ -50,7 +52,10 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
     def get_delay(min_t=None, max_t=None):
         min_val = min_t if min_t is not None else ctx.config['delay']['min_time']
         max_val = max_t if max_t is not None else ctx.config['delay']['max_time']
-        return random.randint(min_val, max_val)
+        if min_val >= max_val:
+            return int(min_val)
+        median = (min_val + max_val) / 2
+        return int(round(lognormal_seconds(median, 0.45, min_val, max_val)))
 
     async def _ensure_tab(browser, page, url, wid, timeout=60):
         return await ensure_correct_tab(browser, page, url, wid, ctx.config, timeout)
@@ -58,13 +63,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
     async def _check_vignette(page, wid):
         return await check_and_handle_vignette(page, wid, extract_domain)
 
-    async def _smart_click(page, wid, domain, element=None, is_ad=False):
-        return await smart_click(page, wid, domain, element, is_ad)
+    async def _smart_click(page, wid, domain, element=None, is_ad=False, interaction_state=None):
+        return await smart_click(page, wid, domain, element, is_ad, interaction_state)
 
-    async def _perform_activity(page, browser, wid, stay_time, is_ads=False):
+    async def _perform_activity(page, browser, wid, stay_time, is_ads=False, interaction_state=None):
         return await perform_random_activity(
             page, browser, wid, stay_time, ctx.config, ctx.running,
-            _ensure_tab, _smart_click, extract_domain, _check_vignette, is_ads
+            _ensure_tab, _smart_click, extract_domain, _check_vignette, is_ads, interaction_state
         )
 
     try:
@@ -97,6 +102,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             session_successful = False
             browser = None
             context = None
+            storage_state_path = None
 
             try:
                 # --- BROWSER INIT ---
@@ -106,9 +112,21 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     await asyncio.sleep(10)
                     continue
 
-                context = await browser.new_context()
+                profiles_root = pathlib.Path(
+                    ctx.config.get("browser", {}).get("profile_dir", "profiles")
+                )
+                profiles_root.mkdir(parents=True, exist_ok=True)
+                storage_state_path = profiles_root / f"worker_{worker_id}_storage_state.json"
+
+                context_kwargs = {}
+                if storage_state_path.exists():
+                    context_kwargs["storage_state"] = str(storage_state_path)
+                    print(f"Worker {worker_id}: Loading persistent state from {storage_state_path}")
+
+                context = await browser.new_context(**context_kwargs)
                 page = await context.new_page()
                 ad_click_success = False
+                interaction_state = {"cursor_position": None}
 
                 # Hoist random_navigation lambda outside URL loop — built once per session
                 def _random_nav(p, wid, td):
@@ -197,7 +215,14 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     await handle_gdpr_consent(page, worker_id)
                     await _check_vignette(page, worker_id)
 
-                    stay_time = random.randint(url_data['min_time'], url_data['max_time'])  # seconds
+                    min_stay = int(url_data['min_time'])
+                    max_stay = int(url_data['max_time'])
+                    if min_stay >= max_stay:
+                        stay_time = min_stay
+                    else:
+                        stay_time = int(round(lognormal_seconds(
+                            (min_stay + max_stay) / 2, 0.5, min_stay, max_stay
+                        )))
                     print(f"Worker {worker_id}: Staying on page for {stay_time} seconds")
 
                     activity_start = time.time()
@@ -207,10 +232,10 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         remaining_time = stay_time - elapsed
 
                         await _perform_activity(
-                            page, browser, worker_id, remaining_time, is_ads_session)
+                            page, browser, worker_id, remaining_time, is_ads_session, interaction_state)
 
                         if remaining_time > 0:
-                            delay = min(random.uniform(0.5, 1.5), remaining_time)
+                            delay = min(lognormal_seconds(1.1, 0.4, 0.4, 2.8), remaining_time)
                             if delay > 0:
                                 await asyncio.sleep(delay)
 
@@ -245,6 +270,12 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             _perform_activity, get_delay
                         )
                         await natural_exit(context, worker_id, get_delay)
+                        if storage_state_path:
+                            try:
+                                await context.storage_state(path=str(storage_state_path))
+                                print(f"Worker {worker_id}: Saved persistent state to {storage_state_path}")
+                            except Exception as e:
+                                print(f"Worker {worker_id}: Failed to save persistent state: {str(e)}")
                         await cleanup_browser(browser, worker_id)
                     elif browser:
                         await cleanup_browser(browser, worker_id)
