@@ -95,18 +95,12 @@ class nexAds:
         session_enabled = self.config['session']['enabled']
         session_count = self.config['session']['count']
         threads = self.config['threads']
-        max_time_min = self.config['session']['max_time']
 
         if session_enabled and session_count > 0:
             # Finite session mode: count is explicit
             self.total_sessions = threads * session_count
-        elif max_time_min > 0:
-            # Time-bounded mode: estimate sessions from max_time
-            sessions_per_hour_per_thread = 60 / max_time_min
-            self.total_sessions = int(threads * sessions_per_hour_per_thread)
         else:
-            # Unlimited mode: use a rolling window — recalculate ads_sessions
-            # every N sessions so CTR never exhausts
+            # session.count == 0 means unlimited sessions.
             self.total_sessions = 0  # 0 = unlimited; ads_sessions used as rolling budget
 
         if self.total_sessions > 0:
