@@ -36,10 +36,9 @@ if apt-cache show libasound2t64 >/dev/null 2>&1; then
   ASOUND_PKG="libasound2t64"
 fi
 
-echo "[4/7] Installing Python, virtual display, and browser runtime libraries..."
+echo "[4/6] Installing Python, virtual display, and browser runtime libraries..."
 sudo apt-get install -y \
   python3 \
-  python3-venv \
   python3-pip \
   xvfb \
   libgtk-3-0 \
@@ -47,25 +46,18 @@ sudo apt-get install -y \
   libdbus-glib-1-2 \
   "$ASOUND_PKG"
 
-VENV_DIR="${VENV_DIR:-.venv}"
-echo "[5/7] Creating/updating virtual environment at ${VENV_DIR}..."
-python3 -m venv "$VENV_DIR"
-# shellcheck disable=SC1090
-source "$VENV_DIR/bin/activate"
+echo "[5/6] Installing Python dependencies from requirements.txt..."
+python3 -m pip install --break-system-packages --upgrade pip setuptools wheel
+python3 -m pip install --break-system-packages -r requirements.txt
 
-echo "[6/7] Installing Python dependencies from requirements.txt..."
-python -m pip install --break-system-packages --upgrade pip setuptools wheel
-pip install --break-system-packages -r requirements.txt
-
-echo "[7/7] Fetching Camoufox browser binaries..."
-python -m camoufox fetch
+echo "[6/6] Fetching Camoufox browser binaries..."
+python3 -m camoufox fetch
 
 if [ "${INSTALL_PLAYWRIGHT_FIREFOX:-0}" = "1" ]; then
   echo "Installing Playwright Firefox (optional)..."
-  python -m playwright install firefox
+  python3 -m playwright install firefox
 fi
 
 echo "Setup complete."
-echo "Activate env with: source ${VENV_DIR}/bin/activate"
-echo "Run automation with: python main.py"
-echo "Open config UI with: python main.py --config"
+echo "Run automation with: python3 main.py"
+echo "Open config UI with: python3 main.py --config"
