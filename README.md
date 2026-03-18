@@ -43,11 +43,28 @@ Optional: auto-start nexAds in background after setup:
 RUN_IN_BACKGROUND=1 ./scripts/setup_ubuntu.sh
 ```
 
+When auto-start is used, the installer writes:
+- `nexads.pid` (parent PID)
+- `nexads.pgid` (process group ID)
+
+Stop the full background tree (workers + browser children):
+
+```bash
+bash scripts/stop_nexads.sh
+```
+
 Run nexAds in background and write logs to a file:
 
 ```bash
-nohup python3 main.py > nexads.log 2>&1 &
+nohup setsid python3 main.py > nexads.log 2>&1 < /dev/null &
 tail -f nexads.log
+```
+
+If you stop with `kill <pid>` only, child browser processes may remain.
+Prefer killing the whole process group:
+
+```bash
+kill -TERM -- -$(cat nexads.pgid)
 ```
 
 Official Camoufox docs used in this guide:

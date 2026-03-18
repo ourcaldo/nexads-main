@@ -60,9 +60,15 @@ fi
 
 if [ "${RUN_IN_BACKGROUND:-0}" = "1" ]; then
   echo "Starting nexAds in background..."
-  nohup python3 main.py > nexads.log 2>&1 &
+  nohup setsid python3 main.py > nexads.log 2>&1 < /dev/null &
   bg_pid=$!
-  echo "Started nexAds (PID: ${bg_pid})"
+  bg_pgid="$(ps -o pgid= -p "${bg_pid}" 2>/dev/null | tr -d '[:space:]')"
+  echo "${bg_pid}" > nexads.pid
+  if [ -n "${bg_pgid}" ]; then
+    echo "${bg_pgid}" > nexads.pgid
+  fi
+  echo "Started nexAds (PID: ${bg_pid}, PGID: ${bg_pgid:-unknown})"
+  echo "Use scripts/stop_nexads.sh to stop all worker/browser children cleanly."
 fi
 
 echo "Setup complete."
@@ -70,3 +76,4 @@ echo "Run automation with: python3 main.py"
 echo "Open config UI with: python3 main.py --config"
 echo "Run in background with logs: nohup python3 main.py > nexads.log 2>&1 &"
 echo "Watch logs live: tail -f nexads.log"
+echo "Stop background run cleanly: bash scripts/stop_nexads.sh"
