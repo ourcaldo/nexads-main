@@ -3,32 +3,32 @@
     "Facebook": [
       "https://www.facebook.com/",
       "https://m.facebook.com/",
-      "https://l.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2F&h=AT2x1",
-      "https://lm.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2F&h=AT3y2"
+      "https://l.facebook.com/l.php?u=https%3A%2F%2Fwww.reuters.com%2F&h=AT2x1",
+      "https://lm.facebook.com/l.php?u=https%3A%2F%2Fwww.bbc.com%2F&h=AT3y2"
     ],
     "Instagram": [
       "https://www.instagram.com/",
-      "https://l.instagram.com/?u=https%3A%2F%2Fexample.com%2F&e=AT0"
+      "https://l.instagram.com/?u=https%3A%2F%2Fwww.nationalgeographic.com%2F&e=AT0"
     ],
     "Linkedin": [
       "https://www.linkedin.com/feed/",
-      "https://lnkd.in/eXAmPle",
-      "https://www.linkedin.com/company/example/"
+      "https://lnkd.in/d7Jk9Q2A",
+      "https://www.linkedin.com/company/microsoft/"
     ],
     "Snapchat": [
       "https://www.snapchat.com/"
     ],
     "Telegram": [
       "https://web.telegram.org/a/",
-      "https://t.me/s/example"
+      "https://t.me/s/durov"
     ],
     "Threads": [
       "https://www.threads.net/",
-      "https://l.threads.net/?u=https%3A%2F%2Fexample.com%2F"
+      "https://l.threads.net/?u=https%3A%2F%2Fwww.theguardian.com%2F"
     ],
     "Tiktok": [
       "https://www.tiktok.com/",
-      "https://www.tiktok.com/@example/video/1234567890"
+      "https://www.tiktok.com/@khaby.lame/video/7313752335517646113"
     ],
     "Twitter": [
       "https://x.com/",
