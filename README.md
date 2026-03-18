@@ -70,6 +70,24 @@ Install `xvfb`:
 sudo apt-get install xvfb
 ```
 
+If you get `E: Unable to locate package xvfb` on Ubuntu, enable/update apt sources first:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y software-properties-common
+sudo add-apt-repository -y universe
+sudo apt-get update
+sudo apt-get install -y xvfb
+```
+
+If it still fails, verify distro/repositories:
+
+```bash
+cat /etc/os-release
+apt-cache policy xvfb
+grep -R "^deb " /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null
+```
+
 Arch Linux:
 
 ```bash
