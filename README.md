@@ -25,6 +25,8 @@ chmod +x scripts/setup_ubuntu.sh
 ./scripts/setup_ubuntu.sh
 ```
 
+By default, the installer now also auto-starts nexAds in background (`nohup + setsid`) after setup.
+
 You can also run it from anywhere with an explicit shell command:
 
 ```bash
@@ -37,10 +39,10 @@ Optional: also install Playwright Firefox during setup:
 INSTALL_PLAYWRIGHT_FIREFOX=1 ./scripts/setup_ubuntu.sh
 ```
 
-Optional: auto-start nexAds in background after setup:
+Optional: disable auto-start after setup:
 
 ```bash
-RUN_IN_BACKGROUND=1 ./scripts/setup_ubuntu.sh
+RUN_IN_BACKGROUND=0 ./scripts/setup_ubuntu.sh
 ```
 
 When auto-start is used, the installer writes:

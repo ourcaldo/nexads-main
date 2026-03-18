@@ -18,6 +18,8 @@ if [ ! -f "requirements.txt" ]; then
   exit 1
 fi
 
+RUN_IN_BACKGROUND="${RUN_IN_BACKGROUND:-1}"
+
 echo "[1/7] Updating apt package index..."
 sudo apt-get update
 
@@ -58,8 +60,20 @@ if [ "${INSTALL_PLAYWRIGHT_FIREFOX:-0}" = "1" ]; then
   python3 -m playwright install firefox
 fi
 
-if [ "${RUN_IN_BACKGROUND:-0}" = "1" ]; then
+if [ "${RUN_IN_BACKGROUND}" = "1" ]; then
   echo "Starting nexAds in background..."
+
+  if [ -f "nexads.pid" ]; then
+    existing_pid="$(tr -d '[:space:]' < nexads.pid)"
+    if [ -n "${existing_pid}" ] && kill -0 "${existing_pid}" >/dev/null 2>&1; then
+      echo "nexAds already appears to be running (PID: ${existing_pid})."
+      echo "Use: bash scripts/stop_nexads.sh"
+      echo "Skipping auto-start."
+      echo "Setup complete."
+      exit 0
+    fi
+  fi
+
   nohup setsid python3 main.py > nexads.log 2>&1 < /dev/null &
   bg_pid=$!
   bg_pgid="$(ps -o pgid= -p "${bg_pid}" 2>/dev/null | tr -d '[:space:]')"
@@ -69,6 +83,8 @@ if [ "${RUN_IN_BACKGROUND:-0}" = "1" ]; then
   fi
   echo "Started nexAds (PID: ${bg_pid}, PGID: ${bg_pgid:-unknown})"
   echo "Use scripts/stop_nexads.sh to stop all worker/browser children cleanly."
+else
+  echo "RUN_IN_BACKGROUND=${RUN_IN_BACKGROUND} -> skipping auto-start."
 fi
 
 echo "Setup complete."
