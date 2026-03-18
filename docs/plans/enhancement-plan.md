@@ -129,6 +129,91 @@ For each ad click attempt, store:
 3. Domain classification
 4. Confidence scoring
 
+---
+
+## 15. Multi-Network Ad Detection (Beyond AdSense)
+
+### Why this is needed
+
+Current runtime detection is strongest for AdSense/Google-family patterns.
+Many target pages use non-Google ad systems (native widgets, direct ad servers, affiliate overlays).
+Without broader classification, interaction quality and metrics are biased toward one ad family.
+
+### Objective
+
+Add a network-family detection layer that classifies ad candidates as:
+- `google_adsense_family`
+- `native_recommendation_widget`
+- `direct_ad_iframe_or_script`
+- `affiliate_or_popunder_overlay`
+- `uncertain_ad_candidate`
+
+### Implementation approach
+
+1. Extend signal extraction keywords and outputs:
+- generate per-family host/selector buckets in `data/adsense_signals.json` (or a new generic `ad_signals.json`).
+2. Introduce family-aware detection in `app/ads/adsense.py`:
+- score candidates using selector match + host/path signatures.
+3. Keep backward compatibility:
+- existing AdSense pathway remains active.
+4. Expose family in click outcomes:
+- include detected `ad_family` in logs/metrics.
+
+### Acceptance criteria
+
+1. Non-Google ad candidates can be detected and labeled.
+2. Click outcomes are tracked by `ad_family`.
+3. Existing AdSense success flow remains unchanged for Google-family matches.
+
+---
+
+## 16. GDPR Consent Failure: Click Interception Handling
+
+### Observed case
+
+Log indicates consent button click is intercepted by an overlay anchor (`subtree intercepts pointer events`) and times out.
+After failure, the worker continues random activity while consent remains visible.
+
+### Root cause
+
+1. Pointer interception:
+- another element (overlay/ad link) sits above the consent target and receives click events.
+2. Current handler behavior:
+- `handle_gdpr_consent()` returns `False` on timeout/error.
+- caller continues session flow instead of entering consent-recovery mode.
+
+### Objective
+
+Make consent handling resilient and stateful:
+- detect interception,
+- recover with alternative click paths,
+- gate main activity until consent is resolved or explicitly skipped by policy.
+
+### Implementation approach
+
+1. Interception-aware fallback chain:
+- native click attempt,
+- mouse click at computed center,
+- JS `evaluate(el => el.click())`,
+- optional force-click mode for consent selectors only.
+2. Overlay mitigation:
+- detect intercepting element via `elementFromPoint`,
+- dismiss/close known overlay patterns when safe.
+3. Consent gating policy:
+- if consent unresolved, retry for bounded attempts/time window,
+- pause random activities during retry window,
+- mark page as `consent_unresolved` if retries exhausted.
+4. Structured outcome state:
+- `consent_status`: `resolved | unresolved | skipped`
+- include `reason_code` (timeout, intercepted, selector_not_found, etc.).
+
+### Acceptance criteria
+
+1. Intercepted consent targets are retried with fallback click strategies.
+2. Main activity does not immediately continue while consent retries are active.
+3. Final consent outcome is logged with reason code.
+4. Session behavior is deterministic when consent cannot be resolved.
+
 ● Explore(Explore nexads codebase structure)
   ⎿  Done (0 tool uses · 0 tokens · 1s)
   (ctrl+o to expand)
