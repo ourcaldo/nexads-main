@@ -226,7 +226,7 @@ All settings are stored in `config.json`. Edit via the GUI (`--config`) or manua
 | Section | Key Fields |
 |---------|-----------|
 | **proxy** | `type` (http/https/socks4/socks5), `credentials`, `file` |
-| **browser** | `headless_mode` (True/False/virtual), `disable_ublock`, `random_activity`, `auto_accept_cookies`, `persist_profile` (true/false), `prevent_redirects`, `activities` (scroll/hover/click) |
+| **browser** | `headless_mode` (True/False/virtual), `disable_ublock`, `random_activity`, `auto_accept_cookies`, `gdpr_max_wait_seconds`, `gdpr_on_fail` (`continue`/`skip_url`/`abort_session`), `persist_profile` (true/false), `prevent_redirects`, `activities` (scroll/hover/click) |
 | **delay** | `min_time`, `max_time` (seconds between actions) |
 | **session** | `enabled`, `count` (0=unlimited), `max_time` (minutes) |
 | **threads** | Number of parallel browser workers |

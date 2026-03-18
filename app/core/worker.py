@@ -16,8 +16,9 @@ from app.browser.humanization import lognormal_seconds
 from app.navigation.urls import extract_domain, navigate_to_url_by_click, random_navigation
 from app.navigation.referrer import (
     get_random_keyword, perform_organic_search,
-    accept_google_cookies, handle_gdpr_consent, get_social_referrer
+    accept_google_cookies, get_social_referrer
 )
+from app.navigation.consent import handle_consent_dialog
 from app.navigation.tabs import ensure_correct_tab, process_ads_tabs, natural_exit
 from app.ads.adsense import (
     interact_with_ads, check_and_handle_vignette, smart_click
@@ -221,7 +222,28 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     if ctx.config['browser']['auto_accept_cookies']:
                         await accept_google_cookies(page)
 
-                    await handle_gdpr_consent(page, worker_id)
+                    gdpr_max_wait = int(
+                        ctx.config.get('browser', {}).get('gdpr_max_wait_seconds', 12)
+                    )
+                    gdpr_on_fail = str(
+                        ctx.config.get('browser', {}).get('gdpr_on_fail', 'continue')
+                    ).strip().lower()
+
+                    consent_result = await handle_consent_dialog(
+                        page, worker_id, max_wait_seconds=gdpr_max_wait
+                    )
+                    consent_status = consent_result.get('status')
+                    if consent_status == 'unresolved':
+                        print(
+                            f"Worker {worker_id}: Consent unresolved "
+                            f"(reason={consent_result.get('reason')}, attempts={consent_result.get('attempts')})"
+                        )
+                        if gdpr_on_fail == 'skip_url':
+                            print(f"Worker {worker_id}: Skipping URL due to unresolved consent")
+                            continue
+                        if gdpr_on_fail == 'abort_session':
+                            raise SessionFailedException("Consent unresolved")
+
                     await _check_vignette(page, worker_id)
 
                     min_stay = int(url_data['min_time'])

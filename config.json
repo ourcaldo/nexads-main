@@ -9,6 +9,8 @@
         "disable_ublock": true,
         "random_activity": true,
         "auto_accept_cookies": true,
+        "gdpr_max_wait_seconds": 12,
+        "gdpr_on_fail": "continue",
         "persist_profile": false,
         "prevent_redirects": true,
         "activities": [

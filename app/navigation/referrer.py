@@ -10,6 +10,7 @@ import json
 import pathlib
 
 from app.browser.humanization import gaussian_ms
+from app.navigation.consent import handle_consent_dialog
 
 _REFERRERS_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "referrers.json"
 
@@ -74,78 +75,9 @@ async def accept_google_cookies(page):
 
 
 async def handle_gdpr_consent(page, worker_id: int):
-    """Handle GDPR consent popup if present. Returns True if handled."""
-    try:
-        gdpr_selectors = [
-            'div.fc-dialog-container',
-            'div[class*="cookie"]',
-            'div[class*="consent"]',
-            'div[class*="gdpr"]',
-            'div[class*="privacy"]'
-        ]
-
-        gdpr_dialog = None
-        for selector in gdpr_selectors:
-            try:
-                gdpr_dialog = await page.query_selector(selector)
-                if gdpr_dialog and await gdpr_dialog.is_visible():
-                    print(f"Worker {worker_id}: GDPR consent dialog detected")
-                    break
-                gdpr_dialog = None
-            except:
-                continue
-
-        if not gdpr_dialog:
-            return False
-
-        consent_selectors = [
-            'p.fc-button-label:has-text("Consent")',
-            'button:has-text("Consent")',
-            'button:has-text("Accept")',
-            'button:has-text("Agree")',
-            'button:has-text("I agree")',
-            'button#accept-cookies',
-            'button#consent-button'
-        ]
-
-        consent_button = None
-        for selector in consent_selectors:
-            try:
-                consent_button = await page.query_selector(selector)
-                if consent_button and await consent_button.is_visible():
-                    break
-                consent_button = None
-            except:
-                continue
-
-        if not consent_button:
-            print(f"Worker {worker_id}: GDPR dialog found but no consent button detected")
-            return False
-
-        await consent_button.scroll_into_view_if_needed()
-        box = await consent_button.bounding_box()
-        if not box:
-            return False
-
-        await page.mouse.move(
-            box['x'] + box['width'] / 2,
-            box['y'] + box['height'] / 2,
-            steps=random.randint(5, 10)
-        )
-        await page.wait_for_timeout(gaussian_ms(500, 140, 220, 1100))
-        await consent_button.click(delay=gaussian_ms(105, 28, 45, 220))
-        print(f"Worker {worker_id}: Clicked GDPR consent button")
-
-        try:
-            await page.wait_for_selector(consent_selectors[0], state='hidden', timeout=5000)
-        except:
-            pass
-
-        return True
-
-    except Exception as e:
-        print(f"Worker {worker_id}: Error handling GDPR consent: {str(e)}")
-        return False
+    """Backward-compatible wrapper for universal consent handler."""
+    result = await handle_consent_dialog(page, worker_id, max_wait_seconds=12)
+    return result.get("status") == "resolved"
 
 
 def get_random_keyword(config: dict):
