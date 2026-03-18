@@ -69,6 +69,14 @@ Prefer killing the whole process group:
 kill -TERM -- -$(cat nexads.pgid)
 ```
 
+If `git pull` is blocked by local changes and you want to force-sync your local copy to GitHub `main` (discard local uncommitted changes):
+
+```bash
+git fetch origin
+git reset --hard origin/main
+git clean -fd
+```
+
 Official Camoufox docs used in this guide:
 - Installation: https://camoufox.com/python/installation/
 - GeoIP: https://camoufox.com/python/geoip/
