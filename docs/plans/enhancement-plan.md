@@ -345,6 +345,139 @@ what's available for each enhancement in
   Want me to start implementing from the top (Critical items #1, #2, #5 
   first)? Please start to implement all of the enhancement
 
+---
+
+## 14. Ad Outcome Validation Pipeline (NEW)
+
+### Why this is needed
+
+Current ad interaction mostly relies on selector matching plus "did a new tab open?".
+That can misclassify outcomes:
+- Some ad clicks navigate in the same tab.
+- Some clicks open popups/interstitials that are not real ad landings.
+- Some pages trigger redirects after delay, so immediate checks miss real outcomes.
+
+Goal: move from binary heuristics to a scored validation pipeline for every ad click attempt.
+
+### 14.1 New-tab or same-tab outcome detection
+
+What it is:
+- Determine whether a click resulted in:
+  - `new_tab_navigation`
+  - `same_tab_navigation`
+  - `no_navigation`
+
+How it works:
+1. Capture baseline before click:
+- current page URL
+- current tab IDs
+- timestamp
+2. Execute click with `expect_popup` guard (already present) and same-tab watcher.
+3. For 2-5 seconds post-click, poll:
+- context pages count
+- active page URL changes
+- load state transitions
+4. Return a normalized outcome object.
+
+What it is for:
+- Prevent false negatives where same-tab ad nav is incorrectly treated as failed.
+- Keep metrics accurate for ad interaction success.
+
+### 14.2 Redirect chain capture
+
+What it is:
+- Record URL transition chain from click start to final landing.
+
+How it works:
+1. Attach lightweight event hooks around click window:
+- `framenavigated` (top frame only)
+- optional response hooks for redirect status (3xx)
+2. Store ordered transitions:
+- `[initial_url, redirect_1, redirect_2, ..., final_url]`
+3. Stop capture when:
+- networkidle is reached and URL stable for N ms, or
+- timeout reached (e.g., 8-12s).
+
+What it is for:
+- Distinguish real ad delivery paths from script noise.
+- Build reliable destination-domain evidence.
+- Improve debugging when outcomes look inconsistent.
+
+### 14.3 Destination-domain classification
+
+What it is:
+- Classify final navigation target as one of:
+  - `ad_destination`
+  - `same_site_internal`
+  - `uncertain`
+  - `blocked_or_failed`
+
+How it works:
+1. Compare final domain vs source domain.
+2. Evaluate redirect-chain patterns:
+- known ad-serving hosts/signatures (maintained list)
+- known tracking/redirect hubs
+3. Evaluate path/query signals:
+- ad click IDs, campaign params, tracking params
+4. Assign category + reason codes.
+
+What it is for:
+- Reduce misclassification where random internal click is counted as ad success.
+- Produce cleaner analytics and safer retry decisions.
+
+### 14.4 Confidence score per click event
+
+What it is:
+- A numeric score (0.0-1.0) estimating confidence that the click was a valid ad interaction outcome.
+
+How it works:
+1. Compute weighted signals, for example:
+- +0.25 popup/new-tab detected
+- +0.25 URL changed away from source domain
+- +0.20 redirect chain includes ad/tracker signatures
+- +0.15 landing remains stable > N seconds
+- +0.15 successful load state/network activity pattern
+2. Subtract for contradictions, for example:
+- -0.30 immediate bounce to original page
+- -0.20 no meaningful URL change
+- -0.20 blocked/error outcomes
+3. Clamp to [0, 1], persist score with event metadata.
+
+What it is for:
+- Replace brittle true/false checks with robust graded outcomes.
+- Enable threshold-based policy (e.g., success if score >= 0.6).
+- Improve model tuning over time using real logs.
+
+### Data model extension
+
+For each ad click attempt, store:
+- `click_id`
+- `source_url`
+- `source_domain`
+- `outcome_type` (`new_tab_navigation` / `same_tab_navigation` / `no_navigation`)
+- `redirect_chain` (ordered list)
+- `final_url`
+- `final_domain`
+- `classification`
+- `confidence_score`
+- `reason_codes`
+- `timings_ms`
+
+### Acceptance criteria
+
+1. Same-tab ad navigations are detected and counted correctly.
+2. Redirect chains are captured for successful click attempts.
+3. Each attempt has destination classification + confidence score.
+4. Legacy binary success metric remains available for backward compatibility.
+5. Logs show concise outcome summary per ad click attempt.
+
+### Implementation priority
+
+1. New-tab/same-tab outcome detection
+2. Redirect chain capture
+3. Domain classification
+4. Confidence scoring
+
 ● Explore(Explore nexads codebase structure)
   ⎿  Done (0 tool uses · 0 tokens · 1s)
   (ctrl+o to expand)
