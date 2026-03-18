@@ -54,8 +54,8 @@ python3 -m venv "$VENV_DIR"
 source "$VENV_DIR/bin/activate"
 
 echo "[6/7] Installing Python dependencies from requirements.txt..."
-python -m pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
+python -m pip install --break-system-packages --upgrade pip setuptools wheel
+pip install --break-system-packages -r requirements.txt
 
 echo "[7/7] Fetching Camoufox browser binaries..."
 python -m camoufox fetch
