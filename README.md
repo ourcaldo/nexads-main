@@ -117,6 +117,46 @@ python main.py
 python main.py --config
 ```
 
+## Docker (Auto-run on deploy)
+
+This repository now includes a production-ready `Dockerfile`, `docker-compose.yml`, and startup entrypoint.
+
+### Quick start
+
+```bash
+docker compose up -d --build
+```
+
+This will automatically:
+- install system dependencies (`xvfb`, Firefox/Camoufox runtime libs),
+- install Python dependencies,
+- fetch Camoufox browser binaries,
+- start `python main.py` on container startup.
+
+### Auto-start behavior
+
+- Compose uses `restart: unless-stopped`, so it restarts automatically after reboot/deploy.
+- Runtime config is built from your mounted `config.json` without modifying your host file.
+- Default container overrides:
+  - `NEXADS_HEADLESS_MODE=virtual`
+  - `NEXADS_PROXY_FILE=proxy.txt`
+  - `NEXADS_PROFILE_DIR=profiles`
+
+### Files used by Compose
+
+- `./config.json` → `/app/config.json` (read-only)
+- `./proxy.txt` → `/app/proxy.txt` (read-only)
+- `./referrers.json` → `/app/referrers.json` (read-only)
+- `./profiles` → `/app/profiles` (persistent browser session state)
+
+### Common commands
+
+```bash
+docker compose logs -f nexads
+docker compose restart nexads
+docker compose down
+```
+
 ## Configuration
 
 All settings are stored in `config.json`. Edit via the GUI (`--config`) or manually:

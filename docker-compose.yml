@@ -1,0 +1,16 @@
+services:
+  nexads:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexads
+    restart: unless-stopped
+    environment:
+      NEXADS_HEADLESS_MODE: virtual
+      NEXADS_PROXY_FILE: proxy.txt
+      NEXADS_PROFILE_DIR: profiles
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./proxy.txt:/app/proxy.txt:ro
+      - ./referrers.json:/app/referrers.json:ro
+      - ./profiles:/app/profiles

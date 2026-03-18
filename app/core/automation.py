@@ -9,11 +9,13 @@ import random
 import time
 import multiprocessing
 import pathlib
+import os
 
 from datetime import datetime
 
 _PKG_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-CONFIG_PATH = _PKG_ROOT / "config.json"
+_ENV_CONFIG_PATH = os.getenv("NEXADS_CONFIG_PATH")
+CONFIG_PATH = pathlib.Path(_ENV_CONFIG_PATH).expanduser() if _ENV_CONFIG_PATH else (_PKG_ROOT / "config.json")
 
 
 class SessionFailedException(Exception):
