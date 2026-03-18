@@ -58,6 +58,48 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
     attempts = 0
     target_domain = extract_domain(target_url)
 
+    async def _try_open_target(candidate_page, location_label: str) -> bool:
+        """Try multiple navigation strategies on a page before giving up."""
+        if not candidate_page:
+            return False
+        try:
+            if candidate_page.is_closed():
+                return False
+        except Exception:
+            return False
+
+        last_error = None
+        for wait_state in ("domcontentloaded", "load", "networkidle"):
+            try:
+                await candidate_page.goto(target_url, timeout=90000, wait_until=wait_state)
+            except Exception as e:
+                last_error = e
+
+            try:
+                await candidate_page.wait_for_timeout(1200)
+            except Exception:
+                pass
+
+            try:
+                current_url = candidate_page.url
+            except Exception:
+                current_url = ""
+
+            if _domain_matches(current_url, target_domain):
+                try:
+                    await candidate_page.bring_to_front()
+                except Exception:
+                    pass
+                print(
+                    f"Worker {worker_id}: Recovered target URL in {location_label} "
+                    f"(wait_until={wait_state})"
+                )
+                return True
+
+        if last_error:
+            print(f"Worker {worker_id}: Error loading target URL in {location_label}: {last_error}")
+        return False
+
     while time.time() - start_time < timeout:
         attempts += 1
         try:
@@ -84,29 +126,37 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
                 # Target tab not found — reuse or open new
                 if len(pages) <= 1:
                     if current_tab:
-                        try:
-                            await current_tab.goto(target_url, timeout=90000, wait_until="networkidle")
-                            await current_tab.bring_to_front()
-                            print(f"Worker {worker_id}: Opened target URL in current tab")
+                        recovered = await _try_open_target(current_tab, "current tab")
+                        if recovered:
                             return current_tab, True
-                        except Exception as e:
-                            print(f"Worker {worker_id}: Error loading target URL in current tab: {e}")
-                            return None, False
-                else:
-                    context = contexts[0] if contexts else await browser.new_context()
+
+                context = contexts[0] if contexts else await browser.new_context()
+                new_page = None
+                try:
+                    new_page = await context.new_page()
+                except Exception as e:
+                    print(f"Worker {worker_id}: Failed to create new tab for recovery: {e}")
+
+                if new_page:
                     try:
-                        new_page = await context.new_page()
-                        await new_page.goto(target_url, timeout=90000, wait_until="networkidle")
-                        await new_page.bring_to_front()
-                        print(f"Worker {worker_id}: Opened target URL in new tab")
-                        return new_page, True
+                        recovered = await _try_open_target(new_page, "new tab")
+                        if recovered:
+                            print(f"Worker {worker_id}: Opened target URL in new tab")
+                            return new_page, True
+
+                        if not new_page.is_closed():
+                            await new_page.close()
                     except Exception as e:
-                        print(f"Worker {worker_id}: Failed to open new tab: {e}")
+                        print(f"Worker {worker_id}: Failed to recover target in new tab: {e}")
                         try:
-                            if 'new_page' in locals() and not new_page.is_closed():
+                            if new_page and not new_page.is_closed():
                                 await new_page.close()
-                        except:
+                        except Exception:
                             pass
+
+                # Continue retry loop instead of failing immediately.
+                await asyncio.sleep(1)
+                continue
 
             else:
                 if current_tab and target_page != current_tab:
