@@ -219,8 +219,17 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 print(f"Worker {worker_id}: Error visiting URL: {str(e)}")
                                 raise SessionFailedException("Failed to navigate to URL")
 
+                    # Re-anchor immediately after URL load/click navigation.
+                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=25)
+                    if not success or not page:
+                        raise SessionFailedException("Could not recover target tab after navigation")
+
                     if ctx.config['browser']['auto_accept_cookies']:
                         await accept_google_cookies(page)
+
+                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=20)
+                    if not success or not page:
+                        raise SessionFailedException("Could not recover target tab after cookie handling")
 
                     gdpr_max_wait = int(
                         ctx.config.get('browser', {}).get('gdpr_max_wait_seconds', 12)
@@ -244,7 +253,15 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         if gdpr_on_fail == 'abort_session':
                             raise SessionFailedException("Consent unresolved")
 
+                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=20)
+                    if not success or not page:
+                        raise SessionFailedException("Could not recover target tab after consent handling")
+
                     await _check_vignette(page, worker_id)
+
+                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=20)
+                    if not success or not page:
+                        raise SessionFailedException("Could not recover target tab after vignette handling")
 
                     min_stay = int(url_data['min_time'])
                     max_stay = int(url_data['max_time'])

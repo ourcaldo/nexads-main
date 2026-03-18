@@ -6,9 +6,43 @@ Tab management: ensure correct tab is focused, process ad tabs, natural exit.
 import random
 import asyncio
 import time
+from urllib.parse import urlparse
 
 from app.browser.humanization import clamp, lognormal_seconds
 from app.navigation.urls import extract_domain
+
+
+def _normalize_domain(domain: str) -> str:
+    """Normalize domain for reliable tab matching."""
+    if not domain:
+        return ""
+    cleaned = domain.strip().lower()
+    if cleaned.startswith("www."):
+        cleaned = cleaned[4:]
+    if ":" in cleaned:
+        cleaned = cleaned.split(":", 1)[0]
+    return cleaned
+
+
+def _domain_from_url(url: str) -> str:
+    """Extract and normalize hostname from a URL string."""
+    try:
+        host = urlparse(url).hostname or ""
+    except Exception:
+        host = ""
+    return _normalize_domain(host)
+
+
+def _domain_matches(candidate_url: str, target_domain: str) -> bool:
+    """Return True only when candidate URL host matches target domain/subdomain."""
+    candidate_domain = _domain_from_url(candidate_url)
+    normalized_target = _normalize_domain(target_domain)
+    if not candidate_domain or not normalized_target:
+        return False
+    return (
+        candidate_domain == normalized_target
+        or candidate_domain.endswith(f".{normalized_target}")
+    )
 
 
 async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
@@ -40,7 +74,7 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
 
             for p in pages:
                 try:
-                    if not p.is_closed() and target_domain in p.url:
+                    if not p.is_closed() and _domain_matches(p.url, target_domain):
                         target_page = p
                         break
                 except:
@@ -125,7 +159,7 @@ async def process_ads_tabs(browser_context, worker_id: int, config: dict,
                     continue
 
                 current_url = page.url
-                if any(extract_domain(url) in current_url for url in config_urls):
+                if any(_domain_matches(current_url, extract_domain(url)) for url in config_urls):
                     continue
 
                 ad_tabs_processed += 1
