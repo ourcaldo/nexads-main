@@ -57,6 +57,56 @@ async def _idle_mouse_jitter(page, interaction_state: dict | None,
         set_cursor_position(interaction_state, target_x, target_y)
 
 
+async def _get_activity_capabilities(page) -> dict:
+    """Return currently feasible activity capabilities for the active page."""
+    try:
+        return await page.evaluate(
+            """
+            () => {
+                const isVisible = (el) => {
+                    if (!el) return false;
+                    const style = window.getComputedStyle(el);
+                    if (style.visibility === 'hidden' || style.display === 'none') return false;
+                    const rect = el.getBoundingClientRect();
+                    return rect.width > 1 && rect.height > 1;
+                };
+
+                const doc = document.documentElement;
+                const body = document.body;
+                const scrollHeight = Math.max(
+                    body ? body.scrollHeight : 0,
+                    doc ? doc.scrollHeight : 0
+                );
+                const canScroll = scrollHeight > (window.innerHeight + 40);
+
+                const hoverCandidates = document.querySelectorAll('a, button, img, [role="button"], p, h1, h2, h3, li, span');
+                const clickCandidates = document.querySelectorAll('a, button, [onclick], [role="button"]');
+
+                let canHover = false;
+                for (const el of hoverCandidates) {
+                    if (isVisible(el)) {
+                        canHover = true;
+                        break;
+                    }
+                }
+
+                let canClick = false;
+                for (const el of clickCandidates) {
+                    if (isVisible(el)) {
+                        canClick = true;
+                        break;
+                    }
+                }
+
+                return { can_scroll: canScroll, can_hover: canHover, can_click: canClick };
+            }
+            """
+        )
+    except Exception:
+        # Be permissive on script failures so activity loop can still proceed.
+        return {"can_scroll": True, "can_hover": True, "can_click": True}
+
+
 async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
                         running: bool, phase: str = "reading",
                         expected_url: str | None = None):
@@ -66,7 +116,7 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
         page, success = await ensure_correct_tab_fn(browser, page, target_url, worker_id)
         if not success:
             print(f"Worker {worker_id}: Could not ensure correct tab for scrolling")
-            return
+            return False
 
         print(f"Worker {worker_id}: Performing human-like scroll")
 
@@ -76,11 +126,11 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
 
         if height <= viewport_height:
             print(f"Worker {worker_id}: Page is not scrollable")
-            return
+            return False
 
         max_scroll = max(0, height - viewport_height)
         if max_scroll <= 0:
-            return
+            return False
 
         up_chance = 0.28 if phase in {"reading", "exploration"} else 0.15
         if current_scroll < viewport_height * 0.5:
@@ -100,7 +150,7 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
         available_distance = int(max_scroll - current_scroll) if direction > 0 else int(current_scroll)
         scroll_amount = min(candidate_distance, max(0, available_distance))
         if scroll_amount < 20:
-            return
+            return False
 
         signed_scroll = scroll_amount if direction > 0 else -scroll_amount
         steps = int(clamp(scroll_amount / random.uniform(85, 175), 3, 12))
@@ -126,9 +176,11 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
 
         direction_text = "down" if direction > 0 else "up"
         print(f"Worker {worker_id}: Scrolled {direction_text} {scroll_amount}px in {steps} steps")
+        return True
 
     except Exception as e:
         print(f"Worker {worker_id}: Error during scrolling: {str(e)}")
+        return False
 
 
 async def random_hover(page, browser, worker_id: int, ensure_correct_tab_fn,
@@ -257,6 +309,7 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
     try:
         expected_url = strict_target_url or page.url
         current_domain = extract_domain_fn(expected_url)
+        blocked_by_url = interaction_state.setdefault("blocked_activities_by_url", {})
 
         activity_start = time.time()
         remaining_time = stay_time
@@ -269,38 +322,84 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
 
             current_domain = extract_domain_fn(page.url)
             await check_vignette_fn(page, worker_id)
+            capabilities = await _get_activity_capabilities(page)
+
+            raw_blocked = blocked_by_url.get(expected_url, [])
+            blocked_activities = set(raw_blocked) if isinstance(raw_blocked, list) else set()
+            if capabilities.get("can_scroll", True) and "scroll" in blocked_activities:
+                blocked_activities.discard("scroll")
+
+            blocked_by_url[expected_url] = sorted(blocked_activities)
+
+            capability_log_key = (
+                expected_url,
+                bool(capabilities.get("can_scroll", True)),
+                bool(capabilities.get("can_hover", True)),
+                bool(capabilities.get("can_click", True)),
+                tuple(sorted(blocked_activities)),
+            )
+            if interaction_state.get("last_capability_log_key") != capability_log_key:
+                interaction_state["last_capability_log_key"] = capability_log_key
+                print(
+                    f"Worker {worker_id}: Activity capability "
+                    f"scroll={capabilities.get('can_scroll', True)}, "
+                    f"hover={capabilities.get('can_hover', True)}, "
+                    f"click={capabilities.get('can_click', True)}, "
+                    f"blocked={sorted(blocked_activities)}"
+                )
 
             progress = (stay_time - remaining_time) / max(1.0, stay_time)
             phase = _get_reading_phase(progress)
 
             weighted_activities: list[tuple[str, float]] = []
-            if 'scroll' in config['browser']['activities']:
+            if (
+                'scroll' in config['browser']['activities']
+                and capabilities.get('can_scroll', True)
+                and 'scroll' not in blocked_activities
+            ):
                 weighted_activities.append((
                     "scroll",
                     {"arrival": 0.65, "reading": 0.60, "exploration": 0.35, "done": 0.55}[phase]
                 ))
-            if 'click' in config['browser']['activities']:
+            if (
+                'click' in config['browser']['activities']
+                and capabilities.get('can_click', True)
+                and 'click' not in blocked_activities
+            ):
                 weighted_activities.append((
                     "click",
                     {"arrival": 0.10, "reading": 0.10, "exploration": 0.30, "done": 0.25}[phase]
                 ))
-            if 'hover' in config['browser']['activities']:
+            if (
+                'hover' in config['browser']['activities']
+                and capabilities.get('can_hover', True)
+                and 'hover' not in blocked_activities
+            ):
                 weighted_activities.append((
                     "hover",
                     {"arrival": 0.25, "reading": 0.30, "exploration": 0.35, "done": 0.20}[phase]
                 ))
 
             if not weighted_activities:
-                break
+                backoff = min(lognormal_seconds(1.2, 0.45, 0.5, 2.4), remaining_time)
+                if backoff > 0:
+                    await _idle_mouse_jitter(page, interaction_state, running, backoff)
+                elapsed = time.time() - activity_start
+                remaining_time = stay_time - elapsed
+                continue
 
             labels = [item[0] for item in weighted_activities]
             weights = [item[1] for item in weighted_activities]
             selected = random.choices(labels, weights=weights, k=1)[0]
 
             if selected == "scroll":
-                await random_scroll(
+                scroll_ok = await random_scroll(
                     page, browser, worker_id, ensure_correct_tab_fn, running, phase, expected_url
                 )
+                if not scroll_ok:
+                    blocked_activities.add("scroll")
+                    blocked_by_url[expected_url] = sorted(blocked_activities)
+                    print(f"Worker {worker_id}: Blocked activity 'scroll' for current URL state")
             elif selected == "click":
                 await random_click(
                     page, browser, worker_id, current_domain, is_ads_session,
