@@ -23,16 +23,16 @@
     "session": {
         "enabled": true,
         "count": 0,
-        "max_time": 100
+        "max_time": 3
     },
-    "threads": 1,
+    "threads": 10,
     "os_fingerprint": [
         "windows",
         "macos"
     ],
     "device_type": {
-        "mobile": 70,
-        "desktop": 30
+        "mobile": 0,
+        "desktop": 100
     },
     "referrer": {
         "types": [
@@ -47,10 +47,28 @@
             "random_page": true,
             "min_time": 30,
             "max_time": 60
+        },
+        {
+            "url": "https://www.effectivegatecpm.com/k91jsabd?key=bd774863dec934484283eb50fa4d06a7",
+            "random_page": true,
+            "min_time": 30,
+            "max_time": 60
+        },
+        {
+            "url": "https://www.effectivegatecpm.com/nqbffadx3y?key=2d8972ad9e17fca78b48312dacf8ef0f",
+            "random_page": true,
+            "min_time": 30,
+            "max_time": 60
+        },
+        {
+            "url": "https://www.effectivegatecpm.com/eihpppvx7b?key=9445c96993d13a115852beac04fe8025",
+            "random_page": true,
+            "min_time": 30,
+            "max_time": 60
         }
     ],
     "ads": {
-        "ctr": 10.0,
+        "ctr": 80.0,
         "min_time": 30,
         "max_time": 60
     }

@@ -6,7 +6,7 @@
   },
   "enabledPlugins": {
     "claude-mem@thedotmack": true,
-    "superpowers@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false,
     "agenthub@claude-code-skills": true,
     "code-review@claude-plugins-official": true,
     "github@claude-plugins-official": true,

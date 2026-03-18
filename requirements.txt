@@ -12,3 +12,5 @@ setuptools
 playwright
 urllib3<3
 chardet<5
+oxymouse
+humantyping[playwright]

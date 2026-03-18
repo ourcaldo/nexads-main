@@ -1,5 +1,6 @@
 {
     "claudeCode.allowDangerouslySkipPermissions": true,
     "claudeCode.initialPermissionMode": "bypassPermissions",
-    "claudeCode.preferredLocation": "sidebar"
+    "claudeCode.preferredLocation": "sidebar",
+    "claudeCode.environmentVariables": []
 }
