@@ -25,10 +25,23 @@ chmod +x scripts/setup_ubuntu.sh
 ./scripts/setup_ubuntu.sh
 ```
 
+You can also run it from anywhere with an explicit shell command:
+
+```bash
+bash scripts/setup_ubuntu.sh
+```
+
 Optional: also install Playwright Firefox during setup:
 
 ```bash
 INSTALL_PLAYWRIGHT_FIREFOX=1 ./scripts/setup_ubuntu.sh
+```
+
+Run nexAds in background and write logs to a file:
+
+```bash
+nohup python3 main.py > nexads.log 2>&1 &
+tail -f nexads.log
 ```
 
 Official Camoufox docs used in this guide:

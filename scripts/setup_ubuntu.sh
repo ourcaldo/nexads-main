@@ -61,3 +61,5 @@ fi
 echo "Setup complete."
 echo "Run automation with: python3 main.py"
 echo "Open config UI with: python3 main.py --config"
+echo "Run in background with logs: nohup python3 main.py > nexads.log 2>&1 &"
+echo "Watch logs live: tail -f nexads.log"
