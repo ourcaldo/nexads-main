@@ -7,6 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    linux-libc-dev \
     xvfb \
     libgtk-3-0 \
     libx11-xcb1 \
