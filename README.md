@@ -153,6 +153,22 @@ python -m camoufox remove
 
 ## Usage
 
+### Build AdSense signal list from EasyList
+
+Generate candidate selectors/domains from EasyList into JSON:
+
+```bash
+python3 scripts/extract_adsense_signals.py
+```
+
+Custom source/output:
+
+```bash
+python3 scripts/extract_adsense_signals.py --source https://easylist.to/easylist/easylist.txt --output data/adsense_signals.json
+```
+
+The generated file can be used by ad detection/classification logic.
+
 ### Run automation
 ```bash
 python main.py
