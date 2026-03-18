@@ -169,6 +169,8 @@ python3 scripts/extract_adsense_signals.py --source https://easylist.to/easylist
 
 The generated file can be used by ad detection/classification logic.
 
+At runtime, nexAds will auto-check this file on startup and refresh it when missing/stale before workers are launched.
+
 ### Run automation
 ```bash
 python main.py

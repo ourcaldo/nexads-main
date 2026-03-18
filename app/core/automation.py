@@ -11,6 +11,7 @@ import multiprocessing
 import pathlib
 
 from datetime import datetime
+from app.ads.signals import ensure_adsense_signals_updated
 
 _PKG_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 CONFIG_PATH = _PKG_ROOT / "config.json"
@@ -125,6 +126,14 @@ class nexAds:
 
         self.running = True
         self.start_time = datetime.now()
+
+        # Refresh AdSense signal cache once in the parent process before workers spawn.
+        try:
+            updated, message = ensure_adsense_signals_updated()
+            prefix = "updated" if updated else "cached"
+            print(f"AdSense signals {prefix}: {message}")
+        except Exception as e:
+            print(f"Warning: could not refresh AdSense signals: {str(e)}")
 
         # Create shared state via Manager so workers can write back stats
         self.manager = multiprocessing.Manager()

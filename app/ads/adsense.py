@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import random
 
+from app.ads.signals import load_adsense_cosmetic_selectors
 from app.browser.humanization import (
     choose_click_point,
     gaussian_ms,
@@ -18,20 +19,50 @@ from app.browser.humanization import (
 )
 
 
+_DEFAULT_AD_SELECTORS = [
+    'ins.adsbygoogle',
+    'ins[class*="adsbygoogle"]',
+    'div[id*="google_ads"]',
+    'div[data-ad-client]',
+    'div[data-ad-slot]',
+    'iframe[src*="googleads"]',
+    'iframe[src*="doubleclick.net"]',
+    'iframe[src*="adservice.google.com"]',
+    'div[class*="adsense"]',
+]
+
+_RUNTIME_AD_SELECTORS: list[str] | None = None
+
+
+def _get_runtime_ad_selectors() -> list[str]:
+    """Return merged default + EasyList-derived selectors, loaded once per process."""
+    global _RUNTIME_AD_SELECTORS
+    if _RUNTIME_AD_SELECTORS is not None:
+        return _RUNTIME_AD_SELECTORS
+
+    dynamic_selectors = load_adsense_cosmetic_selectors(limit=260)
+    merged: list[str] = []
+    seen: set[str] = set()
+
+    for selector in _DEFAULT_AD_SELECTORS + dynamic_selectors:
+        clean = selector.strip()
+        if not clean or clean in seen:
+            continue
+        seen.add(clean)
+        merged.append(clean)
+
+    _RUNTIME_AD_SELECTORS = merged
+    print(
+        f"Ad selectors loaded: {len(_DEFAULT_AD_SELECTORS)} default + "
+        f"{max(0, len(merged) - len(_DEFAULT_AD_SELECTORS))} dynamic"
+    )
+    return _RUNTIME_AD_SELECTORS
+
+
 async def detect_adsense_ads(page):
     """Detect and return all visible AdSense ad elements on the current page."""
     try:
-        ad_selectors = [
-            'ins.adsbygoogle',
-            'ins[class*="adsbygoogle"]',
-            'div[id*="google_ads"]',
-            'div[data-ad-client]',
-            'div[data-ad-slot]',
-            'iframe[src*="googleads"]',
-            'iframe[src*="doubleclick.net"]',
-            'iframe[src*="adservice.google.com"]',
-            'div[class*="adsense"]'
-        ]
+        ad_selectors = _get_runtime_ad_selectors()
         visible_ads = []
 
         for selector in ad_selectors:
