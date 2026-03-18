@@ -16,6 +16,27 @@ An automation tool to boost traffic with browser fingerprint spoofing and human-
 
 ## Installation
 
+### Quick Ubuntu Server Setup (one script)
+
+Run the automated installer to set up Python, pip, virtual environment, xvfb, Linux runtime libraries, Python dependencies, and Camoufox binaries:
+
+```bash
+chmod +x scripts/setup_ubuntu.sh
+./scripts/setup_ubuntu.sh
+```
+
+Optional: also install Playwright Firefox during setup:
+
+```bash
+INSTALL_PLAYWRIGHT_FIREFOX=1 ./scripts/setup_ubuntu.sh
+```
+
+Optional: choose a custom virtual environment directory:
+
+```bash
+VENV_DIR=.venv-nexads ./scripts/setup_ubuntu.sh
+```
+
 Official Camoufox docs used in this guide:
 - Installation: https://camoufox.com/python/installation/
 - GeoIP: https://camoufox.com/python/geoip/

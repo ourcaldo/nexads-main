@@ -5,7 +5,7 @@
         "file": "proxy.txt"
     },
     "browser": {
-        "headless_mode": "False",
+        "headless_mode": "virtual",
         "disable_ublock": true,
         "random_activity": true,
         "auto_accept_cookies": true,
