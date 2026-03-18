@@ -5,7 +5,7 @@
         "file": "proxy.txt"
     },
     "browser": {
-        "headless_mode": "virtual",
+        "headless_mode": "False",
         "disable_ublock": true,
         "random_activity": true,
         "auto_accept_cookies": true,
@@ -26,7 +26,7 @@
         "count": 0,
         "max_time": 3
     },
-    "threads": 20,
+    "threads": 1,
     "os_fingerprint": [
         "windows",
         "macos"
