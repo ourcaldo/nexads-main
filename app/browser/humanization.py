@@ -9,6 +9,17 @@ import math
 import random
 from typing import MutableMapping
 
+try:
+    from oxymouse import OxyMouse
+
+    _OXYMOUSE_AVAILABLE = True
+    _OXY_BEZIER = OxyMouse("bezier")
+    _OXY_GAUSSIAN = OxyMouse("gaussian")
+except Exception:
+    _OXYMOUSE_AVAILABLE = False
+    _OXY_BEZIER = None
+    _OXY_GAUSSIAN = None
+
 
 def clamp(value: float, minimum: float, maximum: float) -> float:
     """Clamp value to [minimum, maximum]."""
@@ -135,13 +146,81 @@ def _build_curve_points(start: tuple[float, float], target: tuple[float, float],
     return points
 
 
+def _normalize_path(points: list[tuple[int, int]] | None,
+                    start: tuple[float, float],
+                    target: tuple[float, float],
+                    max_points: int = 140) -> list[tuple[float, float]]:
+    """Normalize coordinate arrays returned by external generators."""
+    if not points:
+        return []
+
+    deduped: list[tuple[float, float]] = []
+    last_point: tuple[float, float] | None = None
+    for x, y in points:
+        point = (float(x), float(y))
+        if last_point and abs(point[0] - last_point[0]) < 0.5 and abs(point[1] - last_point[1]) < 0.5:
+            continue
+        deduped.append(point)
+        last_point = point
+
+    if not deduped:
+        return []
+
+    if len(deduped) > max_points:
+        stride = max(1, len(deduped) // max_points)
+        deduped = deduped[::stride]
+
+    deduped[0] = (float(start[0]), float(start[1]))
+    deduped[-1] = (float(target[0]), float(target[1]))
+    return deduped
+
+
+def _generate_oxymouse_segment(start: tuple[float, float],
+                               target: tuple[float, float],
+                               algorithm: str) -> list[tuple[float, float]]:
+    """Generate a movement segment using oxymouse coordinate generators."""
+    if not _OXYMOUSE_AVAILABLE:
+        return []
+
+    engine = _OXY_BEZIER if algorithm == "bezier" else _OXY_GAUSSIAN
+    if engine is None:
+        return []
+
+    try:
+        points = engine.generate_coordinates(
+            int(round(start[0])),
+            int(round(start[1])),
+            int(round(target[0])),
+            int(round(target[1])),
+        )
+        return _normalize_path(points, start, target)
+    except Exception:
+        return []
+
+
 def generate_mouse_path(start: tuple[float, float],
                         target: tuple[float, float]) -> list[tuple[float, float]]:
-    """Generate a curved, slightly noisy mouse path with occasional overshoot."""
+    """Generate a curved mouse path, preferring oxymouse when available."""
     distance = math.hypot(target[0] - start[0], target[1] - start[1])
-    steps = int(clamp(distance / random.uniform(20, 35), 8, 30))
     should_overshoot = distance > 140 and random.random() < 0.22
 
+    if _OXYMOUSE_AVAILABLE:
+        primary_algorithm = "bezier" if random.random() < 0.72 else "gaussian"
+        secondary_algorithm = "gaussian" if primary_algorithm == "bezier" else "bezier"
+
+        if should_overshoot:
+            overshoot = _overshoot_target(start, target)
+            first_leg = _generate_oxymouse_segment(start, overshoot, primary_algorithm)
+            second_leg = _generate_oxymouse_segment(overshoot, target, secondary_algorithm)
+            if first_leg and second_leg:
+                return first_leg + second_leg[1:]
+
+        single_leg = _generate_oxymouse_segment(start, target, primary_algorithm)
+        if single_leg:
+            return single_leg
+
+    # Fallback keeps behavior stable even if external libs are unavailable.
+    steps = int(clamp(distance / random.uniform(20, 35), 8, 30))
     if should_overshoot:
         overshoot = _overshoot_target(start, target)
         first_leg = _build_curve_points(start, overshoot, steps, jitter_px=2.5)
@@ -154,7 +233,7 @@ def generate_mouse_path(start: tuple[float, float],
 
 async def move_mouse_humanly(page, start: tuple[float, float],
                              target: tuple[float, float]) -> None:
-    """Move mouse along a curved path with bounded per-step delays."""
+    """Move mouse along generated path with bounded per-step delays."""
     path = generate_mouse_path(start, target)
     distance = math.hypot(target[0] - start[0], target[1] - start[1])
     total_ms = gaussian_ms(320 + distance * 0.65, 120, 180, 1600)
