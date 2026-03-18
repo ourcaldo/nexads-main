@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import random
 
+from app.ads.outcomes import evaluate_ad_click_outcome
 from app.ads.signals import load_adsense_cosmetic_selectors
 from app.browser.humanization import (
     choose_click_point,
@@ -217,7 +218,8 @@ async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn) ->
 
     for ad in visible_ads:
         try:
-            current_domain = extract_domain_fn(page.url)
+            source_url = page.url
+            current_domain = extract_domain_fn(source_url)
             box = await ad.bounding_box()
             ad_position = f"({box['x']:.0f},{box['y']:.0f})" if box else "(unknown position)"
             print(f"Worker {worker_id}: Attempting to click ad at {ad_position}")
@@ -230,20 +232,26 @@ async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn) ->
                 is_ad_activity=True,
                 interaction_state=interaction_state,
             ):
-                await asyncio.sleep(lognormal_seconds(2.1, 0.35, 1.2, 4.2))
-                tabs_after = len(context.pages)
-                if tabs_after > tabs_before:
-                    print(
-                        f"Worker {worker_id}: Ad click successful - new tab opened "
-                        f"(total tabs: {tabs_after})"
-                    )
+                outcome = await evaluate_ad_click_outcome(
+                    page=page,
+                    context=context,
+                    source_url=source_url,
+                    source_domain=current_domain,
+                    tabs_before=tabs_before,
+                    monitor_seconds=5.0,
+                )
+                print(
+                    f"Worker {worker_id}: Ad outcome type={outcome['outcome_type']}, "
+                    f"class={outcome['classification']}, score={outcome['confidence_score']:.2f}, "
+                    f"final={outcome['final_domain']}, reasons={outcome['reason_codes']}"
+                )
+
+                if outcome['confidence_score'] >= 0.60 and outcome['classification'] != 'blocked_or_failed':
+                    print(f"Worker {worker_id}: Ad click accepted by confidence threshold")
                     clicked = True
                     break
 
-                print(
-                    f"Worker {worker_id}: Ad click did not open new tab "
-                    f"(total tabs remains: {tabs_after})"
-                )
+                print(f"Worker {worker_id}: Ad click not accepted by confidence threshold")
                 await asyncio.sleep(lognormal_seconds(0.8, 0.4, 0.35, 2.0))
 
         except Exception as e:

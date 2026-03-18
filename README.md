@@ -37,6 +37,12 @@ Optional: also install Playwright Firefox during setup:
 INSTALL_PLAYWRIGHT_FIREFOX=1 ./scripts/setup_ubuntu.sh
 ```
 
+Optional: auto-start nexAds in background after setup:
+
+```bash
+RUN_IN_BACKGROUND=1 ./scripts/setup_ubuntu.sh
+```
+
 Run nexAds in background and write logs to a file:
 
 ```bash

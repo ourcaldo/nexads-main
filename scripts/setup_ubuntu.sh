@@ -58,6 +58,13 @@ if [ "${INSTALL_PLAYWRIGHT_FIREFOX:-0}" = "1" ]; then
   python3 -m playwright install firefox
 fi
 
+if [ "${RUN_IN_BACKGROUND:-0}" = "1" ]; then
+  echo "Starting nexAds in background..."
+  nohup python3 main.py > nexads.log 2>&1 &
+  bg_pid=$!
+  echo "Started nexAds (PID: ${bg_pid})"
+fi
+
 echo "Setup complete."
 echo "Run automation with: python3 main.py"
 echo "Open config UI with: python3 main.py --config"
