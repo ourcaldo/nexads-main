@@ -9,4 +9,3 @@ services:
       - ./config.json:/app/config.json:ro
       - ./proxy.txt:/app/proxy.txt:ro
       - ./referrers.json:/app/referrers.json:ro
-      - ./profiles:/app/profiles

@@ -103,6 +103,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             browser = None
             context = None
             storage_state_path = None
+            persist_profile = bool(
+                ctx.config.get("browser", {}).get("persist_profile", False)
+            )
 
             try:
                 # --- BROWSER INIT ---
@@ -112,16 +115,21 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     await asyncio.sleep(10)
                     continue
 
-                profiles_root = pathlib.Path(
-                    ctx.config.get("browser", {}).get("profile_dir", "profiles")
-                )
-                profiles_root.mkdir(parents=True, exist_ok=True)
-                storage_state_path = profiles_root / f"worker_{worker_id}_storage_state.json"
-
                 context_kwargs = {}
-                if storage_state_path.exists():
-                    context_kwargs["storage_state"] = str(storage_state_path)
-                    print(f"Worker {worker_id}: Loading persistent state from {storage_state_path}")
+                if persist_profile:
+                    profiles_root = pathlib.Path(
+                        ctx.config.get("browser", {}).get("profile_dir", "profiles")
+                    )
+                    profiles_root.mkdir(parents=True, exist_ok=True)
+                    storage_state_path = profiles_root / f"worker_{worker_id}_storage_state.json"
+
+                    if storage_state_path.exists():
+                        context_kwargs["storage_state"] = str(storage_state_path)
+                        print(
+                            f"Worker {worker_id}: Loading persistent state from {storage_state_path}"
+                        )
+                else:
+                    print(f"Worker {worker_id}: Profile persistence disabled, starting fresh")
 
                 context = await browser.new_context(**context_kwargs)
                 page = await context.new_page()
@@ -270,7 +278,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             _perform_activity, get_delay
                         )
                         await natural_exit(context, worker_id, get_delay)
-                        if storage_state_path:
+                        if persist_profile and storage_state_path:
                             try:
                                 await context.storage_state(path=str(storage_state_path))
                                 print(f"Worker {worker_id}: Saved persistent state to {storage_state_path}")

@@ -139,13 +139,13 @@ This will automatically:
 - Container startup uses your `config.json` directly (no runtime env override required).
 - Set all behavior (`threads`, `urls`, `ads`, `referrer`, `browser`, etc.) in `config.json`.
 - For containerized runs, set `proxy.file` in `config.json` to `proxy.txt`.
+- By default, workers start with fresh browser profiles each session (`browser.persist_profile: false`).
 
 ### Files used by Compose
 
 - `./config.json` → `/app/config.json` (read-only)
 - `./proxy.txt` → `/app/proxy.txt` (read-only)
 - `./referrers.json` → `/app/referrers.json` (read-only)
-- `./profiles` → `/app/profiles` (persistent browser session state)
 
 ### Common commands
 
@@ -162,7 +162,7 @@ All settings are stored in `config.json`. Edit via the GUI (`--config`) or manua
 | Section | Key Fields |
 |---------|-----------|
 | **proxy** | `type` (http/https/socks4/socks5), `credentials`, `file` |
-| **browser** | `headless_mode` (True/False/virtual), `disable_ublock`, `random_activity`, `auto_accept_cookies`, `prevent_redirects`, `activities` (scroll/hover/click) |
+| **browser** | `headless_mode` (True/False/virtual), `disable_ublock`, `random_activity`, `auto_accept_cookies`, `persist_profile` (true/false), `prevent_redirects`, `activities` (scroll/hover/click) |
 | **delay** | `min_time`, `max_time` (seconds between actions) |
 | **session** | `enabled`, `count` (0=unlimited), `max_time` (minutes) |
 | **threads** | Number of parallel browser workers |

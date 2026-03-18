@@ -9,6 +9,7 @@
         "disable_ublock": true,
         "random_activity": true,
         "auto_accept_cookies": true,
+        "persist_profile": false,
         "prevent_redirects": true,
         "activities": [
             "scroll",

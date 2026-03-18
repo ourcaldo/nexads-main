@@ -131,7 +131,8 @@ class ConfigWindow(QMainWindow):
                 "random_activity": True,
                 "activities": ["scroll", "hover", "click"],
                 "auto_accept_cookies": True,
-                "prevent_redirects": True  # New config option for redirect prevention
+                "prevent_redirects": True,  # New config option for redirect prevention
+                "persist_profile": False
             },
             "delay": {
                 "min_time": 3,
@@ -304,6 +305,9 @@ class ConfigWindow(QMainWindow):
         
         self.auto_accept_cookies = QCheckBox("Auto Accept Google Cookies")
         self.auto_accept_cookies.setChecked(self.config["browser"]["auto_accept_cookies"])
+
+        self.persist_profile = QCheckBox("Persist Worker Profiles")
+        self.persist_profile.setChecked(self.config["browser"].get("persist_profile", False))
         
         # New checkbox for redirect prevention
         self.prevent_redirects = QCheckBox("Prevent URL Redirects")
@@ -312,6 +316,7 @@ class ConfigWindow(QMainWindow):
         browser_layout.addWidget(self.disable_ublock)
         browser_layout.addWidget(self.random_activity)
         browser_layout.addWidget(self.auto_accept_cookies)
+        browser_layout.addWidget(self.persist_profile)
         browser_layout.addWidget(self.prevent_redirects)
         
         # Random Activity Options
@@ -793,6 +798,7 @@ class ConfigWindow(QMainWindow):
             config["browser"]["disable_ublock"] = self.disable_ublock.isChecked()
             config["browser"]["random_activity"] = self.random_activity.isChecked()
             config["browser"]["auto_accept_cookies"] = self.auto_accept_cookies.isChecked()
+            config["browser"]["persist_profile"] = self.persist_profile.isChecked()
             config["browser"]["prevent_redirects"] = self.prevent_redirects.isChecked()  # Save redirect prevention setting
             
             # Random activities
