@@ -58,11 +58,12 @@ async def _idle_mouse_jitter(page, interaction_state: dict | None,
 
 
 async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
-                        running: bool, phase: str = "reading"):
+                        running: bool, phase: str = "reading",
+                        expected_url: str | None = None):
     """Perform human-like scrolling with occasional up-scroll and corrections."""
     try:
-        current_url = page.url
-        page, success = await ensure_correct_tab_fn(browser, page, current_url, worker_id)
+        target_url = expected_url or page.url
+        page, success = await ensure_correct_tab_fn(browser, page, target_url, worker_id)
         if not success:
             print(f"Worker {worker_id}: Could not ensure correct tab for scrolling")
             return
@@ -131,11 +132,12 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
 
 
 async def random_hover(page, browser, worker_id: int, ensure_correct_tab_fn,
-                       running: bool, interaction_state: dict | None = None):
+                       running: bool, interaction_state: dict | None = None,
+                       expected_url: str | None = None):
     """Perform realistic mouse hover with tab checking."""
     try:
-        current_url = page.url
-        page, success = await ensure_correct_tab_fn(browser, page, current_url, worker_id)
+        target_url = expected_url or page.url
+        page, success = await ensure_correct_tab_fn(browser, page, target_url, worker_id)
         if not success:
             print(f"Worker {worker_id}: Could not ensure correct tab for hovering")
             return
@@ -192,11 +194,12 @@ async def random_hover(page, browser, worker_id: int, ensure_correct_tab_fn,
 async def random_click(page, browser, worker_id: int, current_domain: str,
                        is_ads_session: bool, ensure_correct_tab_fn,
                        smart_click_fn, extract_domain_fn,
-                       interaction_state: dict | None = None):
+                       interaction_state: dict | None = None,
+                       expected_url: str | None = None):
     """Find random same-domain clickable elements and click one."""
     try:
-        current_url = page.url
-        page, success = await ensure_correct_tab_fn(browser, page, current_url, worker_id)
+        target_url = expected_url or page.url
+        page, success = await ensure_correct_tab_fn(browser, page, target_url, worker_id)
         if not success:
             print(f"Worker {worker_id}: Could not ensure correct tab for clicking")
             return False
@@ -242,7 +245,8 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
                                   ensure_correct_tab_fn, smart_click_fn,
                                   extract_domain_fn, check_vignette_fn,
                                   is_ads_session: bool = False,
-                                  interaction_state: dict | None = None):
+                                  interaction_state: dict | None = None,
+                                  strict_target_url: str | None = None):
     """Perform randomized activities for the provided stay duration."""
     if not config['browser']['random_activity'] and not is_ads_session:
         return False
@@ -251,15 +255,14 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
         interaction_state = {}
 
     try:
-        current_url = page.url
-        current_domain = extract_domain_fn(current_url)
+        expected_url = strict_target_url or page.url
+        current_domain = extract_domain_fn(expected_url)
 
         activity_start = time.time()
         remaining_time = stay_time
 
         while remaining_time > 0 and running:
-            current_url = page.url
-            page, success = await ensure_correct_tab_fn(browser, page, current_url, worker_id)
+            page, success = await ensure_correct_tab_fn(browser, page, expected_url, worker_id)
             if not success:
                 print(f"Worker {worker_id}: Lost correct tab during activities")
                 return False
@@ -295,17 +298,26 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
             selected = random.choices(labels, weights=weights, k=1)[0]
 
             if selected == "scroll":
-                await random_scroll(page, browser, worker_id, ensure_correct_tab_fn, running, phase)
+                await random_scroll(
+                    page, browser, worker_id, ensure_correct_tab_fn, running, phase, expected_url
+                )
             elif selected == "click":
                 await random_click(
                     page, browser, worker_id, current_domain, is_ads_session,
                     ensure_correct_tab_fn, smart_click_fn, extract_domain_fn,
-                    interaction_state
+                    interaction_state, expected_url
                 )
             else:
                 await random_hover(
-                    page, browser, worker_id, ensure_correct_tab_fn, running, interaction_state
+                    page, browser, worker_id, ensure_correct_tab_fn,
+                    running, interaction_state, expected_url
                 )
+
+            # Hard re-anchor after each activity in case a redirect happened mid-action.
+            page, success = await ensure_correct_tab_fn(browser, page, expected_url, worker_id)
+            if not success:
+                print(f"Worker {worker_id}: Could not recover target tab after activity")
+                return False
 
             elapsed = time.time() - activity_start
             remaining_time = stay_time - elapsed

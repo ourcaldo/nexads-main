@@ -69,7 +69,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
     async def _perform_activity(page, browser, wid, stay_time, is_ads=False, interaction_state=None):
         return await perform_random_activity(
             page, browser, wid, stay_time, ctx.config, ctx.running,
-            _ensure_tab, _smart_click, extract_domain, _check_vignette, is_ads, interaction_state
+            _ensure_tab, _smart_click, extract_domain, _check_vignette,
+            is_ads, interaction_state, url if not is_ads else None
         )
 
     try:
