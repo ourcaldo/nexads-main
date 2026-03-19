@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T15:00:00-07:00
+- Short description: Revert all CDP/UA/WebGL spoofing — clean patchright identity only
+- What you do: Removed all CDP UA override, touch emulation, init script injection, WebGL route handler, and related helper functions (build_cdp_mobile_overrides, _transform_ua_to_mobile, _extract_chrome_version, build_mobile_environment_script). CDP UA spoofing caused hasInconsistentWorkerValues bot detection because Web Workers still report the original UA. Any UA spoofing via CDP is fundamentally detectable. Back to clean patchright with only context options (viewport, locale, timezone, is_mobile, has_touch, device_scale_factor).
+- File path that changes: app/browser/mobile.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T14:45:00-07:00
 - Short description: Re-enable CDP mobile identity with real Chrome version, remove WebGL route injection
 - What you do: Re-enabled CDP Emulation.setUserAgentOverride and setTouchEmulationEnabled for mobile sessions. UA is transformed from real Chrome (keeps version 146) with only OS swapped to Android. Removed WebGL route injection and build_webgl_override_script/setup_webgl_route_handler (caused WebGL exception). CDP-only approach: no HTML interception, no init scripts, no JavaScript overrides.
