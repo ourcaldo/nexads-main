@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T11:45:00-07:00
+- Short description: Add DNS-over-HTTPS to prevent DNS leak on mobile sessions
+- What you do: Added --dns-over-https-templates and --dns-over-https-mode=secure Chrome flags to force DNS through Cloudflare DoH when proxy is configured, bypassing local ISP DNS resolver that caused the -3% DNS leak detection.
+- File path that changes: app/browser/setup.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T11:15:00-07:00
 - Short description: Fix persistent context compatibility and harden mobile stealth
 - What you do: Fixed page.context.browser crash on persistent context by setting browser=context for mobile in worker.py and using fallback in urls.py. Added WebRTC IP leak prevention args for proxy sessions. Added temp profile dir cleanup in cleanup_browser via shutil.rmtree. Removed unused deps (selenium, undetected-chromedriver, keyboard, pynput, humanize) from requirements.txt. Added .gitignore. Deduplicated SessionFailedException (worker.py now imports from automation.py). Updated urls.py to import SessionFailedException from canonical source.

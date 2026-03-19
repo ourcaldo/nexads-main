@@ -264,10 +264,14 @@ async def _launch_mobile_patchright_context(
 
     if proxy_cfg:
         launch_kwargs["proxy"] = proxy_cfg
-        # Prevent WebRTC from leaking real IP when using proxy.
         launch_kwargs["args"] = [
+            # Prevent WebRTC from leaking real IP.
             "--webrtc-ip-handling-policy=disable_non_proxied_udp",
             "--enforce-webrtc-ip-permission-check",
+            # Force DNS through encrypted resolver to prevent DNS leak.
+            # Cloudflare DoH bypasses local ISP DNS entirely.
+            "--dns-over-https-templates=https://cloudflare-dns.com/dns-query",
+            "--dns-over-https-mode=secure",
         ]
 
     context = await pw.chromium.launch_persistent_context(**launch_kwargs)
