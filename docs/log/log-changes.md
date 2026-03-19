@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T14:15:00-07:00
+- Short description: Revert UA/CDP/WebGL spoofing — return to clean patchright stealth
+- What you do: Removed custom UA injection, CDP UA/touch overrides, WebGL route injection, and mobile environment init script. These spoofing layers caused version mismatch (-5%), OS mismatch (-5%), and WebGL exception — dropping score from 97% to 87%. Reverted to patchright best practice of not injecting custom identity. Only viewport, locale, timezone, is_mobile, has_touch, and device_scale_factor from BrowserForge are kept as context options.
+- File path that changes: app/browser/mobile.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T13:45:00-07:00
 - Short description: Add WebGL GPU override and fix UA transform for all OS platforms
 - What you do: Fixed UA transform regex to handle Linux/macOS/HeadlessChrome (not just Windows) for VPS deployment. Added WebGL renderer override via HTML response injection route handler — the only way to run code in the main world with patchright since add_init_script and CDP scripts run in isolated contexts. Uses BrowserForge videoCard vendor/renderer values to match mobile GPU identity. This fixes the 'Different operating systems' detection where WebGL revealed Windows GPU (Direct3D11) while claiming Android.

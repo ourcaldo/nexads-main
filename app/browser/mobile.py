@@ -235,8 +235,9 @@ def map_fingerprint_to_context_options(fingerprint: Optional[dict]) -> Dict:
     context_opts["is_mobile"] = True
     context_opts["has_touch"] = True
 
-    # DO NOT set user_agent here. The real Chrome version must match.
-    # We override the UA via CDP after launch, swapping only the OS portion.
+    # DO NOT set user_agent — patchright works best with real Chrome identity.
+    # Spoofing UA creates version/OS mismatch detection that's worse than
+    # the minor inconsistency of desktop UA with mobile viewport.
 
     width = _fp_get(screen, "width", 412)
     height = _fp_get(screen, "height", 915)
@@ -762,8 +763,6 @@ async def configure_mobile_browser(
         "validation_reason_codes": [],
         "is_persistent_context": True,
         "geoip_data": geoip_data,
-        "mobile_environment_script": build_mobile_environment_script(fingerprint),
-        "fingerprint": fingerprint,
     }
 
 

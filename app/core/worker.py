@@ -309,43 +309,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     # activities, urls) can use it as the top-level object.
                     context = browser_setup.get("context")
                     browser = context
-                    # Inject mobile environment signals before any page loads.
-                    env_script = browser_setup.get("mobile_environment_script", "")
-                    if env_script:
-                        await context.add_init_script(env_script)
                     pages = context.pages
                     page = pages[0] if pages else await context.new_page()
-                    # Apply mobile identity overrides (CDP + WebGL route).
-                    mobile_fp = browser_setup.get("fingerprint")
-                    if mobile_fp:
-                        try:
-                            from app.browser.mobile import (
-                                build_cdp_mobile_overrides,
-                                setup_webgl_route_handler,
-                            )
-                            # Read real UA, build CDP overrides with correct version.
-                            real_ua = await page.evaluate(
-                                "() => navigator.userAgent",
-                                isolated_context=False,
-                            )
-                            cdp_overrides = build_cdp_mobile_overrides(
-                                mobile_fp, real_ua,
-                            )
-                            cdp = await context.new_cdp_session(page)
-                            await cdp.send(
-                                "Emulation.setUserAgentOverride",
-                                cdp_overrides["ua_override"],
-                            )
-                            await cdp.send(
-                                "Emulation.setTouchEmulationEnabled",
-                                cdp_overrides["touch"],
-                            )
-                            # Install WebGL override via HTML injection route.
-                            await setup_webgl_route_handler(context, mobile_fp)
-                        except Exception as cdp_err:
-                            print(
-                                f"Worker {worker_id}: Mobile identity override failed: {cdp_err}"
-                            )
                     print(
                         f"Worker {worker_id}: Using patchright persistent context"
                     )
