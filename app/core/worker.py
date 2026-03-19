@@ -7,7 +7,7 @@ import random
 import asyncio
 import time
 import pathlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from app.browser.setup import configure_browser, cleanup_browser
@@ -19,7 +19,12 @@ from app.navigation.referrer import (
     accept_google_cookies, get_social_referrer
 )
 from app.navigation.consent import handle_consent_dialog
-from app.navigation.tabs import ensure_correct_tab, process_ads_tabs, natural_exit
+from app.navigation.tabs import (
+    NavigationIntent,
+    ensure_correct_tab,
+    process_ads_tabs,
+    natural_exit,
+)
 from app.ads.adsense import (
     interact_with_ads, check_and_handle_vignette, smart_click
 )
@@ -48,6 +53,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
     successful_sessions = 0
     ads_session_count = 0
     successful_ads_sessions = 0
+    redirect_recoveries = 0
 
     # Build bound helpers that close over ctx
     def get_delay(min_t=None, max_t=None):
@@ -58,8 +64,76 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
         median = (min_val + max_val) / 2
         return int(round(lognormal_seconds(median, 0.45, min_val, max_val)))
 
-    async def _ensure_tab(browser, page, url, wid, timeout=60):
-        return await ensure_correct_tab(browser, page, url, wid, ctx.config, timeout)
+    redirect_budget_states: dict[str, dict] = {}
+
+    def _build_intent(url: str, intent_type: str, timeout: int) -> NavigationIntent:
+        allowed_suffixes = ctx.config.get("browser", {}).get("allowed_redirect_suffixes", [])
+        if not isinstance(allowed_suffixes, list):
+            allowed_suffixes = []
+
+        max_seconds = int(ctx.config.get("browser", {}).get("redirect_guard_max_seconds", timeout))
+        return NavigationIntent(
+            expected_domain=extract_domain(url),
+            allowed_domain_suffixes=[str(v) for v in allowed_suffixes if str(v).strip()],
+            intent_type=intent_type,
+            max_recovery_seconds=max(1, max_seconds),
+        )
+
+    def _build_budget_limits(intent_type: str) -> dict:
+        browser_cfg = ctx.config.get("browser", {})
+        if intent_type == "ad_landing_intent":
+            return {
+                "max_recoveries": int(browser_cfg.get("redirect_budget_recoveries_ad", 6)),
+                "max_new_tabs": int(browser_cfg.get("redirect_budget_new_tabs_ad", 3)),
+            }
+        if intent_type == "recovery_intent":
+            return {
+                "max_recoveries": int(browser_cfg.get("redirect_budget_recoveries_recovery", 10)),
+                "max_new_tabs": int(browser_cfg.get("redirect_budget_new_tabs_recovery", 3)),
+            }
+        return {
+            "max_recoveries": int(browser_cfg.get("redirect_budget_recoveries_target", 8)),
+            "max_new_tabs": int(browser_cfg.get("redirect_budget_new_tabs_target", 2)),
+        }
+
+    async def _ensure_tab(browser, page, url, wid, timeout=60, intent_type="target_page_intent"):
+        nonlocal redirect_recoveries
+        budget_key = f"{intent_type}:{url}"
+        budget_state = redirect_budget_states.setdefault(
+            budget_key,
+            {"recoveries": 0, "new_tab_openings": 0, "last_reason_code": ""},
+        )
+        before_recoveries = int(budget_state.get("recoveries", 0))
+
+        result_page, success = await ensure_correct_tab(
+            browser,
+            page,
+            url,
+            wid,
+            ctx.config,
+            timeout,
+            intent=_build_intent(url, intent_type, timeout),
+            budget_state=budget_state,
+            budget_limits=_build_budget_limits(intent_type),
+        )
+
+        after_recoveries = int(budget_state.get("recoveries", 0))
+        redirect_recoveries += max(0, after_recoveries - before_recoveries)
+
+        if not success:
+            reason = budget_state.get("last_reason_code", "unknown")
+            print(
+                f"Worker {wid}: Redirect guard failed "
+                f"(intent={intent_type}, reason={reason}, url={url})"
+            )
+
+        return result_page, success
+
+    async def _ensure_tab_target(browser, page, url, wid, timeout=60):
+        return await _ensure_tab(browser, page, url, wid, timeout, "target_page_intent")
+
+    async def _ensure_tab_ad(browser, page, url, wid, timeout=60):
+        return await _ensure_tab(browser, page, url, wid, timeout, "ad_landing_intent")
 
     async def _check_vignette(page, wid):
         return await check_and_handle_vignette(page, wid, extract_domain)
@@ -68,9 +142,10 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
         return await smart_click(page, wid, domain, element, is_ad, interaction_state)
 
     async def _perform_activity(page, browser, wid, stay_time, is_ads=False, interaction_state=None):
+        ensure_tab_fn = _ensure_tab_ad if is_ads else _ensure_tab_target
         return await perform_random_activity(
             page, browser, wid, stay_time, ctx.config, ctx.running,
-            _ensure_tab, _smart_click, extract_domain, _check_vignette,
+            ensure_tab_fn, _smart_click, extract_domain, _check_vignette,
             is_ads, interaction_state, url if not is_ads else None
         )
 
@@ -220,14 +295,14 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 raise SessionFailedException("Failed to navigate to URL")
 
                     # Re-anchor immediately after URL load/click navigation.
-                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=25)
+                    page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=25)
                     if not success or not page:
                         raise SessionFailedException("Could not recover target tab after navigation")
 
                     if ctx.config['browser']['auto_accept_cookies']:
                         await accept_google_cookies(page)
 
-                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=20)
+                    page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=20)
                     if not success or not page:
                         raise SessionFailedException("Could not recover target tab after cookie handling")
 
@@ -253,13 +328,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         if gdpr_on_fail == 'abort_session':
                             raise SessionFailedException("Consent unresolved")
 
-                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=20)
+                    page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=20)
                     if not success or not page:
                         raise SessionFailedException("Could not recover target tab after consent handling")
 
                     await _check_vignette(page, worker_id)
 
-                    page, success = await _ensure_tab(browser, page, url, worker_id, timeout=20)
+                    page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=20)
                     if not success or not page:
                         raise SessionFailedException("Could not recover target tab after vignette handling")
 
@@ -320,7 +395,10 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
                                 try:
                                     await page.goto(url, timeout=90000, wait_until="networkidle")
-                                    page, recovered = await _ensure_tab(browser, page, url, worker_id, timeout=25)
+                                    page, recovered = await _ensure_tab(
+                                        browser, page, url, worker_id, timeout=25,
+                                        intent_type="recovery_intent"
+                                    )
                                     if recovered and page:
                                         print(f"Worker {worker_id}: Returned to target URL after same-tab ad")
                                     else:
@@ -385,7 +463,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             f"Worker {worker_id}: Session completed - "
             f"Total: {session_count}, "
             f"Success: {successful_sessions}, "
-            f"Ads: {ads_session_count} ({successful_ads_sessions} successful)"
+            f"Ads: {ads_session_count} ({successful_ads_sessions} successful), "
+            f"RedirectRecoveries: {redirect_recoveries}"
         )
 
 
