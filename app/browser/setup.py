@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 from camoufox.async_api import AsyncCamoufox
 from camoufox import DefaultAddons
+from playwright.async_api import async_playwright
 from browserforge.fingerprints import Screen, Fingerprint
 
 from app.browser.mobile import (
@@ -27,13 +28,14 @@ MOBILE_FINGERPRINT_MAX_REGEN_ATTEMPTS = 1
 MOBILE_FINGERPRINT_TIMEOUT_MS = 5000
 MOBILE_FINGERPRINT_BROWSERS = ["chrome", "safari"]
 MOBILE_FINGERPRINT_OSES = ["android", "ios"]
-MOBILE_LAUNCH_OSES = ["android"]
 MOBILE_SCREEN_BOUNDS = {
     "min_width": 360,
     "max_width": 430,
     "min_height": 740,
     "max_height": 932,
 }
+
+_PLAYWRIGHT_MANAGERS: Dict[int, object] = {}
 
 
 def _extract_target_domain_from_config(config: dict) -> str:
@@ -156,6 +158,76 @@ def _parse_proxy_entry(proxy: str):
                 return host, port, username, password
 
     return None
+
+
+def _resolve_proxy_config(config: dict) -> Optional[Dict[str, str]]:
+    """Resolve and normalize one proxy config for browser launch."""
+    proxy_value = None
+    if config['proxy']['credentials']:
+        proxy_value = config['proxy']['credentials']
+    elif config['proxy']['file']:
+        with open(config['proxy']['file'], 'r') as f:
+            proxies = [line.strip() for line in f if line.strip()]
+        if proxies:
+            proxy_value = random.choice(proxies)
+
+    if not proxy_value:
+        return None
+
+    proxy_type = config['proxy']['type'].lower()
+    parsed_proxy = _parse_proxy_entry(proxy_value)
+    if not parsed_proxy:
+        raise ValueError(
+            "Unsupported proxy format. Use one of: "
+            "ip:port, host:port:user:pass, host:port@user:pass, "
+            "user:pass:host:port, user:pass@host:port"
+        )
+
+    host, port, user, pwd = parsed_proxy
+    return {
+        'server': f"{proxy_type}://{host}:{port}",
+        'username': user,
+        'password': pwd,
+    }
+
+
+async def _launch_mobile_playwright_browser(
+    headless_mode,
+    proxy_cfg: Optional[Dict[str, str]],
+    browser_family: str,
+    worker_id: int,
+):
+    """Launch Playwright browser for mobile sessions."""
+    playwright_headless = False if headless_mode is False else True
+    pw = await async_playwright().start()
+
+    launch_kwargs = {
+        'headless': playwright_headless,
+    }
+    if proxy_cfg:
+        launch_kwargs['proxy'] = proxy_cfg
+
+    engine = pw.webkit if browser_family == 'safari' else pw.chromium
+    try:
+        browser = await engine.launch(**launch_kwargs)
+    except Exception as launch_error:
+        # WebKit can fail in some environments; fallback to Chromium for resiliency.
+        if browser_family == 'safari':
+            emit_mobile_fingerprint_event(
+                worker_id=worker_id,
+                event_type='mobile_engine_fallback',
+                strategy_mode='active',
+                reason='webkit_launch_failed',
+                reason_codes=['webkit_launch_failed'],
+                fallback_target='chromium',
+            )
+            browser = await pw.chromium.launch(**launch_kwargs)
+        else:
+            await pw.stop()
+            raise launch_error
+
+    _PLAYWRIGHT_MANAGERS[id(browser)] = pw
+    return browser
 
 
 def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint]) -> Dict:
@@ -297,14 +369,7 @@ def validate_fingerprint_consistency(
 async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
     """Configure and return browser setup result for one worker session."""
     try:
-        proxy = None
-        if config['proxy']['credentials']:
-            proxy = config['proxy']['credentials']
-        elif config['proxy']['file']:
-            with open(config['proxy']['file'], 'r') as f:
-                proxies = [line.strip() for line in f if line.strip()]
-            if proxies:
-                proxy = random.choice(proxies)
+        proxy_cfg = _resolve_proxy_config(config)
 
         headless = True
         if config['browser']['headless_mode'] == 'False':
@@ -321,60 +386,35 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             k=1
         )[0]
 
-        if device_type == 'mobile':
-            # Avoid desktop/mobile header mismatches at browser launch time.
-            os_fingerprint = random.choice(MOBILE_LAUNCH_OSES)
-        else:
-            os_fingerprint = random.choice(config['os_fingerprint'])
-
-        # Mobile screens are smaller than desktop — cap accordingly
-        screen = Screen(max_width=430, max_height=932) if device_type == 'mobile' \
-                else Screen(max_width=1920, max_height=1080)
-
-        options = {
-            'headless': headless,
-            'os': os_fingerprint,
-            'screen': screen,
-            'geoip': True,
-            'humanize': True
-        }
-
-        if config['browser']['disable_ublock']:
-            options['exclude_addons'] = [DefaultAddons.UBO]
-
-        if proxy:
-            proxy_type = config['proxy']['type'].lower()
-            parsed_proxy = _parse_proxy_entry(proxy)
-            if not parsed_proxy:
-                raise ValueError(
-                    "Unsupported proxy format. Use one of: "
-                    "ip:port, host:port:user:pass, host:port@user:pass, "
-                    "user:pass:host:port, user:pass@host:port"
-                )
-
-            host, port, user, pwd = parsed_proxy
-            options['proxy'] = {
-                'server': f"{proxy_type}://{host}:{port}",
-                'username': user,
-                'password': pwd
-            }
-
-        browser = await AsyncCamoufox(**options).start()
-        delay = get_random_delay_fn()
-        await asyncio.sleep(delay)
-
         setup_result = {
-            'browser': browser,
+            'browser': None,
             'context_options': {},
             'fingerprint_mode': 'desktop',
             'fallback_reason': '',
             'validation_reason_codes': [],
         }
 
-        # Use existing config device weights to decide whether this session uses mobile fingerprint path.
+        # Desktop path: Camoufox only.
         if device_type != 'mobile':
+            os_fingerprint = random.choice(config['os_fingerprint'])
+            options = {
+                'headless': headless,
+                'os': os_fingerprint,
+                'screen': Screen(max_width=1920, max_height=1080),
+                'geoip': True,
+                'humanize': True,
+            }
+            if config['browser']['disable_ublock']:
+                options['exclude_addons'] = [DefaultAddons.UBO]
+            if proxy_cfg:
+                options['proxy'] = proxy_cfg
+
+            setup_result['browser'] = await AsyncCamoufox(**options).start()
+            delay = get_random_delay_fn()
+            await asyncio.sleep(delay)
             return setup_result
 
+        # Mobile path: Playwright browser engine + fingerprinted context options.
         constraints = parse_mobile_constraints(MOBILE_SCREEN_BOUNDS)
         browser_family, mobile_os = select_mobile_fingerprint_params(
             MOBILE_FINGERPRINT_BROWSERS,
@@ -454,6 +494,23 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
                 fallback_target='desktop',
                 final_mode='desktop',
             )
+            # Fallback to desktop engine when mobile fingerprint preflight cannot pass.
+            os_fingerprint = random.choice(config['os_fingerprint'])
+            fallback_options = {
+                'headless': headless,
+                'os': os_fingerprint,
+                'screen': Screen(max_width=1920, max_height=1080),
+                'geoip': True,
+                'humanize': True,
+            }
+            if config['browser']['disable_ublock']:
+                fallback_options['exclude_addons'] = [DefaultAddons.UBO]
+            if proxy_cfg:
+                fallback_options['proxy'] = proxy_cfg
+
+            setup_result['browser'] = await AsyncCamoufox(**fallback_options).start()
+            delay = get_random_delay_fn()
+            await asyncio.sleep(delay)
             print(f"Worker {worker_id}: Mobile fingerprint preflight failed, continuing desktop flow")
             return setup_result
 
@@ -462,6 +519,14 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             # Internal experiment branch; intentionally inert by default.
             context_opts = dict(context_opts)
 
+        setup_result['browser'] = await _launch_mobile_playwright_browser(
+            headless_mode=headless,
+            proxy_cfg=proxy_cfg,
+            browser_family=browser_family,
+            worker_id=worker_id,
+        )
+        delay = get_random_delay_fn()
+        await asyncio.sleep(delay)
         setup_result['context_options'] = context_opts
         setup_result['fingerprint_mode'] = 'mobile'
         emit_mobile_fingerprint_event(
@@ -497,6 +562,13 @@ async def cleanup_browser(browser, worker_id: int):
             await browser.close()
         except:
             pass
+
+        manager = _PLAYWRIGHT_MANAGERS.pop(id(browser), None)
+        if manager:
+            try:
+                await manager.stop()
+            except:
+                pass
 
     except Exception as e:
         print(f"Worker {worker_id}: Error during browser cleanup: {str(e)}")

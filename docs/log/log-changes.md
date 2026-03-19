@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:52:48-07:00
+- Short description: Route mobile sessions to Playwright and keep Camoufox desktop-only
+- What you do: Refactored browser setup so desktop sessions continue using Camoufox while mobile-selected sessions launch via Playwright (Chromium/WebKit) with proxy support, retained mobile fingerprint preflight and context mapping, and updated cleanup to stop Playwright managers.
+- File path that changes: app/browser/setup.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:49:58-07:00
 - Short description: Fix mobile launch and fingerprint pair compatibility
 - What you do: Updated browser setup to use mobile-safe launch OS when a session is selected as mobile, preventing desktop/mobile header generation conflicts, and constrained fingerprint browser/OS sampling to valid pairs (chrome+android, safari+ios) with stable fallback.
