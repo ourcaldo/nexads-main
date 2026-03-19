@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:56:02-07:00
+- Short description: Fix telemetry kwargs crash after mobile fingerprint generation
+- What you do: Expanded mobile fingerprint telemetry helper to accept and record locale/touch/client-hints fields plus future extra keyword fields, preventing runtime failures from unexpected telemetry arguments.
+- File path that changes: app/core/telemetry.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:54:37-07:00
 - Short description: Fix typed fingerprint field access for mobile generation
 - What you do: Replaced dict-only field access with safe helpers that support both dict-like and typed BrowserForge objects for navigator/screen/headers, fixing runtime crashes such as NavigatorFingerprint missing get().

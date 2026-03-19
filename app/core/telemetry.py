@@ -110,6 +110,9 @@ def emit_mobile_fingerprint_event(
     platform: str | None = None,
     viewport: str | None = None,
     dpr: float | None = None,
+    locale: str | None = None,
+    max_touch_points: int | None = None,
+    sec_ch_ua_mobile: str | None = None,
     generation_ms: int | None = None,
     is_valid: bool | None = None,
     violation_count: int | None = None,
@@ -120,7 +123,8 @@ def emit_mobile_fingerprint_event(
     final_mode: str | None = None,
     success: bool | None = None,
     error_code: str | None = None,
-    output: pathlib.Path | str = DEFAULT_MOBILE_PROFILE_OUTPUT
+    output: pathlib.Path | str = DEFAULT_MOBILE_PROFILE_OUTPUT,
+    **extra_fields,
 ) -> bool:
     """
     Emit mobile fingerprint telemetry event (Task 5).
@@ -162,6 +166,9 @@ def emit_mobile_fingerprint_event(
         "platform": platform,
         "viewport": viewport,
         "dpr": dpr,
+        "locale": locale,
+        "max_touch_points": max_touch_points,
+        "sec_ch_ua_mobile": sec_ch_ua_mobile,
         "generation_ms": generation_ms,
         "is_valid": is_valid,
         "violation_count": violation_count,
@@ -173,6 +180,11 @@ def emit_mobile_fingerprint_event(
         "success": success,
         "error_code": error_code,
     }
+
+    if extra_fields:
+        for key, value in extra_fields.items():
+            if key not in event:
+                event[key] = value
     
     # Remove None values for cleaner JSON
     event = {k: v for k, v in event.items() if v is not None}
