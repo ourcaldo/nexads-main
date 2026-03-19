@@ -22,7 +22,6 @@ from app.core.telemetry import emit_mobile_fingerprint_event
 
 
 # Hardcoded mobile fingerprint strategy for this milestone.
-MOBILE_FINGERPRINT_DRY_RUN = False
 MOBILE_FINGERPRINT_ADVANCED_OVERRIDE_ENABLED = False
 MOBILE_FINGERPRINT_MAX_REGEN_ATTEMPTS = 1
 MOBILE_FINGERPRINT_TIMEOUT_MS = 5000
@@ -381,10 +380,10 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
         emit_mobile_fingerprint_event(
             worker_id=worker_id,
             event_type='fingerprint_flow_started',
-            strategy_mode='dry_run' if MOBILE_FINGERPRINT_DRY_RUN else 'active',
+            strategy_mode='active',
             browser_family=browser_family,
             os=mobile_os,
-            final_mode='dry_run' if MOBILE_FINGERPRINT_DRY_RUN else 'mobile',
+            final_mode='mobile',
         )
 
         fingerprint = None
@@ -415,7 +414,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
                 emit_mobile_fingerprint_event(
                     worker_id=worker_id,
                     event_type='fingerprint_validation_result',
-                    strategy_mode='dry_run' if MOBILE_FINGERPRINT_DRY_RUN else 'active',
+                    strategy_mode='active',
                     is_valid=is_valid,
                     violation_count=len(violations),
                     violations=violations,
@@ -432,7 +431,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             emit_mobile_fingerprint_event(
                 worker_id=worker_id,
                 event_type='fingerprint_regeneration',
-                strategy_mode='dry_run' if MOBILE_FINGERPRINT_DRY_RUN else 'active',
+                strategy_mode='active',
                 reason_codes=reason_codes,
                 reason='|'.join(reason_codes) if reason_codes else 'generation_failed',
                 fallback_target='regenerate',
@@ -444,7 +443,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             emit_mobile_fingerprint_event(
                 worker_id=worker_id,
                 event_type='fingerprint_fallback_triggered',
-                strategy_mode='dry_run' if MOBILE_FINGERPRINT_DRY_RUN else 'active',
+                strategy_mode='active',
                 reason_codes=reason_codes,
                 reason=setup_result['fallback_reason'],
                 fallback_target='desktop',
@@ -454,20 +453,6 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             return setup_result
 
         fp_summary = get_fingerprint_summary(fingerprint)
-        if MOBILE_FINGERPRINT_DRY_RUN:
-            setup_result['fingerprint_mode'] = 'dry_run'
-            emit_mobile_fingerprint_event(
-                worker_id=worker_id,
-                event_type='fingerprint_dry_run_completed',
-                strategy_mode='dry_run',
-                final_mode='desktop',
-                browser_family=browser_family,
-                os=mobile_os,
-                **fp_summary,
-            )
-            print(f"Worker {worker_id}: Mobile fingerprint dry-run passed, desktop context retained")
-            return setup_result
-
         if MOBILE_FINGERPRINT_ADVANCED_OVERRIDE_ENABLED:
             # Internal experiment branch; intentionally inert by default.
             context_opts = dict(context_opts)

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:46:09-07:00
+- Short description: Remove dry-run branch from mobile fingerprint setup
+- What you do: Removed the dry-run feature toggle and deleted the dry-run completion branch so mobile-selected sessions always run the active fingerprint path or fallback to desktop when preflight fails.
+- File path that changes: app/browser/setup.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:42:31-07:00
 - Short description: Complete remaining mobile fingerprint rollout and operations deliverables
 - What you do: Added reason-code and strategy/session metadata fields to fingerprint telemetry, added advanced override guard in setup, expanded plan file with implementation status plus Stage A/B/C go-no-go checklist template, created a dedicated operator runbook with rollout gates and rollback procedure, and linked runbook in README.
