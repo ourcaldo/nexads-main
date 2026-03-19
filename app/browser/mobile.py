@@ -205,10 +205,20 @@ def select_mobile_fingerprint_params(
     """
     browsers = browsers or ['chrome', 'safari']
     os_list = os_list or ['android', 'ios']
-    
-    return (
-        random.choice(browsers),
-        random.choice(os_list)
-    )
+
+    candidate_pairs = [
+        ('chrome', 'android'),
+        ('safari', 'ios'),
+    ]
+    valid_pairs = [
+        pair for pair in candidate_pairs
+        if pair[0] in browsers and pair[1] in os_list
+    ]
+
+    if valid_pairs:
+        return random.choice(valid_pairs)
+
+    # Stable fallback when caller passes restrictive lists.
+    return 'chrome', 'android'
 
 

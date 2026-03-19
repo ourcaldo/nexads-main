@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:49:58-07:00
+- Short description: Fix mobile launch and fingerprint pair compatibility
+- What you do: Updated browser setup to use mobile-safe launch OS when a session is selected as mobile, preventing desktop/mobile header generation conflicts, and constrained fingerprint browser/OS sampling to valid pairs (chrome+android, safari+ios) with stable fallback.
+- File path that changes: app/browser/setup.py; app/browser/mobile.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:46:09-07:00
 - Short description: Remove dry-run branch from mobile fingerprint setup
 - What you do: Removed the dry-run feature toggle and deleted the dry-run completion branch so mobile-selected sessions always run the active fingerprint path or fallback to desktop when preflight fails.

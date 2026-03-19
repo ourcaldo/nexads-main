@@ -27,6 +27,7 @@ MOBILE_FINGERPRINT_MAX_REGEN_ATTEMPTS = 1
 MOBILE_FINGERPRINT_TIMEOUT_MS = 5000
 MOBILE_FINGERPRINT_BROWSERS = ["chrome", "safari"]
 MOBILE_FINGERPRINT_OSES = ["android", "ios"]
+MOBILE_LAUNCH_OSES = ["android"]
 MOBILE_SCREEN_BOUNDS = {
     "min_width": 360,
     "max_width": 430,
@@ -311,8 +312,6 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
         elif config['browser']['headless_mode'] == 'virtual':
             headless = 'virtual'
 
-        os_fingerprint = random.choice(config['os_fingerprint'])
-
         device_type = random.choices(
             ['mobile', 'desktop'],
             weights=[
@@ -321,6 +320,12 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             ],
             k=1
         )[0]
+
+        if device_type == 'mobile':
+            # Avoid desktop/mobile header mismatches at browser launch time.
+            os_fingerprint = random.choice(MOBILE_LAUNCH_OSES)
+        else:
+            os_fingerprint = random.choice(config['os_fingerprint'])
 
         # Mobile screens are smaller than desktop — cap accordingly
         screen = Screen(max_width=430, max_height=932) if device_type == 'mobile' \
