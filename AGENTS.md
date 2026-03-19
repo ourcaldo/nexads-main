@@ -71,28 +71,7 @@ python -c "import ast; ast.parse(open('app/core/worker.py').read())"
 
 ## Agent Behaviour
 
-### Commit & Push on Every Change
-**Every change — no matter how small — must be committed and pushed immediately after it is made.**
-
-- A single typo fix, a one-line edit, a comment update: all require a commit and push before moving on.
-- Never batch unrelated changes into one commit. One logical change = one commit.
-- Commit message format (imperative mood, present tense):
-  ```
-  <type>: <short description>
-
-  <optional body with more detail>
-
-  Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-  ```
-  Types: `fix`, `feat`, `refactor`, `chore`, `docs`, `style`
-- Always push to `origin main` immediately after committing:
-  ```bash
-  git add <specific files>
-  git commit -m "..."
-  git push origin main
-  ```
-- Never use `git add -A` or `git add .` — stage specific files by name to avoid accidentally committing secrets (`proxy.txt`, `.env`) or large binaries.
-- If a commit fails (hook error, conflict), fix the issue and retry — do NOT skip hooks with `--no-verify`.
+Commit and push workflow policy is maintained in `.github/copilot-instructions.md`.
 
 ---
 
