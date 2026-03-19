@@ -9,7 +9,7 @@
 
 ## Change Log Rules
 
-- For every implementation/change, update `docs/plans/log-changes.md` before commit/push.
+- For every implementation/change, update `docs/log/log-changes.md` before commit/push.
 - Each log entry must include exactly these fields:
 	- `Date time`
 	- `Short description`

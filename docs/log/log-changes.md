@@ -1,9 +1,15 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19 01:39:25 -07:00
+- Short description: Move change log file to docs/log path
+- What you do: Moved log changes file from docs/plans to docs/log and updated copilot instructions to require updates at docs/log/log-changes.md.
+- File path that changes: docs/log/log-changes.md; .github/copilot-instructions.md
+
+## Entry
 - Date time: 2026-03-19 01:37:35 -07:00
 - Short description: Add mandatory log-changes policy to copilot instructions
-- What you do: Added a new Change Log Rules section requiring updates to docs/plans/log-changes.md before commit/push, with exact required fields and newest-first ordering.
+- What you do: Added a new Change Log Rules section requiring updates to docs/log/log-changes.md before commit/push, with exact required fields and newest-first ordering.
 - File path that changes: .github/copilot-instructions.md
 
 ## Entry
