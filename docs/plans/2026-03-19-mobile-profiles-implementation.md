@@ -5,7 +5,6 @@ Date: 2026-03-19
 Build a maintainable mobile fingerprint integration path that uses BrowserForge generation and Playwright context mapping, while keeping behavior consistent, measurable, and operationally safe in the current codebase. Along side with:
 1. Make sure that the fingerprint is consistent
 2. Undetectable + stealth and user mimicking
-3. 
 
 ## Mandatory Constraints
 1. Mobile constraints are hardcoded in code for this milestone.

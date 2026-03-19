@@ -6,7 +6,6 @@ Worker session logic: WorkerContext, worker_session, run_worker, run_worker_asyn
 import random
 import asyncio
 import time
-import pathlib
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,7 +24,7 @@ from app.navigation.tabs import (
     process_ads_tabs,
     natural_exit,
 )
-from app.core.telemetry import emit_worker_event, emit_mobile_profile_event
+from app.core.telemetry import emit_worker_event, emit_mobile_fingerprint_event
 from app.ads.adsense import (
     interact_with_ads, check_and_handle_vignette, smart_click
 )
@@ -181,10 +180,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             session_successful = False
             browser = None
             context = None
-            storage_state_path = None
-            persist_profile = bool(
-                ctx.config.get("browser", {}).get("persist_profile", False)
-            )
 
             def _emit_step(step_name: str, status: str,
                            url_value: str = "", url_idx: int | None = None,
@@ -248,44 +243,17 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 )
 
                 context_kwargs = dict(browser_setup.get('context_options') or {})
-                profile_mode = str(browser_setup.get('profile_mode', 'desktop'))
-                mobile_profile_active = bool(browser_setup.get('mobile_profile_active', False))
-                mobile_profile_dry_run = bool(browser_setup.get('mobile_profile_dry_run', False))
-                mobile_fallback_reason = str(browser_setup.get('mobile_fallback_reason', '') or '')
-
-                if mobile_profile_active:
-                    # Mobile feature path requires fresh, non-persistent storage for every session.
-                    persist_profile = False
-
-                emit_mobile_profile_event(
+                fingerprint_mode = str(browser_setup.get('fingerprint_mode', 'desktop'))
+                fallback_reason = str(browser_setup.get('fallback_reason', '') or '')
+                emit_mobile_fingerprint_event(
                     worker_id=worker_id,
-                    event_type='session_profile_mode',
-                    session_id=session_id,
-                    strategy_mode='dry_run' if mobile_profile_dry_run else ('active' if mobile_profile_active else 'disabled'),
-                    final_mode=profile_mode,
-                    reason=mobile_fallback_reason,
+                    event_type='session_fingerprint_mode',
+                    final_mode=fingerprint_mode,
+                    reason=fallback_reason,
+                    success=True,
                 )
 
-                if persist_profile:
-                    profiles_root = pathlib.Path(
-                        ctx.config.get("browser", {}).get("profile_dir", "profiles")
-                    )
-                    profiles_root.mkdir(parents=True, exist_ok=True)
-                    storage_state_path = profiles_root / f"worker_{worker_id}_storage_state.json"
-
-                    if storage_state_path.exists():
-                        context_kwargs["storage_state"] = str(storage_state_path)
-                        print(
-                            f"Worker {worker_id}: Loading persistent state from {storage_state_path}"
-                        )
-                else:
-                    if mobile_profile_active:
-                        print(f"Worker {worker_id}: Mobile profile active; persistence forced off")
-                    elif mobile_profile_dry_run:
-                        print(f"Worker {worker_id}: Mobile profile dry-run completed; desktop context started fresh")
-                    else:
-                        print(f"Worker {worker_id}: Profile persistence disabled, starting fresh")
-
+                print(f"Worker {worker_id}: Persistent browser storage disabled, starting fresh")
                 context = await browser.new_context(**context_kwargs)
                 page = await context.new_page()
                 ad_click_success = False
@@ -680,12 +648,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             _perform_activity, get_delay
                         )
                         await natural_exit(context, worker_id, get_delay)
-                        if persist_profile and storage_state_path:
-                            try:
-                                await context.storage_state(path=str(storage_state_path))
-                                print(f"Worker {worker_id}: Saved persistent state to {storage_state_path}")
-                            except Exception as e:
-                                print(f"Worker {worker_id}: Failed to save persistent state: {str(e)}")
                         await cleanup_browser(browser, worker_id)
                     elif browser:
                         await cleanup_browser(browser, worker_id)
@@ -703,14 +665,12 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 delay = get_delay(30, 60)
                 print(f"Worker {worker_id}: Session failed, waiting {delay}s")
 
-            emit_mobile_profile_event(
+            emit_mobile_fingerprint_event(
                 worker_id=worker_id,
                 event_type='session_outcome',
-                session_id=session_id,
-                strategy_mode='dry_run' if ('mobile_profile_dry_run' in locals() and mobile_profile_dry_run) else ('active' if ('mobile_profile_active' in locals() and mobile_profile_active) else 'disabled'),
-                final_mode=profile_mode if 'profile_mode' in locals() else 'desktop',
+                final_mode=fingerprint_mode if 'fingerprint_mode' in locals() else 'desktop',
                 success=session_successful,
-                reason=mobile_fallback_reason if 'mobile_fallback_reason' in locals() else '',
+                reason=fallback_reason if 'fallback_reason' in locals() else '',
             )
 
             await asyncio.sleep(delay)

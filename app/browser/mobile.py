@@ -9,7 +9,7 @@ from typing import Optional, Tuple, List
 
 from browserforge.fingerprints import FingerprintGenerator, Screen, Fingerprint
 
-from app.core.telemetry import emit_mobile_profile_event
+from app.core.telemetry import emit_mobile_fingerprint_event
 
 
 async def generate_mobile_fingerprint(
@@ -42,7 +42,7 @@ async def generate_mobile_fingerprint(
         retry_policy = 'regenerate_once'
         
         # Emit start event
-        emit_mobile_profile_event(
+        emit_mobile_fingerprint_event(
             worker_id=worker_id,
             event_type='profile_generation_started',
             browser_family=browser_family,
@@ -77,7 +77,7 @@ async def generate_mobile_fingerprint(
         
         # Emit success event with profile summary
         ua_snippet = fingerprint.navigator.get('userAgent', 'N/A')[:60] if fingerprint.navigator else 'N/A'
-        emit_mobile_profile_event(
+        emit_mobile_fingerprint_event(
             worker_id=worker_id,
             event_type='profile_generated',
             browser_family=browser_family,
@@ -96,7 +96,7 @@ async def generate_mobile_fingerprint(
     except asyncio.TimeoutError as e:
         print(f"Worker {worker_id}: Fingerprint generation timeout after {timeout_ms}ms (attempt {retry_count + 1})")
         
-        emit_mobile_profile_event(
+        emit_mobile_fingerprint_event(
             worker_id=worker_id,
             event_type='profile_generation_started',
             browser_family=browser_family,
@@ -118,7 +118,7 @@ async def generate_mobile_fingerprint(
     except Exception as e:
         print(f"Worker {worker_id}: Fingerprint generation error: {str(e)} (attempt {retry_count + 1})")
         
-        emit_mobile_profile_event(
+        emit_mobile_fingerprint_event(
             worker_id=worker_id,
             event_type='profile_generation_started',
             browser_family=browser_family,
@@ -174,7 +174,7 @@ def parse_mobile_constraints(hardcoded_bounds: dict | None = None) -> dict:
     Extract and validate mobile constraint bounds from config.
     
     Args:
-        hardcoded_bounds: Optional hardcoded constraint bounds
+        hardcoded_bounds: Optional hardcoded mobile bounds
     
     Returns:
         Dict with min_width, max_width, min_height, max_height (validated)
@@ -189,7 +189,7 @@ def parse_mobile_constraints(hardcoded_bounds: dict | None = None) -> dict:
     }
 
 
-def select_mobile_profile_params(
+def select_mobile_fingerprint_params(
     browsers: List[str] | None = None,
     os_list: List[str] | None = None,
 ) -> Tuple[str, str]:
@@ -197,8 +197,8 @@ def select_mobile_profile_params(
     Select random browser family and OS from mobile_constraints config.
     
     Args:
-        browsers: Optional browser families to choose from
-        os_list: Optional OS list to choose from
+        browsers: Optional browser family candidates
+        os_list: Optional OS candidates
     
     Returns:
         Tuple of (browser_family, os) e.g., ("chrome", "android")
@@ -210,3 +210,5 @@ def select_mobile_profile_params(
         random.choice(browsers),
         random.choice(os_list)
     )
+
+

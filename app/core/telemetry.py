@@ -96,14 +96,12 @@ def emit_worker_event(*,
     return wrote_events and wrote_errors
 
 
-# --- Mobile Profile Telemetry (Task 5) ---
+# --- Mobile Fingerprint Telemetry (Task 5) ---
 
-def emit_mobile_profile_event(
+def emit_mobile_fingerprint_event(
     *,
     worker_id: int,
     event_type: str,
-    session_id: str | None = None,
-    strategy_mode: str | None = None,
     browser_family: str | None = None,
     os: str | None = None,
     ua_snippet: str | None = None,
@@ -114,7 +112,6 @@ def emit_mobile_profile_event(
     is_valid: bool | None = None,
     violation_count: int | None = None,
     violations: list | None = None,
-    reason_codes: list | None = None,
     reason: str | None = None,
     fallback_target: str | None = None,
     final_mode: str | None = None,
@@ -123,7 +120,7 @@ def emit_mobile_profile_event(
     output: pathlib.Path | str = DEFAULT_MOBILE_PROFILE_OUTPUT
 ) -> bool:
     """
-    Emit mobile profile telemetry event (Task 5).
+    Emit mobile fingerprint telemetry event (Task 5).
     
     Args:
         worker_id: Worker ID
@@ -154,8 +151,6 @@ def emit_mobile_profile_event(
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "worker_id": int(worker_id),
         "event_type": str(event_type),
-        "session_id": session_id,
-        "strategy_mode": strategy_mode,
         "browser_family": browser_family,
         "os": os,
         "ua_snippet": ua_snippet,
@@ -166,7 +161,6 @@ def emit_mobile_profile_event(
         "is_valid": is_valid,
         "violation_count": violation_count,
         "violations": violations or [],
-        "reason_codes": reason_codes or [],
         "reason": reason,
         "fallback_target": fallback_target,
         "final_mode": final_mode,
@@ -181,7 +175,7 @@ def emit_mobile_profile_event(
     wrote = _append_jsonl(output_path, event)
     
     if not wrote:
-        print(f"Worker {worker_id}: Telemetry warning - could not write mobile profile event to {output_path}")
+        print(f"Worker {worker_id}: Telemetry warning - could not write mobile fingerprint event to {output_path}")
     
     return wrote
 
