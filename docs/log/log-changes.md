@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T07:56:37-07:00
+- Short description: Rebalance GUI sizing proportions to avoid overlap
+- What you do: Normalized typography and control sizing across tabs/groups/inputs/buttons, reduced oversized tab and button dimensions, removed the large dashboard header/subtitle block, and tightened layout spacing so large elements no longer crowd smaller controls.
+- File path that changes: app/ui/config_window.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T07:54:24-07:00
 - Short description: Improve GUI readability and overall UX styling
 - What you do: Revamped PyQt configuration window visuals with larger default typography, improved tab/group/button/input styling, increased spacing and touch targets, added dashboard title/subtitle context, and improved table/header readability for easier configuration editing.

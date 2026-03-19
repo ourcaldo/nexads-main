@@ -19,7 +19,7 @@ class ConfigWindow(QMainWindow):
 
     def set_dark_mode(self):
         """Apply dark mode styling to the application."""
-        QApplication.setFont(QFont("Segoe UI", 11))
+        QApplication.setFont(QFont("Segoe UI", 10))
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #1F232A;
@@ -36,14 +36,14 @@ class ConfigWindow(QMainWindow):
             QTabBar::tab {
                 background: #2A2F3A;
                 color: #D8DEEA;
-                padding: 11px 16px;
+                padding: 8px 12px;
                 margin-right: 6px;
                 border: 1px solid #343A46;
                 border-bottom: none;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
-                min-width: 150px;
-                font-size: 11pt;
+                min-width: 130px;
+                font-size: 10.5pt;
                 font-weight: 600;
             }
 
@@ -59,10 +59,10 @@ class ConfigWindow(QMainWindow):
             QGroupBox {
                 border: 1px solid #343A46;
                 border-radius: 10px;
-                margin-top: 12px;
-                padding: 14px 12px 12px 12px;
+                margin-top: 14px;
+                padding: 12px 10px 10px 10px;
                 color: #E2E7F1;
-                font-size: 11pt;
+                font-size: 10.5pt;
                 font-weight: 600;
             }
 
@@ -75,7 +75,7 @@ class ConfigWindow(QMainWindow):
 
             QLabel {
                 color: #E6EAF2;
-                font-size: 11pt;
+                font-size: 10pt;
             }
 
             QLineEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
@@ -83,11 +83,11 @@ class ConfigWindow(QMainWindow):
                 color: #E8ECF5;
                 border: 1px solid #3B4454;
                 border-radius: 8px;
-                padding: 8px 10px;
+                padding: 6px 8px;
                 selection-background-color: #3D73D8;
                 selection-color: #FFFFFF;
-                min-height: 20px;
-                font-size: 11pt;
+                min-height: 18px;
+                font-size: 10pt;
             }
 
             QLineEdit:focus, QTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
@@ -103,9 +103,9 @@ class ConfigWindow(QMainWindow):
                 color: #FFFFFF;
                 border: 1px solid #4A78E0;
                 border-radius: 8px;
-                padding: 9px 14px;
-                min-height: 22px;
-                font-size: 11pt;
+                padding: 7px 12px;
+                min-height: 20px;
+                font-size: 10pt;
                 font-weight: 600;
             }
 
@@ -142,13 +142,13 @@ class ConfigWindow(QMainWindow):
             QCheckBox {
                 color: #E6EAF2;
                 spacing: 8px;
-                font-size: 11pt;
+                font-size: 10pt;
             }
 
             QRadioButton {
                 color: #E6EAF2;
                 spacing: 8px;
-                font-size: 11pt;
+                font-size: 10pt;
             }
 
             QStatusBar {
@@ -297,20 +297,12 @@ class ConfigWindow(QMainWindow):
         # Save button
         self.save_btn = QPushButton('Save Configuration')
         self.save_btn.clicked.connect(self.save_config)
-        self.save_btn.setMinimumHeight(42)
+        self.save_btn.setMinimumHeight(36)
         
         # Main layout
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(14, 14, 14, 12)
-        main_layout.setSpacing(12)
-
-        title = QLabel("Configuration Dashboard")
-        title.setStyleSheet("font-size: 16pt; font-weight: 700; color: #F2F6FF;")
-        subtitle = QLabel("Tune browser behavior, sessions, URLs, and ad interaction settings.")
-        subtitle.setStyleSheet("font-size: 10.5pt; color: #AEB8CA;")
-
-        main_layout.addWidget(title)
-        main_layout.addWidget(subtitle)
+        main_layout.setContentsMargins(12, 12, 12, 10)
+        main_layout.setSpacing(10)
         main_layout.addWidget(self.tabs)
         main_layout.addWidget(self.save_btn)
         
