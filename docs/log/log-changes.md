@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:00:51-07:00
+- Short description: Implement hardcoded mobile fingerprint flow with dry-run and fallback telemetry
+- What you do: Refactored browser setup to use hardcoded mobile strategy constants and constraints, added one-regeneration preflight validation with reason-coded fallback to desktop, switched setup return contract to include context options, updated worker to consume setup metadata and force non-persistent storage on active mobile path, and expanded mobile telemetry schema with strategy and reason-code fields.
+- File path that changes: app/browser/setup.py; app/browser/mobile.py; app/core/worker.py; app/core/telemetry.py
+
+## Entry
 - Date time: 2026-03-19T05:08:00-07:00
 - Short description: Remove profile terminology from mobile fingerprint plan wording
 - What you do: Updated the plan text to use fingerprint and session identity terminology, removed profile and persistent-profile wording in plan body, and clarified that persistent browser storage is disabled while fresh fingerprint generation is per worker session.

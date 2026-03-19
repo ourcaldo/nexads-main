@@ -25,7 +25,7 @@ from app.navigation.tabs import (
     process_ads_tabs,
     natural_exit,
 )
-from app.core.telemetry import emit_worker_event
+from app.core.telemetry import emit_worker_event, emit_mobile_profile_event
 from app.ads.adsense import (
     interact_with_ads, check_and_handle_vignette, smart_click
 )
@@ -217,13 +217,25 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             try:
                 # --- BROWSER INIT ---
                 browser_init_started = time.time()
-                browser = await configure_browser(ctx.config, worker_id, get_delay)
-                if not browser:
+                browser_setup = await configure_browser(ctx.config, worker_id, get_delay)
+                if not browser_setup:
                     print(f"Worker {worker_id}: Failed to initialize browser")
                     _emit_step(
                         "browser_init",
                         "failed",
                         reason_code="configure_browser_returned_none",
+                        duration_ms=int((time.time() - browser_init_started) * 1000),
+                    )
+                    await asyncio.sleep(10)
+                    continue
+
+                browser = browser_setup.get('browser')
+                if not browser:
+                    print(f"Worker {worker_id}: Browser setup returned without browser instance")
+                    _emit_step(
+                        "browser_init",
+                        "failed",
+                        reason_code="browser_setup_missing_browser",
                         duration_ms=int((time.time() - browser_init_started) * 1000),
                     )
                     await asyncio.sleep(10)
@@ -235,7 +247,25 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     duration_ms=int((time.time() - browser_init_started) * 1000),
                 )
 
-                context_kwargs = {}
+                context_kwargs = dict(browser_setup.get('context_options') or {})
+                profile_mode = str(browser_setup.get('profile_mode', 'desktop'))
+                mobile_profile_active = bool(browser_setup.get('mobile_profile_active', False))
+                mobile_profile_dry_run = bool(browser_setup.get('mobile_profile_dry_run', False))
+                mobile_fallback_reason = str(browser_setup.get('mobile_fallback_reason', '') or '')
+
+                if mobile_profile_active:
+                    # Mobile feature path requires fresh, non-persistent storage for every session.
+                    persist_profile = False
+
+                emit_mobile_profile_event(
+                    worker_id=worker_id,
+                    event_type='session_profile_mode',
+                    session_id=session_id,
+                    strategy_mode='dry_run' if mobile_profile_dry_run else ('active' if mobile_profile_active else 'disabled'),
+                    final_mode=profile_mode,
+                    reason=mobile_fallback_reason,
+                )
+
                 if persist_profile:
                     profiles_root = pathlib.Path(
                         ctx.config.get("browser", {}).get("profile_dir", "profiles")
@@ -249,7 +279,12 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             f"Worker {worker_id}: Loading persistent state from {storage_state_path}"
                         )
                 else:
-                    print(f"Worker {worker_id}: Profile persistence disabled, starting fresh")
+                    if mobile_profile_active:
+                        print(f"Worker {worker_id}: Mobile profile active; persistence forced off")
+                    elif mobile_profile_dry_run:
+                        print(f"Worker {worker_id}: Mobile profile dry-run completed; desktop context started fresh")
+                    else:
+                        print(f"Worker {worker_id}: Profile persistence disabled, starting fresh")
 
                 context = await browser.new_context(**context_kwargs)
                 page = await context.new_page()
@@ -667,6 +702,16 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             else:
                 delay = get_delay(30, 60)
                 print(f"Worker {worker_id}: Session failed, waiting {delay}s")
+
+            emit_mobile_profile_event(
+                worker_id=worker_id,
+                event_type='session_outcome',
+                session_id=session_id,
+                strategy_mode='dry_run' if ('mobile_profile_dry_run' in locals() and mobile_profile_dry_run) else ('active' if ('mobile_profile_active' in locals() and mobile_profile_active) else 'disabled'),
+                final_mode=profile_mode if 'profile_mode' in locals() else 'desktop',
+                success=session_successful,
+                reason=mobile_fallback_reason if 'mobile_fallback_reason' in locals() else '',
+            )
 
             await asyncio.sleep(delay)
 

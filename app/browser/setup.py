@@ -5,7 +5,7 @@ Browser initialization and cleanup using Camoufox.
 
 import random
 import asyncio
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Dict, List
 
 from camoufox.async_api import AsyncCamoufox
 from camoufox import DefaultAddons
@@ -18,6 +18,23 @@ from app.browser.mobile import (
     select_mobile_profile_params
 )
 from app.core.telemetry import emit_mobile_profile_event
+
+
+# --- Mobile fingerprint strategy (hardcoded for this milestone) ---
+MOBILE_PROFILE_ENABLED = False
+MOBILE_PROFILE_DRY_RUN = True
+MOBILE_PROFILE_ADVANCED_OVERRIDE_ENABLED = False
+MOBILE_PROFILE_MAX_REGEN_ATTEMPTS = 1
+MOBILE_PROFILE_GENERATION_TIMEOUT_MS = 5000
+MOBILE_FINGERPRINT_BROWSERS = ["chrome", "safari"]
+MOBILE_FINGERPRINT_OSES = ["android", "ios"]
+MOBILE_TARGET_DOMAIN = "example.com"
+MOBILE_SCREEN_BOUNDS = {
+    "min_width": 360,
+    "max_width": 430,
+    "min_height": 740,
+    "max_height": 932,
+}
 
 
 def _looks_like_host(value: str) -> bool:
@@ -117,14 +134,12 @@ def _parse_proxy_entry(proxy: str):
     return None
 
 
-def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint], config: dict) -> Dict:
+def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint]) -> Dict:
     """
     Map BrowserForge fingerprint fields to Playwright context options (Task 3).
     
     Args:
         fingerprint: BrowserForge Fingerprint object or None
-        config: Config dict
-    
     Returns:
         Dict of context_options for browser.new_context(**options)
     """
@@ -135,14 +150,11 @@ def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint], confi
     screen = fingerprint.screen or {}
     headers = fingerprint.headers or {}
     
-    # Core mappings: native Playwright context options
     context_opts = {}
     
-    # User-Agent
     if ua := navigator.get('userAgent'):
         context_opts['user_agent'] = ua
     
-    # Viewport and device scale factor
     width = screen.get('width', 360)
     height = screen.get('height', 740)
     context_opts['viewport'] = {'width': width, 'height': height}
@@ -150,19 +162,15 @@ def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint], confi
     if dpr := screen.get('devicePixelRatio'):
         context_opts['device_scale_factor'] = float(dpr)
     
-    # Mobile and touch flags
-    context_opts['is_mobile'] = True  # Always True since we're in mobile path
+    context_opts['is_mobile'] = True
     max_touch = navigator.get('maxTouchPoints', 5)
     context_opts['has_touch'] = max_touch > 0
     
-    # Locale / Language
     if lang := navigator.get('language'):
         context_opts['locale'] = lang
     
-    # Extra HTTP headers
+    safe_headers = {}
     if headers:
-        # Filter headers to safe subset (avoid Content-Length, Host, etc.)
-        safe_headers = {}
         header_keys = [
             'User-Agent', 'Accept-Language', 'Accept', 'Accept-Encoding',
             'Sec-Fetch-Site', 'Sec-Fetch-Mode', 'Sec-Fetch-Dest',
@@ -173,252 +181,98 @@ def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint], confi
             if key in headers and headers[key]:
                 safe_headers[key] = str(headers[key])
         
-        if safe_headers:
-            context_opts['extra_http_headers'] = safe_headers
+    locale = context_opts.get('locale', '')
+    if locale and 'Accept-Language' not in safe_headers:
+        safe_headers['Accept-Language'] = locale
+
+    if safe_headers:
+        context_opts['extra_http_headers'] = safe_headers
     
     return context_opts
 
 
 def validate_profile_consistency(
     fingerprint: Optional[Fingerprint],
-    context_opts: Dict,
-    worker_id: int
-) -> Tuple[bool, List[str]]:
+    context_opts: Dict
+) -> tuple[bool, List[str], List[str]]:
     """
     Validate consistency of mobile profile fingerprint (Task 4).
     
     Args:
         fingerprint: BrowserForge Fingerprint object or None
         context_opts: Mapped context options
-        worker_id: Worker ID for logging
-    
     Returns:
-        Tuple of (is_valid: bool, violations: List[str])
+        Tuple of (is_valid, reason_codes, violations)
     """
+    reason_codes = []
     violations = []
-    
+
     if not fingerprint:
-        return True, []  # No fingerprint, nothing to validate
-    
+        return False, ['fingerprint_missing'], ['Fingerprint object is missing']
+
     navigator = fingerprint.navigator or {}
     ua = navigator.get('userAgent', '')
     platform = navigator.get('platform', '')
+    language = navigator.get('language', '')
+    viewport = context_opts.get('viewport', {})
+    width = int(viewport.get('width', 0)) if isinstance(viewport, dict) else 0
+    height = int(viewport.get('height', 0)) if isinstance(viewport, dict) else 0
+    locale = str(context_opts.get('locale', '') or '')
+    headers = context_opts.get('extra_http_headers', {})
+    accept_language = str((headers or {}).get('Accept-Language', '') or '')
     
-    # Rule 1: Mobile flag consistency
     has_mobile_in_ua = 'Mobile' in ua
     is_mobile_flag = context_opts.get('is_mobile', False)
     if has_mobile_in_ua and not is_mobile_flag:
-        violations.append(f"Mobile flag mismatch: UA has 'Mobile' but is_mobile=False")
+        reason_codes.append('mobile_flag_mismatch')
+        violations.append("Mobile flag mismatch: UA has 'Mobile' but is_mobile=False")
     if not has_mobile_in_ua and is_mobile_flag:
-        # Less strict: some mobile UAs don't have Mobile keyword
-        pass
-    
-    # Rule 2: Touch consistency
+        reason_codes.append('mobile_keyword_missing')
+        violations.append("UA missing 'Mobile' while is_mobile=True")
+
     max_touch = navigator.get('maxTouchPoints', 0)
     has_touch_flag = context_opts.get('has_touch', False)
     if max_touch > 0 and not has_touch_flag:
+        reason_codes.append('touch_flag_mismatch')
         violations.append(f"Touch flag mismatch: maxTouchPoints={max_touch} but has_touch=False")
-    
-    # Rule 3: Platform realism
+
     if 'Android' in ua:
-        # Android should have Linux platform
         if platform and not platform.startswith('Linux'):
+            reason_codes.append('ua_platform_mismatch_android')
             violations.append(f"Platform mismatch: Android UA found with platform={platform} (expected Linux)")
     elif 'iPhone' in ua or 'iPad' in ua:
-        # iOS should have iPhone or iPad platform
         if platform and platform not in ['iPhone', 'iPad']:
+            reason_codes.append('ua_platform_mismatch_ios')
             violations.append(f"Platform mismatch: iOS UA found with platform={platform} (expected iPhone/iPad)")
-    
-    # Rule 4: Impossible combos
+
     if 'Android' in ua and 'Mobile' not in ua:
-        # Android typically includes Mobile in UA
+        reason_codes.append('ua_android_without_mobile')
         violations.append(f"Impossible combo: Android UA without 'Mobile' keyword")
-    
+
     if max_touch < 5 and ('iPhone' in ua or 'iPad' in ua):
-        # iOS devices have at least 5 touch points (typically)
+        reason_codes.append('ua_ios_low_touchpoints')
         violations.append(f"Impossible combo: iOS UA with maxTouchPoints={max_touch} (expected ≥5)")
+
+    if locale and accept_language and not accept_language.lower().startswith(locale.lower().split('-')[0]):
+        reason_codes.append('locale_header_mismatch')
+        violations.append(f"Locale/header mismatch: locale={locale}, Accept-Language={accept_language}")
+
+    if width < MOBILE_SCREEN_BOUNDS['min_width'] or width > MOBILE_SCREEN_BOUNDS['max_width']:
+        reason_codes.append('viewport_width_out_of_bounds')
+        violations.append(f"Viewport width {width} outside mobile bounds")
+
+    if height < MOBILE_SCREEN_BOUNDS['min_height'] or height > MOBILE_SCREEN_BOUNDS['max_height']:
+        reason_codes.append('viewport_height_out_of_bounds')
+        violations.append(f"Viewport height {height} outside mobile bounds")
     
     is_valid = len(violations) == 0
     
-    # Emit telemetry event
-    emit_mobile_profile_event(
-        worker_id=worker_id,
-        event_type='profile_validation_result',
-        is_valid=is_valid,
-        violation_count=len(violations),
-        violations=violations if violations else None
-    )
-    
-    if not is_valid:
-        print(f"Worker {worker_id}: Profile validation failed ({len(violations)} violations)")
-    
-    return is_valid, violations
-
-
-async def configure_mobile_browser(
-    config: dict,
-    worker_id: int,
-    get_random_delay_fn,
-    target_domain: str = "example.com"
-) -> Optional[Tuple]:
-    """
-    Configure and return mobile Camoufox browser context (Task 2 mobile branch).
-    
-    Args:
-        config: Config dict with mobile profile settings
-        worker_id: Worker ID for logging
-        get_random_delay_fn: Callable that returns random delay in seconds
-        target_domain: Target domain (for future enhancements)
-    
-    Returns:
-        Tuple of (browser, context) or (None, None) on failure
-    """
-    try:
-        # --- Proxy Setup ---
-        proxy = None
-        if config['proxy']['credentials']:
-            proxy = config['proxy']['credentials']
-        elif config['proxy']['file']:
-            with open(config['proxy']['file'], 'r') as f:
-                proxies = [line.strip() for line in f if line.strip()]
-            if proxies:
-                proxy = random.choice(proxies)
-
-        # --- Headless Mode ---
-        headless = True
-        if config['browser']['headless_mode'] == 'False':
-            headless = False
-        elif config['browser']['headless_mode'] == 'virtual':
-            headless = 'virtual'
-
-        os_fingerprint = random.choice(config['os_fingerprint'])
-
-        # --- Mobile Screen Constraint ---
-        screen = Screen(max_width=430, max_height=932)
-
-        # --- Browser Launch Options ---
-        options = {
-            'headless': headless,
-            'os': os_fingerprint,
-            'screen': screen,
-            'geoip': True,
-            'humanize': True
-        }
-
-        if config['browser']['disable_ublock']:
-            options['exclude_addons'] = [DefaultAddons.UBO]
-
-        if proxy:
-            proxy_type = config['proxy']['type'].lower()
-            parsed_proxy = _parse_proxy_entry(proxy)
-            if not parsed_proxy:
-                raise ValueError(
-                    "Unsupported proxy format. Use one of: "
-                    "ip:port, host:port:user:pass, host:port@user:pass, "
-                    "user:pass:host:port, user:pass@host:port"
-                )
-
-            host, port, user, pwd = parsed_proxy
-            options['proxy'] = {
-                'server': f"{proxy_type}://{host}:{port}",
-                'username': user,
-                'password': pwd
-            }
-
-        # --- Launch Browser ---
-        browser = await AsyncCamoufox(**options).start()
-        print(f"Worker {worker_id}: Mobile browser launched")
-        
-        delay = get_random_delay_fn()
-        await asyncio.sleep(delay)
-
-        # --- Generate Mobile Fingerprint ---
-        constraints = parse_mobile_constraints(config)
-        browser_family, mobile_os = select_mobile_profile_params(config)
-        
-        fingerprint = await generate_mobile_fingerprint(
-            domain=target_domain,
-            browser_family=browser_family,
-            os=mobile_os,
-            screen_constraints=constraints,
-            config=config,
-            worker_id=worker_id
-        )
-        
-        fp_summary = get_fingerprint_summary(fingerprint)
-
-        # --- Validate Consistency ---
-        if fingerprint:
-            context_opts = map_fingerprint_to_context_options(fingerprint, config)
-            is_valid, violations = validate_profile_consistency(fingerprint, context_opts, worker_id)
-            
-            if not is_valid:
-                policy = config.get('profile_consistency_policy', 'block')
-                print(f"Worker {worker_id}: Profile validation failed: {violations}")
-                if policy == 'block':
-                    print(f"Worker {worker_id}: Falling back to desktop (validation policy=block)")
-                    emit_mobile_profile_event(
-                        worker_id=worker_id,
-                        event_type='profile_fallback_triggered',
-                        reason='validation_failed',
-                        fallback_target='desktop'
-                    )
-                    await cleanup_browser(browser, worker_id)
-                    return None  # Signal to fall back to desktop
-        else:
-            # No fingerprint generated (timeout/error)
-            print(f"Worker {worker_id}: No fingerprint generated, falling back to desktop")
-            emit_mobile_profile_event(
-                worker_id=worker_id,
-                event_type='profile_fallback_triggered',
-                reason='generation_failed',
-                fallback_target='desktop'
-            )
-            await cleanup_browser(browser, worker_id)
-            return None
-
-        # --- Create Context with Mobile Profile ---
-        context = await browser.new_context(**context_opts)
-        fp_summary = get_fingerprint_summary(fingerprint)
-        print(f"Worker {worker_id}: Mobile context created with profile: {fp_summary}")
-        
-        emit_mobile_profile_event(
-            worker_id=worker_id,
-            event_type='context_created',
-            final_mode='mobile',
-            browser_family=browser_family,
-            os=mobile_os,
-            **fp_summary
-        )
-
-        return (browser, context)
-
-    except Exception as e:
-        print(f"Worker {worker_id}: Mobile browser configuration error: {str(e)}")
-        return None
+    return is_valid, reason_codes, violations
 
 
 async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
-    """Configure and return a new Camoufox browser instance."""
+    """Configure and return browser setup result for one worker session."""
     try:
-        # --- Mobile Profile Branching (Task 2) ---
-        profile_strategy = config.get('profile_strategy', 'desktop-only')
-        rollout_pct = config.get('profile_strategy_rollout_percentage', 0)
-        
-        if profile_strategy in ['mobile-enabled', 'dry-run'] and rollout_pct > 0:
-            # Probabilistically select mobile vs desktop based on rollout percentage
-            if random.randint(1, 100) <= rollout_pct:
-                print(f"Worker {worker_id}: Mobile profile selected (rollout={rollout_pct}%)")
-                mobile_result = await configure_mobile_browser(config, worker_id, get_random_delay_fn)
-                
-                if mobile_result is not None:
-                    # Mobile succeeded, use it
-                    return mobile_result
-                else:
-                    # Mobile failed or returned None, fall back to desktop
-                    print(f"Worker {worker_id}: Mobile configuration failed, falling back to desktop")
-        
-        # --- Desktop Path (Original Logic) ---
         proxy = None
         if config['proxy']['credentials']:
             proxy = config['proxy']['credentials']
@@ -434,7 +288,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
         elif config['browser']['headless_mode'] == 'virtual':
             headless = 'virtual'
 
-        os_fingerprint = random.choice(config['os_fingerprint'])
+        os_fingerprint = random.choice(config.get('os_fingerprint', ['windows']))
 
         device_type = random.choices(
             ['mobile', 'desktop'],
@@ -480,7 +334,136 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
         browser = await AsyncCamoufox(**options).start()
         delay = get_random_delay_fn()
         await asyncio.sleep(delay)
-        return browser
+
+        setup_result = {
+            'browser': browser,
+            'context_options': {},
+            'profile_mode': 'desktop',
+            'mobile_profile_active': False,
+            'mobile_profile_dry_run': False,
+            'mobile_fallback_reason': '',
+            'mobile_validation_reason_codes': [],
+        }
+
+        if not MOBILE_PROFILE_ENABLED:
+            return setup_result
+
+        constraints = parse_mobile_constraints(MOBILE_SCREEN_BOUNDS)
+        browser_family, mobile_os = select_mobile_profile_params(
+            MOBILE_FINGERPRINT_BROWSERS,
+            MOBILE_FINGERPRINT_OSES,
+        )
+
+        emit_mobile_profile_event(
+            worker_id=worker_id,
+            event_type='profile_flow_started',
+            strategy_mode='dry_run' if MOBILE_PROFILE_DRY_RUN else 'active',
+            browser_family=browser_family,
+            os=mobile_os,
+            final_mode='dry_run' if MOBILE_PROFILE_DRY_RUN else 'mobile',
+        )
+
+        fingerprint = None
+        context_opts = {}
+        reason_codes: List[str] = []
+        violations: List[str] = []
+
+        for attempt in range(MOBILE_PROFILE_MAX_REGEN_ATTEMPTS + 1):
+            fingerprint = await generate_mobile_fingerprint(
+                domain=MOBILE_TARGET_DOMAIN,
+                browser_family=browser_family,
+                os=mobile_os,
+                screen_constraints=constraints,
+                worker_id=worker_id,
+                max_retries=0,
+                timeout_ms=MOBILE_PROFILE_GENERATION_TIMEOUT_MS,
+            )
+
+            if not fingerprint:
+                reason_codes = ['generation_failed']
+                violations = ['Fingerprint generation returned no value']
+            else:
+                context_opts = map_fingerprint_to_context_options(fingerprint)
+                is_valid, reason_codes, violations = validate_profile_consistency(
+                    fingerprint,
+                    context_opts,
+                )
+                emit_mobile_profile_event(
+                    worker_id=worker_id,
+                    event_type='profile_validation_result',
+                    strategy_mode='dry_run' if MOBILE_PROFILE_DRY_RUN else 'active',
+                    is_valid=is_valid,
+                    violation_count=len(violations),
+                    violations=violations,
+                    reason_codes=reason_codes,
+                    reason='|'.join(reason_codes) if reason_codes else 'ok',
+                )
+                if is_valid:
+                    break
+
+            if attempt >= MOBILE_PROFILE_MAX_REGEN_ATTEMPTS:
+                fingerprint = None
+                break
+
+            emit_mobile_profile_event(
+                worker_id=worker_id,
+                event_type='profile_regeneration',
+                strategy_mode='dry_run' if MOBILE_PROFILE_DRY_RUN else 'active',
+                reason='|'.join(reason_codes) if reason_codes else 'generation_failed',
+                fallback_target='regenerate',
+            )
+
+        if not fingerprint:
+            setup_result['mobile_fallback_reason'] = '|'.join(reason_codes) if reason_codes else 'preflight_failed'
+            setup_result['mobile_validation_reason_codes'] = reason_codes
+            emit_mobile_profile_event(
+                worker_id=worker_id,
+                event_type='profile_fallback_triggered',
+                strategy_mode='dry_run' if MOBILE_PROFILE_DRY_RUN else 'active',
+                reason_codes=reason_codes,
+                reason=setup_result['mobile_fallback_reason'],
+                fallback_target='desktop',
+                final_mode='desktop',
+            )
+            print(f"Worker {worker_id}: Mobile preflight failed, continuing desktop flow")
+            return setup_result
+
+        fp_summary = get_fingerprint_summary(fingerprint)
+        if MOBILE_PROFILE_DRY_RUN:
+            setup_result['profile_mode'] = 'dry_run'
+            setup_result['mobile_profile_dry_run'] = True
+            setup_result['mobile_validation_reason_codes'] = []
+            emit_mobile_profile_event(
+                worker_id=worker_id,
+                event_type='profile_dry_run_completed',
+                strategy_mode='dry_run',
+                final_mode='desktop',
+                browser_family=browser_family,
+                os=mobile_os,
+                **fp_summary,
+            )
+            print(f"Worker {worker_id}: Mobile preflight dry-run passed, desktop context retained")
+            return setup_result
+
+        if MOBILE_PROFILE_ADVANCED_OVERRIDE_ENABLED:
+            # Internal branch is intentionally inert unless the flag is explicitly enabled.
+            context_opts = dict(context_opts)
+
+        setup_result['context_options'] = context_opts
+        setup_result['profile_mode'] = 'mobile'
+        setup_result['mobile_profile_active'] = True
+        setup_result['mobile_validation_reason_codes'] = []
+        emit_mobile_profile_event(
+            worker_id=worker_id,
+            event_type='context_created',
+            strategy_mode='active',
+            final_mode='mobile',
+            browser_family=browser_family,
+            os=mobile_os,
+            **fp_summary,
+        )
+        print(f"Worker {worker_id}: Mobile profile activated")
+        return setup_result
 
     except Exception as e:
         print(f"Worker {worker_id}: Browser initialization error: {str(e)}")

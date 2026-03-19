@@ -6,7 +6,6 @@ Mobile device fingerprint generation using BrowserForge.
 import asyncio
 import random
 from typing import Optional, Tuple, List
-from dataclasses import asdict
 
 from browserforge.fingerprints import FingerprintGenerator, Screen, Fingerprint
 
@@ -18,8 +17,9 @@ async def generate_mobile_fingerprint(
     browser_family: str,
     os: str,
     screen_constraints: dict,
-    config: dict,
     worker_id: int,
+    max_retries: int = 1,
+    timeout_ms: int = 5000,
     retry_count: int = 0
 ) -> Optional[Fingerprint]:
     """
@@ -30,16 +30,16 @@ async def generate_mobile_fingerprint(
         browser_family: "chrome", "safari", "firefox", "edge"
         os: "android" or "ios"
         screen_constraints: Dict with min_width, max_width, min_height, max_height
-        config: Config dict with fingerprint_generation_retry_policy, timeout_ms
         worker_id: Worker ID for logging
+        max_retries: Maximum retry attempts after the first generation attempt
+        timeout_ms: Timeout for generation in milliseconds
         retry_count: Internal retry counter (do not set)
     
     Returns:
         Fingerprint dataclass (BrowserForge) or None on failure/fallback
     """
     try:
-        max_retries = config.get('fingerprint_generation_max_retries', 1)
-        timeout_ms = config.get('fingerprint_generation_timeout_ms', 5000)
+        retry_policy = 'regenerate_once'
         
         # Emit start event
         emit_mobile_profile_event(
@@ -94,7 +94,6 @@ async def generate_mobile_fingerprint(
         return fingerprint
         
     except asyncio.TimeoutError as e:
-        retry_policy = config.get('fingerprint_generation_retry_policy', 'regenerate_once')
         print(f"Worker {worker_id}: Fingerprint generation timeout after {timeout_ms}ms (attempt {retry_count + 1})")
         
         emit_mobile_profile_event(
@@ -109,13 +108,14 @@ async def generate_mobile_fingerprint(
             print(f"Worker {worker_id}: Retrying fingerprint generation...")
             await asyncio.sleep(random.uniform(0.5, 1.0))
             return await generate_mobile_fingerprint(
-                domain, browser_family, os, screen_constraints, config, worker_id,
+                domain, browser_family, os, screen_constraints, worker_id,
+                max_retries=max_retries,
+                timeout_ms=timeout_ms,
                 retry_count=retry_count + 1
             )
         return None
         
     except Exception as e:
-        retry_policy = config.get('fingerprint_generation_retry_policy', 'regenerate_once')
         print(f"Worker {worker_id}: Fingerprint generation error: {str(e)} (attempt {retry_count + 1})")
         
         emit_mobile_profile_event(
@@ -130,7 +130,9 @@ async def generate_mobile_fingerprint(
             print(f"Worker {worker_id}: Retrying fingerprint generation after error...")
             await asyncio.sleep(random.uniform(0.5, 1.0))
             return await generate_mobile_fingerprint(
-                domain, browser_family, os, screen_constraints, config, worker_id,
+                domain, browser_family, os, screen_constraints, worker_id,
+                max_retries=max_retries,
+                timeout_ms=timeout_ms,
                 retry_count=retry_count + 1
             )
         return None
@@ -167,18 +169,17 @@ def get_fingerprint_summary(fingerprint: Optional[Fingerprint]) -> dict:
     }
 
 
-def parse_mobile_constraints(config: dict) -> dict:
+def parse_mobile_constraints(hardcoded_bounds: dict | None = None) -> dict:
     """
     Extract and validate mobile constraint bounds from config.
     
     Args:
-        config: Config dict with mobile_constraints
+        hardcoded_bounds: Optional hardcoded constraint bounds
     
     Returns:
         Dict with min_width, max_width, min_height, max_height (validated)
     """
-    constraints = config.get('mobile_constraints', {})
-    screen = constraints.get('screen', {})
+    screen = hardcoded_bounds or {}
     
     return {
         'min_width': max(360, screen.get('min_width', 360)),
@@ -188,19 +189,22 @@ def parse_mobile_constraints(config: dict) -> dict:
     }
 
 
-def select_mobile_profile_params(config: dict) -> Tuple[str, str]:
+def select_mobile_profile_params(
+    browsers: List[str] | None = None,
+    os_list: List[str] | None = None,
+) -> Tuple[str, str]:
     """
     Select random browser family and OS from mobile_constraints config.
     
     Args:
-        config: Config dict with mobile_constraints
+        browsers: Optional browser families to choose from
+        os_list: Optional OS list to choose from
     
     Returns:
         Tuple of (browser_family, os) e.g., ("chrome", "android")
     """
-    constraints = config.get('mobile_constraints', {})
-    browsers = constraints.get('browsers', ['chrome', 'safari'])
-    os_list = constraints.get('os', ['android', 'ios'])
+    browsers = browsers or ['chrome', 'safari']
+    os_list = os_list or ['android', 'ios']
     
     return (
         random.choice(browsers),
