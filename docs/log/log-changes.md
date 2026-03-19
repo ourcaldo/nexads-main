@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T13:15:00-07:00
+- Short description: Use real Chrome version in mobile UA to avoid version mismatch detection
+- What you do: Changed mobile UA strategy to read the real Chrome UA from the launched browser, then only swap the OS portion (Windows -> Android) while keeping the real Chrome version number. This avoids 'different browser version' detection where BrowserForge's UA had Chrome/138 but actual Chrome was /146. CDP overrides now built after launch with the real UA. Removed user_agent from context options (set via CDP instead).
+- File path that changes: app/browser/mobile.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T12:45:00-07:00
 - Short description: Add CDP-level mobile identity overrides for undetectable fingerprint
 - What you do: Added CDP Emulation.setUserAgentOverride and setTouchEmulationEnabled to override navigator.platform, maxTouchPoints, and userAgentData at the browser engine level (not JavaScript). Set mobile UA from BrowserForge fingerprint via context options. Added init script for deviceMemory, battery API, and touch support signals. Built from fingerprint data so all values are consistent with the generated mobile identity.

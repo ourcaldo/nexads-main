@@ -316,9 +316,18 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     pages = context.pages
                     page = pages[0] if pages else await context.new_page()
                     # Apply CDP overrides for protected navigator properties.
-                    cdp_overrides = browser_setup.get("mobile_cdp_overrides")
-                    if cdp_overrides:
+                    # Read real UA first, then build overrides with correct version.
+                    mobile_fp = browser_setup.get("fingerprint")
+                    if mobile_fp:
                         try:
+                            from app.browser.mobile import build_cdp_mobile_overrides
+                            real_ua = await page.evaluate(
+                                "() => navigator.userAgent",
+                                isolated_context=False,
+                            )
+                            cdp_overrides = build_cdp_mobile_overrides(
+                                mobile_fp, real_ua,
+                            )
                             cdp = await context.new_cdp_session(page)
                             await cdp.send(
                                 "Emulation.setUserAgentOverride",

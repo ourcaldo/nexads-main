@@ -235,10 +235,8 @@ def map_fingerprint_to_context_options(fingerprint: Optional[dict]) -> Dict:
     context_opts["is_mobile"] = True
     context_opts["has_touch"] = True
 
-    # Set mobile UA from fingerprint — required for mobile emulation consistency.
-    # Patchright propagates this to UA, appVersion, and sec-ch-ua headers.
-    if ua := _fp_get(navigator, "userAgent"):
-        context_opts["user_agent"] = ua
+    # DO NOT set user_agent here. The real Chrome version must match.
+    # We override the UA via CDP after launch, swapping only the OS portion.
 
     width = _fp_get(screen, "width", 412)
     height = _fp_get(screen, "height", 915)
@@ -309,42 +307,69 @@ def build_mobile_environment_script(fingerprint: dict) -> str:
 }})();"""
 
 
-def build_cdp_mobile_overrides(fingerprint: dict) -> dict:
+def _transform_ua_to_mobile(real_ua: str) -> str:
+    """Transform a real desktop Chrome UA string into a mobile Android UA.
+
+    Keeps the real Chrome version to avoid version mismatch detection.
+    Only swaps the OS portion: 'Windows NT 10.0; Win64; x64' -> 'Linux; Android 10; K'
+    """
+    import re
+    # Replace OS portion inside the first parentheses.
+    mobile_ua = re.sub(
+        r"\(Windows NT [^)]+\)",
+        "(Linux; Android 10; K)",
+        real_ua,
+    )
+    # Ensure 'Mobile' is before 'Safari' if not already present.
+    if "Mobile" not in mobile_ua and "Safari/" in mobile_ua:
+        mobile_ua = mobile_ua.replace("Safari/", "Mobile Safari/")
+    return mobile_ua
+
+
+def _extract_chrome_version(ua: str) -> str:
+    """Extract Chrome major.minor.build.patch version from UA string."""
+    import re
+    match = re.search(r"Chrome/(\d+\.\d+\.\d+\.\d+)", ua)
+    if match:
+        return match.group(1)
+    return "138.0.0.0"
+
+
+def build_cdp_mobile_overrides(fingerprint: dict, real_ua: str) -> dict:
     """Build CDP override parameters for mobile identity.
 
-    These override navigator.platform, maxTouchPoints, and userAgentData
-    at the browser engine level (not JavaScript), so they cannot be detected.
+    Uses the REAL Chrome UA and only swaps the OS to Android.
+    This keeps the Chrome version matching the actual browser binary,
+    avoiding 'different browser version' detection.
     """
     navigator = fingerprint.get("navigator", {})
-    headers = fingerprint.get("headers", {})
 
-    ua = _fp_get(navigator, "userAgent",
-        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36")
+    mobile_ua = _transform_ua_to_mobile(real_ua)
     platform = _fp_get(navigator, "platform", "Linux armv81")
     max_touch = int(_fp_get(navigator, "maxTouchPoints", 5))
 
+    chrome_version = _extract_chrome_version(real_ua)
+    major_version = chrome_version.split(".")[0]
+
     ua_data = _fp_get(navigator, "userAgentData", {})
-    brands = _fp_get(ua_data, "brands", [
-        {"brand": "Chromium", "version": "138"},
-        {"brand": "Google Chrome", "version": "138"},
-        {"brand": "Not=A?Brand", "version": "8"},
-    ])
-    full_version_list = _fp_get(ua_data, "fullVersionList", [
-        {"brand": "Chromium", "version": "138.0.0.0"},
-        {"brand": "Google Chrome", "version": "138.0.0.0"},
-        {"brand": "Not=A?Brand", "version": "8.0.0.0"},
-    ])
     model = _fp_get(ua_data, "model", "K")
     platform_version = _fp_get(ua_data, "platformVersion", "10.0.0")
-    ua_full_version = _fp_get(ua_data, "uaFullVersion", "138.0.0.0")
 
     return {
         "ua_override": {
-            "userAgent": ua,
+            "userAgent": mobile_ua,
             "platform": platform,
             "userAgentMetadata": {
-                "brands": [{"brand": str(b.get("brand", "")), "version": str(b.get("version", ""))} for b in brands] if isinstance(brands, list) else [],
-                "fullVersionList": [{"brand": str(b.get("brand", "")), "version": str(b.get("version", ""))} for b in full_version_list] if isinstance(full_version_list, list) else [],
+                "brands": [
+                    {"brand": "Chromium", "version": major_version},
+                    {"brand": "Google Chrome", "version": major_version},
+                    {"brand": "Not=A?Brand", "version": "8"},
+                ],
+                "fullVersionList": [
+                    {"brand": "Chromium", "version": chrome_version},
+                    {"brand": "Google Chrome", "version": chrome_version},
+                    {"brand": "Not=A?Brand", "version": "8.0.0.0"},
+                ],
                 "platform": "Android",
                 "platformVersion": str(platform_version),
                 "architecture": "",
@@ -685,7 +710,7 @@ async def configure_mobile_browser(
         "is_persistent_context": True,
         "geoip_data": geoip_data,
         "mobile_environment_script": build_mobile_environment_script(fingerprint),
-        "mobile_cdp_overrides": build_cdp_mobile_overrides(fingerprint),
+        "fingerprint": fingerprint,
     }
 
 
