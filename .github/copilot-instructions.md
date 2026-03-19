@@ -1,7 +1,7 @@
 # Copilot Instructions for nexAds
 
-## Implementation Rule
-**IMPLEMENT IN CODE, NOT IN COMMENTS OR PLANS.** When a user asks for implementation, execute the changes directly in files. Do not discuss or plan—write the actual code. If uncertainty arises, resolve it via investigation (reading files, running tests) but proceed with real edits.
+## Planning Rule
+**MAKE DETAILED IMPLEMENTATION PLANS IN MD FILES, NOT VERBAL DISCUSSION.** When a user asks for a plan, write a comprehensive markdown file with step-by-step tasks, goals, and acceptance criteria. Store plans in `docs/plans/` with clear structure and detail. Do not execute code until explicitly told to implement.
 
 ## Git Commit Scope Rules
 

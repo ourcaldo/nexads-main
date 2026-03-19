@@ -53,26 +53,6 @@
     "ads": {
         "ctr": 80.0,
         "min_time": 30,
-        "max_time": 60    },
-    "profile_strategy": "desktop-only",
-    "profile_strategy_rollout_percentage": 0,
-    "mobile_constraints": {
-        "screen": {
-            "min_width": 360,
-            "max_width": 430,
-            "min_height": 740,
-            "max_height": 932
-        },
-        "browsers": ["chrome", "safari"],
-        "os": ["android", "ios"],
-        "locales": ["en-US", "en-GB", "fr-FR"]
-    },
-    "fingerprint_generation_max_retries": 1,
-    "fingerprint_generation_timeout_ms": 5000,
-    "profile_consistency_policy": "block",
-    "profile_fallback_policy": "fallback_to_desktop",
-    "fingerprint_advanced_overrides": false,
-    "telemetry": {
-        "mobile_profiles_enabled": true,
-        "output_file": "data/telemetry_mobile.jsonl"    }
+        "max_time": 60
+    }
 }

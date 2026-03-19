@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T04:40:00-07:00
+- Short description: Reset to plan-only state and remove accidental mobile config additions
+- What you do: Rewrote mobile fingerprint document as implementation plan only in docs/plans, restored planning-first copilot instruction wording, and removed unintended mobile strategy keys from config.json so mobile constraints remain hardcoded in code planning scope.
+- File path that changes: docs/plans/2026-03-19-mobile-profiles-implementation.md; .github/copilot-instructions.md; config.json
+
+## Entry
 - Date time: 2026-03-19T15:30:00-07:00
 - Short description: Implement Phase 1 of mobile device fingerprint support (Tasks 1-5)
 - What you do: Created app/browser/mobile.py with BrowserForge-based fingerprint generation. Extended app/browser/setup.py with mobile branch (configure_mobile_browser), fingerprint-to-context mapping (map_fingerprint_to_context_options), and consistency validation (validate_profile_consistency). Added mobile profile telemetry to app/core/telemetry.py with emit_mobile_profile_event(). Extended config.json with profile_strategy, mobile_constraints, and telemetry settings. Updated .github/copilot-instructions.md to enforce code implementation over planning. Created comprehensive implementation plan at docs/plans/2026-03-19-mobile-profiles-implementation.md.
