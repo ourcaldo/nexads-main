@@ -2,7 +2,7 @@
 
 | Section | Area | Status | Notes |
 |---|---|---|---|
-| 14 | Ad Outcome Validation Pipeline | In Progress | Core outcome scoring and classification are implemented; full event persistence model is still pending. |
+| 14 | Ad Outcome Validation Pipeline | Implemented | Outcome scoring/classification, normalized payload, and per-attempt JSONL persistence are active. |
 | 15 | Multi-Network Ad Detection (Beyond AdSense) | Not Started | Runtime is still primarily AdSense/Google-family focused. |
 | 16 | GDPR Consent Failure: Click Interception Handling | Implemented | Universal consent handling and interception-aware fallback flow are active. |
 | 17 | Redirect-Resilient Navigation Guard | In Progress | Domain matching and retry recovery are implemented; intent model and redirect budgets are pending. |

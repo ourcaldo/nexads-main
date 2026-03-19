@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import random
 
-from app.ads.outcomes import evaluate_ad_click_outcome
+from app.ads.outcomes import evaluate_ad_click_outcome, persist_ad_click_event
 from app.ads.signals import load_adsense_cosmetic_selectors
 from app.browser.humanization import (
     choose_click_point,
@@ -246,7 +246,18 @@ async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn) ->
                     f"final={outcome['final_domain']}, reasons={outcome['reason_codes']}"
                 )
 
-                if outcome['confidence_score'] >= 0.60 and outcome['classification'] != 'blocked_or_failed':
+                is_accepted = (
+                    outcome['confidence_score'] >= 0.60
+                    and outcome['classification'] != 'blocked_or_failed'
+                )
+                outcome['legacy_binary_success'] = is_accepted
+                outcome['worker_id'] = worker_id
+
+                persisted = persist_ad_click_event(outcome)
+                if not persisted:
+                    print(f"Worker {worker_id}: Warning - could not persist ad click outcome event")
+
+                if is_accepted:
                     print(f"Worker {worker_id}: Ad click accepted by confidence threshold")
                     clicked = True
                     break

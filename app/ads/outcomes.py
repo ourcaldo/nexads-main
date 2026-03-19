@@ -5,9 +5,17 @@ Shared ad click outcome tracking, classification, and confidence scoring.
 
 from __future__ import annotations
 
+import json
+import pathlib
+from datetime import datetime, timezone
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from app.ads.signals import load_adsense_signals_payload
+
+
+_PKG_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+DEFAULT_EVENTS_OUTPUT = _PKG_ROOT / "data" / "ad_click_events.jsonl"
 
 
 def _extract_domain(url: str) -> str:
@@ -39,6 +47,19 @@ def _load_known_ad_hosts(limit: int = 500) -> set[str]:
     if not isinstance(hosts, list):
         return set()
     return {str(h).strip().lower() for h in hosts[:max(0, int(limit))] if str(h).strip()}
+
+
+def persist_ad_click_event(event: dict,
+                           output_path: pathlib.Path | str = DEFAULT_EVENTS_OUTPUT) -> bool:
+    """Append one ad click outcome event as JSONL for later analysis."""
+    try:
+        out_path = pathlib.Path(output_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+        return True
+    except Exception:
+        return False
 
 
 def classify_destination(source_domain: str,
@@ -117,6 +138,8 @@ async def evaluate_ad_click_outcome(page, context,
                                     tabs_before: int,
                                     monitor_seconds: float = 5.0) -> dict:
     """Track navigation outcome after click and return normalized event payload."""
+    click_id = f"clk_{uuid4().hex}"
+    started_at = datetime.now(timezone.utc)
     redirect_chain: list[str] = [source_url]
 
     def _on_frame_navigated(frame):
@@ -182,9 +205,17 @@ async def evaluate_ad_click_outcome(page, context,
         redirect_chain=redirect_chain,
     )
 
+    finished_at = datetime.now(timezone.utc)
+
     return {
+        "click_id": click_id,
+        "event_type": "ad_click_outcome",
+        "created_at_utc": started_at.isoformat(),
+        "completed_at_utc": finished_at.isoformat(),
         "source_url": source_url,
         "source_domain": source_domain,
+        "tabs_before": tabs_before,
+        "tabs_after": tabs_after,
         "outcome_type": outcome_type,
         "redirect_chain": redirect_chain,
         "final_url": final_url,
