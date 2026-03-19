@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T16:00:00-07:00
+- Short description: Add VPS fleet management script for remote start/stop/deploy
+- What you do: Created scripts/nexads-remote.sh for managing nexAds across 9 VPS servers. Supports actions: start (with xvfb virtual display), stop (graceful + force kill), status, deploy (git clone/update + all deps + Chrome + camoufox), logs. Handles both new servers and existing installations. Works with single host or 'all' for fleet-wide operations.
+- File path that changes: scripts/nexads-remote.sh; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T15:30:00-07:00
 - Short description: Update AGENTS.md and memory with patchright stealth rules and limitations
 - What you do: Added proven stealth rules to AGENTS.md documenting what works and what doesn't with patchright (CDP UA spoofing fails, init scripts isolated, route injection breaks WebGL). Added known limitations section. Updated browser module structure. Updated memory with refactored file map and stealth findings. Cleaned up stale Known Issues (removed already-fixed items).
