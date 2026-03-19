@@ -1,11 +1,26 @@
 # Log Changes
 
 ## Entry
-- Date time: 2026-03-19T06:07:43-07:00
-- Short description: Switch mobile generation to single-constraint HeaderGenerator flow
-- What you do: Reworked mobile identity generation to use one fixed BrowserForge HeaderGenerator constraint set (chrome/android/mobile/en-US/http2), removed screen-bound dependency from mobile mapping/validation, and passed through full generated BrowserForge headers into context headers for broader and more natural output.
-- File path that changes: app/browser/mobile.py; app/browser/setup.py; docs/log/log-changes.md
+- Date time: 2026-03-19T07:54:24-07:00
+- Short description: Improve GUI readability and overall UX styling
+- What you do: Revamped PyQt configuration window visuals with larger default typography, improved tab/group/button/input styling, increased spacing and touch targets, added dashboard title/subtitle context, and improved table/header readability for easier configuration editing.
+- File path that changes: app/ui/config_window.py; docs/log/log-changes.md
 
+## Entry
+
+## Entry
+
+## Entry
+ - Date time: 2026-03-19T06:39:40-07:00
+ - Short description: Inline BrowserForge JSON format directly in AGENTS
+ - What you do: Moved the full BrowserForge mobile fingerprint JSON example directly into AGENTS under the required mobile fingerprint section and removed the separate docs JSON sample file, keeping future reference in AGENTS as requested.
+ - File path that changes: AGENTS.md; docs/browserforge-mobile-fingerprint-sample.json; docs/log/log-changes.md
+
+## Entry
+ - Date time: 2026-03-19T06:31:55-07:00
+ - Short description: Add BrowserForge structure reference and full fingerprint injection path
+ - What you do: Added permanent BrowserForge mobile fingerprint reference and sample structure in AGENTS/docs, switched mobile generation back to full FingerprintGenerator payload, carried full payload through setup, and injected full fingerprint data into mobile contexts via init script before page creation.
+ - File path that changes: AGENTS.md; docs/browserforge-mobile-fingerprint-sample.json; app/browser/mobile.py; app/browser/setup.py; app/core/worker.py; docs/log/log-changes.md
 ## Entry
 - Date time: 2026-03-19T05:56:02-07:00
 - Short description: Fix telemetry kwargs crash after mobile fingerprint generation

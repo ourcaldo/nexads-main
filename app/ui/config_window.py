@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, QVB
                             QFileDialog, QDoubleSpinBox, QRadioButton, QButtonGroup, QAction, 
                             QMessageBox, QSlider, QFrame)
 from PyQt5.QtCore import Qt, QSettings
-from PyQt5.QtGui import QPalette, QColor, QKeySequence
+from PyQt5.QtGui import QPalette, QColor, QKeySequence, QFont
 
 class ConfigWindow(QMainWindow):
     def __init__(self, config_path='config.json'):
@@ -19,102 +19,180 @@ class ConfigWindow(QMainWindow):
 
     def set_dark_mode(self):
         """Apply dark mode styling to the application."""
+        QApplication.setFont(QFont("Segoe UI", 11))
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #2D2D2D;
+                background-color: #1F232A;
+                color: #E6EAF2;
             }
+
             QTabWidget::pane {
-                border: 1px solid #444;
-                background: #2D2D2D;
+                border: 1px solid #343A46;
+                background: #1F232A;
+                border-radius: 8px;
+                top: -1px;
             }
+
             QTabBar::tab {
-                background: #3D3D3D;
-                color: #DDD;
-                padding: 8px;
-                border: 1px solid #444;
+                background: #2A2F3A;
+                color: #D8DEEA;
+                padding: 11px 16px;
+                margin-right: 6px;
+                border: 1px solid #343A46;
                 border-bottom: none;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                min-width: 150px;
+                font-size: 11pt;
+                font-weight: 600;
             }
+
+            QTabBar::tab:hover {
+                background: #333A48;
+            }
+
             QTabBar::tab:selected {
-                background: #505050;
+                background: #3C4558;
+                color: #FFFFFF;
             }
+
             QGroupBox {
-                border: 1px solid #444;
-                border-radius: 3px;
-                margin-top: 10px;
-                padding-top: 15px;
-                color: #DDD;
+                border: 1px solid #343A46;
+                border-radius: 10px;
+                margin-top: 12px;
+                padding: 14px 12px 12px 12px;
+                color: #E2E7F1;
+                font-size: 11pt;
+                font-weight: 600;
             }
+
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
+                left: 12px;
+                padding: 0 6px;
+                color: #F3F6FC;
             }
+
             QLabel {
-                color: #DDD;
+                color: #E6EAF2;
+                font-size: 11pt;
             }
+
             QLineEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-                background: #3D3D3D;
-                color: #DDD;
-                border: 1px solid #444;
-                padding: 3px;
+                background: #2A2F3A;
+                color: #E8ECF5;
+                border: 1px solid #3B4454;
+                border-radius: 8px;
+                padding: 8px 10px;
+                selection-background-color: #3D73D8;
+                selection-color: #FFFFFF;
+                min-height: 20px;
+                font-size: 11pt;
             }
+
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+                border: 1px solid #4C85F5;
+            }
+
+            QTextEdit {
+                line-height: 1.35;
+            }
+
             QPushButton {
-                background: #505050;
-                color: #DDD;
-                border: 1px solid #444;
-                padding: 5px;
+                background: #3F69C9;
+                color: #FFFFFF;
+                border: 1px solid #4A78E0;
+                border-radius: 8px;
+                padding: 9px 14px;
+                min-height: 22px;
+                font-size: 11pt;
+                font-weight: 600;
             }
+
             QPushButton:hover {
-                background: #606060;
+                background: #4E79DB;
             }
+
+            QPushButton:pressed {
+                background: #365AAF;
+            }
+
             QTableWidget {
-                background: #3D3D3D;
-                color: #DDD;
-                gridline-color: #444;
+                background: #262C37;
+                color: #E4E9F3;
+                gridline-color: #3A4352;
+                border: 1px solid #343A46;
+                border-radius: 8px;
+                font-size: 10.5pt;
             }
+
             QHeaderView::section {
-                background: #505050;
-                color: #DDD;
-                padding: 5px;
-                border: 1px solid #444;
+                background: #313949;
+                color: #F0F4FC;
+                padding: 8px;
+                border: 1px solid #3A4352;
+                font-size: 10.5pt;
+                font-weight: 600;
             }
+
+            QTableWidget::item {
+                padding: 6px;
+            }
+
             QCheckBox {
-                color: #DDD;
+                color: #E6EAF2;
+                spacing: 8px;
+                font-size: 11pt;
             }
+
             QRadioButton {
-                color: #DDD;
+                color: #E6EAF2;
+                spacing: 8px;
+                font-size: 11pt;
             }
+
+            QStatusBar {
+                background: #1A1F27;
+                color: #D6DEEC;
+                border-top: 1px solid #343A46;
+                font-size: 10.5pt;
+            }
+
             QSlider::groove:horizontal {
-                height: 8px;
-                background: #444;
-                border-radius: 4px;
+                height: 9px;
+                background: #313949;
+                border-radius: 5px;
             }
+
             QSlider::handle:horizontal {
-                width: 18px;
-                height: 18px;
-                background: #DDD;
-                border-radius: 9px;
-                margin: -5px 0;
+                width: 20px;
+                height: 20px;
+                background: #5D8FF0;
+                border: 1px solid #7AA5F7;
+                border-radius: 10px;
+                margin: -6px 0;
             }
+
             QSlider::sub-page:horizontal {
-                background: #42a5f5;
-                border-radius: 4px;
+                background: #4B7FE8;
+                border-radius: 5px;
             }
         """)
 
         dark_palette = QPalette()
-        dark_palette.setColor(QPalette.Window, QColor(45, 45, 45))
+        dark_palette.setColor(QPalette.Window, QColor(31, 35, 42))
         dark_palette.setColor(QPalette.WindowText, Qt.white)
-        dark_palette.setColor(QPalette.Base, QColor(35, 35, 35))
-        dark_palette.setColor(QPalette.AlternateBase, QColor(45, 45, 45))
+        dark_palette.setColor(QPalette.Base, QColor(38, 44, 55))
+        dark_palette.setColor(QPalette.AlternateBase, QColor(42, 47, 58))
         dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
         dark_palette.setColor(QPalette.ToolTipText, Qt.white)
         dark_palette.setColor(QPalette.Text, Qt.white)
-        dark_palette.setColor(QPalette.Button, QColor(80, 80, 80))
+        dark_palette.setColor(QPalette.Button, QColor(63, 105, 201))
         dark_palette.setColor(QPalette.ButtonText, Qt.white)
         dark_palette.setColor(QPalette.BrightText, Qt.red)
-        dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+        dark_palette.setColor(QPalette.Link, QColor(93, 143, 240))
+        dark_palette.setColor(QPalette.Highlight, QColor(93, 143, 240))
+        dark_palette.setColor(QPalette.HighlightedText, Qt.white)
         QApplication.setPalette(dark_palette)
 
     def load_config(self):
@@ -199,10 +277,12 @@ class ConfigWindow(QMainWindow):
     def init_ui(self):
         """Initialize the user interface."""
         self.setWindowTitle('nexAds Configuration')
-        self.setGeometry(100, 100, 1000, 700)
+        self.setGeometry(80, 70, 1220, 820)
+        self.setMinimumSize(1080, 760)
 
         # Main tab widget
         self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
         
         # Create tabs
         self.general_tab = self.create_general_tab()
@@ -217,9 +297,20 @@ class ConfigWindow(QMainWindow):
         # Save button
         self.save_btn = QPushButton('Save Configuration')
         self.save_btn.clicked.connect(self.save_config)
+        self.save_btn.setMinimumHeight(42)
         
         # Main layout
         main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(14, 14, 14, 12)
+        main_layout.setSpacing(12)
+
+        title = QLabel("Configuration Dashboard")
+        title.setStyleSheet("font-size: 16pt; font-weight: 700; color: #F2F6FF;")
+        subtitle = QLabel("Tune browser behavior, sessions, URLs, and ad interaction settings.")
+        subtitle.setStyleSheet("font-size: 10.5pt; color: #AEB8CA;")
+
+        main_layout.addWidget(title)
+        main_layout.addWidget(subtitle)
         main_layout.addWidget(self.tabs)
         main_layout.addWidget(self.save_btn)
         
@@ -232,6 +323,7 @@ class ConfigWindow(QMainWindow):
         """Create the General Settings tab."""
         tab = QWidget()
         layout = QHBoxLayout()
+        layout.setSpacing(14)
         
         # Left column (40% width)
         left_col = QVBoxLayout()
@@ -476,6 +568,7 @@ class ConfigWindow(QMainWindow):
         """Create the URL List tab with working delete functionality."""
         tab = QWidget()
         layout = QVBoxLayout()
+        layout.setSpacing(12)
         
         # Referrer Settings
         referrer_group = QGroupBox("Referrer Settings")
@@ -547,6 +640,8 @@ class ConfigWindow(QMainWindow):
         self.url_table.setColumnCount(5)
         self.url_table.setHorizontalHeaderLabels(["#", "URL", "Random Page", "Min Time", "Max Time"])
         self.url_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.url_table.horizontalHeader().setMinimumHeight(34)
+        self.url_table.verticalHeader().setDefaultSectionSize(34)
         self.url_table.verticalHeader().setVisible(False)
         
         # Configure table for deletion
@@ -582,6 +677,7 @@ class ConfigWindow(QMainWindow):
         """Create the Ads Settings tab with compact layout."""
         tab = QWidget()
         layout = QVBoxLayout()
+        layout.setSpacing(12)
         
         # CTR Settings - Compact version
         ctr_group = QGroupBox("CTR Settings")
