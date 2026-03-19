@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:54:37-07:00
+- Short description: Fix typed fingerprint field access for mobile generation
+- What you do: Replaced dict-only field access with safe helpers that support both dict-like and typed BrowserForge objects for navigator/screen/headers, fixing runtime crashes such as NavigatorFingerprint missing get().
+- File path that changes: app/browser/mobile.py; app/browser/setup.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:52:48-07:00
 - Short description: Route mobile sessions to Playwright and keep Camoufox desktop-only
 - What you do: Refactored browser setup so desktop sessions continue using Camoufox while mobile-selected sessions launch via Playwright (Chromium/WebKit) with proxy support, retained mobile fingerprint preflight and context mapping, and updated cleanup to stop Playwright managers.

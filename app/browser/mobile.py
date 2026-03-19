@@ -12,6 +12,30 @@ from browserforge.fingerprints import FingerprintGenerator, Screen, Fingerprint
 from app.core.telemetry import emit_mobile_fingerprint_event
 
 
+def _fp_get(obj, key: str, default=None):
+    """Read fingerprint fields from either dict-like or typed objects."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        value = obj.get(key, default)
+        return default if value is None else value
+    if hasattr(obj, key):
+        value = getattr(obj, key)
+        return default if value is None else value
+
+    aliases = {
+        'userAgent': 'user_agent',
+        'maxTouchPoints': 'max_touch_points',
+        'devicePixelRatio': 'device_pixel_ratio',
+    }
+    alias = aliases.get(key)
+    if alias and hasattr(obj, alias):
+        value = getattr(obj, alias)
+        return default if value is None else value
+
+    return default
+
+
 async def generate_mobile_fingerprint(
     domain: str,
     browser_family: str,
@@ -76,16 +100,18 @@ async def generate_mobile_fingerprint(
         generation_ms = int((time.time() - start_time) * 1000)
         
         # Emit success event with profile summary
-        ua_snippet = fingerprint.navigator.get('userAgent', 'N/A')[:60] if fingerprint.navigator else 'N/A'
+        navigator = fingerprint.navigator if fingerprint else None
+        screen_data = fingerprint.screen if fingerprint else None
+        ua_snippet = str(_fp_get(navigator, 'userAgent', 'N/A'))[:60]
         emit_mobile_fingerprint_event(
             worker_id=worker_id,
             event_type='profile_generated',
             browser_family=browser_family,
             os=os,
             ua_snippet=ua_snippet,
-            platform=fingerprint.navigator.get('platform', 'N/A') if fingerprint.navigator else 'N/A',
-            viewport=f"{fingerprint.screen.get('width', 0)}x{fingerprint.screen.get('height', 0)}" if fingerprint.screen else 'N/A',
-            dpr=fingerprint.screen.get('devicePixelRatio', 1) if fingerprint.screen else 1,
+            platform=_fp_get(navigator, 'platform', 'N/A'),
+            viewport=f"{int(_fp_get(screen_data, 'width', 0))}x{int(_fp_get(screen_data, 'height', 0))}",
+            dpr=_fp_get(screen_data, 'devicePixelRatio', 1),
             generation_ms=generation_ms
         )
         
@@ -151,21 +177,28 @@ def get_fingerprint_summary(fingerprint: Optional[Fingerprint]) -> dict:
     if not fingerprint:
         return {}
     
-    navigator = fingerprint.navigator or {}
-    screen = fingerprint.screen or {}
-    headers = fingerprint.headers or {}
+    navigator = fingerprint.navigator if fingerprint else None
+    screen = fingerprint.screen if fingerprint else None
+    headers = fingerprint.headers if fingerprint else None
     
-    ua = navigator.get('userAgent', 'N/A')
+    ua = str(_fp_get(navigator, 'userAgent', 'N/A'))
     ua_snippet = ua[:60] if ua else 'N/A'
+
+    if isinstance(headers, dict):
+        sec_ch_ua_mobile = headers.get('Sec-CH-UA-Mobile', 'N/A')
+    elif hasattr(headers, 'get'):
+        sec_ch_ua_mobile = headers.get('Sec-CH-UA-Mobile', 'N/A')
+    else:
+        sec_ch_ua_mobile = 'N/A'
     
     return {
         'ua_snippet': ua_snippet,
-        'platform': navigator.get('platform', 'N/A'),
-        'viewport': f"{screen.get('width', 0)}x{screen.get('height', 0)}",
-        'dpr': screen.get('devicePixelRatio', 1),
-        'locale': navigator.get('language', 'en'),
-        'max_touch_points': navigator.get('maxTouchPoints', 0),
-        'sec_ch_ua_mobile': headers.get('Sec-CH-UA-Mobile', 'N/A')
+        'platform': _fp_get(navigator, 'platform', 'N/A'),
+        'viewport': f"{int(_fp_get(screen, 'width', 0))}x{int(_fp_get(screen, 'height', 0))}",
+        'dpr': _fp_get(screen, 'devicePixelRatio', 1),
+        'locale': _fp_get(navigator, 'language', 'en'),
+        'max_touch_points': _fp_get(navigator, 'maxTouchPoints', 0),
+        'sec_ch_ua_mobile': sec_ch_ua_mobile
     }
 
 

@@ -38,6 +38,42 @@ MOBILE_SCREEN_BOUNDS = {
 _PLAYWRIGHT_MANAGERS: Dict[int, object] = {}
 
 
+def _fp_get(obj, key: str, default=None):
+    """Read fingerprint fields from either dict-like or typed objects."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        value = obj.get(key, default)
+        return default if value is None else value
+    if hasattr(obj, key):
+        value = getattr(obj, key)
+        return default if value is None else value
+
+    aliases = {
+        'userAgent': 'user_agent',
+        'maxTouchPoints': 'max_touch_points',
+        'devicePixelRatio': 'device_pixel_ratio',
+    }
+    alias = aliases.get(key)
+    if alias and hasattr(obj, alias):
+        value = getattr(obj, alias)
+        return default if value is None else value
+
+    return default
+
+
+def _header_get(headers_obj, key: str, default=''):
+    """Read HTTP header value from dict-like header containers."""
+    if headers_obj is None:
+        return default
+    if isinstance(headers_obj, dict):
+        return headers_obj.get(key, default)
+    if hasattr(headers_obj, 'get'):
+        value = headers_obj.get(key, default)
+        return default if value is None else value
+    return default
+
+
 def _extract_target_domain_from_config(config: dict) -> str:
     """Extract first configured URL domain for fingerprint generation context."""
     urls = config.get('urls', [])
@@ -243,27 +279,27 @@ def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint]) -> Di
     if not fingerprint:
         return {}
     
-    navigator = fingerprint.navigator or {}
-    screen = fingerprint.screen or {}
-    headers = fingerprint.headers or {}
+    navigator = fingerprint.navigator if fingerprint else None
+    screen = fingerprint.screen if fingerprint else None
+    headers = fingerprint.headers if fingerprint else None
     
     context_opts = {}
     
-    if ua := navigator.get('userAgent'):
+    if ua := _fp_get(navigator, 'userAgent'):
         context_opts['user_agent'] = ua
     
-    width = screen.get('width', 360)
-    height = screen.get('height', 740)
+    width = int(_fp_get(screen, 'width', 360))
+    height = int(_fp_get(screen, 'height', 740))
     context_opts['viewport'] = {'width': width, 'height': height}
     
-    if dpr := screen.get('devicePixelRatio'):
+    if dpr := _fp_get(screen, 'devicePixelRatio'):
         context_opts['device_scale_factor'] = float(dpr)
     
     context_opts['is_mobile'] = True
-    max_touch = navigator.get('maxTouchPoints', 5)
+    max_touch = int(_fp_get(navigator, 'maxTouchPoints', 5))
     context_opts['has_touch'] = max_touch > 0
     
-    if lang := navigator.get('language'):
+    if lang := _fp_get(navigator, 'language'):
         context_opts['locale'] = lang
     
     safe_headers = {}
@@ -275,8 +311,9 @@ def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint]) -> Di
             'Upgrade-Insecure-Requests'
         ]
         for key in header_keys:
-            if key in headers and headers[key]:
-                safe_headers[key] = str(headers[key])
+            value = _header_get(headers, key, '')
+            if value:
+                safe_headers[key] = str(value)
         
     locale = context_opts.get('locale', '')
     if locale and 'Accept-Language' not in safe_headers:
@@ -308,9 +345,9 @@ def validate_fingerprint_consistency(
     if not fingerprint:
         return False, ['fingerprint_missing'], ['Fingerprint is missing']
     
-    navigator = fingerprint.navigator or {}
-    ua = navigator.get('userAgent', '')
-    platform = navigator.get('platform', '')
+    navigator = fingerprint.navigator if fingerprint else None
+    ua = str(_fp_get(navigator, 'userAgent', ''))
+    platform = str(_fp_get(navigator, 'platform', ''))
     
     has_mobile_in_ua = 'Mobile' in ua
     is_mobile_flag = context_opts.get('is_mobile', False)
@@ -321,7 +358,7 @@ def validate_fingerprint_consistency(
         reason_codes.append('mobile_keyword_missing')
         violations.append("UA missing 'Mobile' while is_mobile=True")
     
-    max_touch = navigator.get('maxTouchPoints', 0)
+    max_touch = int(_fp_get(navigator, 'maxTouchPoints', 0))
     has_touch_flag = context_opts.get('has_touch', False)
     if max_touch > 0 and not has_touch_flag:
         reason_codes.append('touch_flag_mismatch')
