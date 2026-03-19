@@ -7,14 +7,9 @@ Build a maintainable mobile fingerprint integration path that uses BrowserForge 
 ## Mandatory Constraints
 1. Mobile constraints are hardcoded in code for this milestone.
 2. Do not add any new runtime keys in config.json for this feature path.
-3. Do not enable or use persistent profiles.
-4. Every worker must receive a fresh profile per worker session.
+3. Persistent browser storage remains disabled for this feature path.
+4. Every worker must receive a fresh fingerprint session identity per worker session.
 5. Desktop behavior remains unchanged unless mobile branch is explicitly enabled in code.
-
-## Non-Goals
-1. No stealth bypass or anti-detection tuning.
-2. No expansion of user-facing config surface for mobile feature switches.
-3. No permanent changes to existing desktop launch defaults.
 
 ## Baseline Integration Points
 1. Browser launch setup: app/browser/setup.py
@@ -23,7 +18,7 @@ Build a maintainable mobile fingerprint integration path that uses BrowserForge 
 4. Runtime config (read-only for this feature): config.json
 
 ## Working Definitions
-1. Fresh profile means a newly generated fingerprint used once for one worker session/context.
+1. Fresh fingerprint session identity means a newly generated fingerprint used once for one worker session/context.
 2. Dry-run means generation, mapping, and validation execute but mobile context is not activated.
 3. Fallback means immediate return to stable desktop flow when preflight checks fail.
 
@@ -72,7 +67,7 @@ Completion Criteria:
 2. All mobile constraints readable in one code block.
 
 ### Step 4: Build Fingerprint Generation Layer
-Goal: generate one full fingerprint per worker session.
+Goal: generate one full fingerprint session identity per worker session.
 Tasks:
 1. Create generation routine that receives worker context and hardcoded constraints.
 2. Generate BrowserForge fingerprint using browser, os, device, and screen bounds.
@@ -100,7 +95,7 @@ Completion Criteria:
 2. No unsupported or unsafe header injection.
 
 ### Step 6: Add Preflight Consistency Validator
-Goal: block impossible profile combinations before navigation begins.
+Goal: block impossible fingerprint combinations before navigation begins.
 Tasks:
 1. Validate UA family against platform expectations.
 2. Validate mobile flag and touch capability coherence.
@@ -126,7 +121,7 @@ Completion Criteria:
 2. Override mode cannot activate accidentally.
 
 ### Step 8: Add Telemetry and Diagnostics
-Goal: make profile quality measurable and failures debuggable.
+Goal: make fingerprint quality measurable and failures debuggable.
 Tasks:
 1. Emit per-session fingerprint summary and strategy mode.
 2. Emit validation pass or fail and reason codes.
@@ -135,7 +130,7 @@ Tasks:
 Output:
 1. Structured telemetry events in telemetry.py and worker call sites.
 Completion Criteria:
-1. Each session has an auditable profile lifecycle.
+1. Each session has an auditable fingerprint lifecycle.
 2. Metrics can be grouped by strategy stage.
 
 ### Step 9: Build Dry-Run Path
@@ -166,7 +161,7 @@ Completion Criteria:
 Goal: define done using data, not assumptions.
 Tasks:
 1. Compare setup crash rate versus baseline.
-2. Verify no malformed profile combinations in logs.
+2. Verify no malformed fingerprint combinations in logs.
 3. Verify stable session success and error metrics.
 Output:
 1. Sign-off summary with before and after evidence.
@@ -191,15 +186,15 @@ Completion Criteria:
 1. Add constants block for strategy and hardcoded mobile constraints.
 2. Add branching points for dry-run, active mobile path, and fallback.
 3. Integrate mapper and validator before navigation.
-4. Ensure persistent profile usage remains disabled.
+4. Ensure persistent browser storage usage remains disabled.
 
 ### app/core/worker.py
-1. Ensure fresh profile generation is invoked per worker session.
+1. Ensure fresh fingerprint generation is invoked per worker session.
 2. Ensure session lifecycle includes telemetry start and outcome hooks.
 3. Ensure fallback path preserves existing desktop execution behavior.
 
 ### app/core/telemetry.py
-1. Add profile lifecycle event helpers.
+1. Add fingerprint lifecycle event helpers.
 2. Add reason-code fields for validation and fallback.
 3. Keep event schema stable and parseable for comparisons.
 
@@ -209,10 +204,10 @@ Completion Criteria:
 
 ## Acceptance Gates
 1. Setup crash rate does not increase beyond agreed tolerance.
-2. Validator blocks malformed profile combinations before navigation.
+2. Validator blocks malformed fingerprint combinations before navigation.
 3. Fallback path is always available and functioning.
-4. Fresh profile per worker session is confirmed in telemetry evidence.
-5. Persistent profile remains disabled throughout feature path.
+4. Fresh fingerprint per worker session is confirmed in telemetry evidence.
+5. Persistent browser storage remains disabled throughout feature path.
 
 ## Rollout Gates
 
@@ -234,18 +229,18 @@ Completion Criteria:
 ## Risk Register
 1. Risk: generation timeout spikes under load.
 Mitigation: timeout and one retry, then immediate fallback.
-2. Risk: inconsistent profile combinations pass into navigation.
+2. Risk: inconsistent fingerprint combinations pass into navigation.
 Mitigation: strict preflight validator with reason-coded fail.
 3. Risk: operational confusion from too many switches.
 Mitigation: no new runtime config keys in this milestone.
-4. Risk: profile reuse across sessions.
+4. Risk: fingerprint reuse across sessions.
 Mitigation: enforce generation call per worker session and audit in telemetry.
 
 ## Deliverables Summary
 1. Detailed execution plan and acceptance gates in this file.
 2. No expansion of config.json for mobile strategy in this milestone.
-3. Fresh-profile-per-worker requirement explicitly enforced in implementation steps.
-4. Persistent profile disabled requirement explicitly enforced in implementation steps.
+3. Fresh fingerprint-per-worker requirement explicitly enforced in implementation steps.
+4. Persistent browser storage disabled requirement explicitly enforced in implementation steps.
 
 ## Next Action After Plan Approval
 1. Produce file-by-file execution checklist with exact function signatures and insertion locations.

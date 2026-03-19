@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:08:00-07:00
+- Short description: Remove profile terminology from mobile fingerprint plan wording
+- What you do: Updated the plan text to use fingerprint and session identity terminology, removed profile and persistent-profile wording in plan body, and clarified that persistent browser storage is disabled while fresh fingerprint generation is per worker session.
+- File path that changes: docs/plans/2026-03-19-mobile-profiles-implementation.md
+
+## Entry
 - Date time: 2026-03-19T04:58:00-07:00
 - Short description: Expand mobile integration plan with full detailed scope and hard constraints
 - What you do: Replaced the mobile integration planning doc with a comprehensive step-by-step implementation plan that includes explicit per-step tasks, completion criteria, per-file breakdown, acceptance gates, rollout gates, and risk register while enforcing hardcoded mobile constraints, no new config keys, fresh profile per worker session, and persistent-profile disabled behavior.
