@@ -5,12 +5,10 @@
         "file": "proxy.txt"
     },
     "browser": {
-        "headless_mode": "virtual",
+        "headless_mode": "False",
         "disable_ublock": true,
         "random_activity": true,
         "auto_accept_cookies": true,
-        "gdpr_max_wait_seconds": 12,
-        "gdpr_on_fail": "continue",
         "persist_profile": false,
         "prevent_redirects": true,
         "activities": [
@@ -28,7 +26,7 @@
         "count": 0,
         "max_time": 3
     },
-    "threads": 20,
+    "threads": 1,
     "os_fingerprint": [
         "windows",
         "macos"
@@ -46,14 +44,8 @@
     },
     "urls": [
         {
-            "url": "https://alco.camarjaya.co.id/",
-            "random_page": true,
-            "min_time": 30,
-            "max_time": 60
-        },
-        {
-            "url": "https://elco.camarjaya.co.id/",
-            "random_page": true,
+            "url": "https://www.browserscan.net/",
+            "random_page": false,
             "min_time": 30,
             "max_time": 60
         }
@@ -61,6 +53,26 @@
     "ads": {
         "ctr": 80.0,
         "min_time": 30,
-        "max_time": 60
-    }
+        "max_time": 60    },
+    "profile_strategy": "desktop-only",
+    "profile_strategy_rollout_percentage": 0,
+    "mobile_constraints": {
+        "screen": {
+            "min_width": 360,
+            "max_width": 430,
+            "min_height": 740,
+            "max_height": 932
+        },
+        "browsers": ["chrome", "safari"],
+        "os": ["android", "ios"],
+        "locales": ["en-US", "en-GB", "fr-FR"]
+    },
+    "fingerprint_generation_max_retries": 1,
+    "fingerprint_generation_timeout_ms": 5000,
+    "profile_consistency_policy": "block",
+    "profile_fallback_policy": "fallback_to_desktop",
+    "fingerprint_advanced_overrides": false,
+    "telemetry": {
+        "mobile_profiles_enabled": true,
+        "output_file": "data/telemetry_mobile.jsonl"    }
 }

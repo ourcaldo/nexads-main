@@ -1,5 +1,8 @@
 # Copilot Instructions for nexAds
 
+## Implementation Rule
+**IMPLEMENT IN CODE, NOT IN COMMENTS OR PLANS.** When a user asks for implementation, execute the changes directly in files. Do not discuss or plan—write the actual code. If uncertainty arises, resolve it via investigation (reading files, running tests) but proceed with real edits.
+
 ## Git Commit Scope Rules
 
 - Always commit and push after every change, including very small changes.

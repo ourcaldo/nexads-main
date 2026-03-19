@@ -14,6 +14,7 @@ from uuid import uuid4
 _PKG_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 DEFAULT_EVENTS_OUTPUT = _PKG_ROOT / "data" / "worker_events.jsonl"
 DEFAULT_ERRORS_OUTPUT = _PKG_ROOT / "data" / "worker_errors.jsonl"
+DEFAULT_MOBILE_PROFILE_OUTPUT = _PKG_ROOT / "data" / "telemetry_mobile.jsonl"
 
 
 def _extract_domain(url: str) -> str:
@@ -93,3 +94,88 @@ def emit_worker_event(*,
         )
 
     return wrote_events and wrote_errors
+
+
+# --- Mobile Profile Telemetry (Task 5) ---
+
+def emit_mobile_profile_event(
+    *,
+    worker_id: int,
+    event_type: str,
+    browser_family: str | None = None,
+    os: str | None = None,
+    ua_snippet: str | None = None,
+    platform: str | None = None,
+    viewport: str | None = None,
+    dpr: float | None = None,
+    generation_ms: int | None = None,
+    is_valid: bool | None = None,
+    violation_count: int | None = None,
+    violations: list | None = None,
+    reason: str | None = None,
+    fallback_target: str | None = None,
+    final_mode: str | None = None,
+    success: bool | None = None,
+    error_code: str | None = None,
+    output: pathlib.Path | str = DEFAULT_MOBILE_PROFILE_OUTPUT
+) -> bool:
+    """
+    Emit mobile profile telemetry event (Task 5).
+    
+    Args:
+        worker_id: Worker ID
+        event_type: "profile_generation_started", "profile_generated", "profile_validation_result", 
+                    "profile_fallback_triggered", "context_created", "session_outcome"
+        browser_family: Browser family (chrome, safari, etc.)
+        os: OS (android, ios)
+        ua_snippet: User-Agent snippet (first 60 chars)
+        platform: Platform string (Linux, iPhone, etc.)
+        viewport: Viewport string like "393x873"
+        dpr: Device pixel ratio
+        generation_ms: Generation time in ms
+        is_valid: Validation result (True/False)
+        violation_count: Number of validation violations
+        violations: List of violation strings
+        reason: Reason for fallback/failure
+        fallback_target: Fallback target (desktop, none)
+        final_mode: Final mode (mobile, desktop)
+        success: Session outcome success
+        error_code: Error code if failed
+        output: Output file path
+    
+    Returns:
+        True if written, False otherwise
+    """
+    event = {
+        "event_id": f"mp_{uuid4().hex}",
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "worker_id": int(worker_id),
+        "event_type": str(event_type),
+        "browser_family": browser_family,
+        "os": os,
+        "ua_snippet": ua_snippet,
+        "platform": platform,
+        "viewport": viewport,
+        "dpr": dpr,
+        "generation_ms": generation_ms,
+        "is_valid": is_valid,
+        "violation_count": violation_count,
+        "violations": violations or [],
+        "reason": reason,
+        "fallback_target": fallback_target,
+        "final_mode": final_mode,
+        "success": success,
+        "error_code": error_code,
+    }
+    
+    # Remove None values for cleaner JSON
+    event = {k: v for k, v in event.items() if v is not None}
+    
+    output_path = pathlib.Path(output)
+    wrote = _append_jsonl(output_path, event)
+    
+    if not wrote:
+        print(f"Worker {worker_id}: Telemetry warning - could not write mobile profile event to {output_path}")
+    
+    return wrote
+
