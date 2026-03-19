@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:31:44-07:00
+- Short description: Activate mobile fingerprint application for mobile sessions
+- What you do: Changed setup strategy to disable dry-run so sessions selected as mobile by device_type now apply mapped mobile fingerprint context options instead of desktop dry-run behavior.
+- File path that changes: app/browser/setup.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:21:18-07:00
 - Short description: Re-align enhancement to mobile fingerprint branch with no persistent storage
 - What you do: Implemented hardcoded mobile fingerprint branch controls in setup with desktop fallback and dry-run support, updated worker to consume setup context options while always starting fresh with non-persistent browser storage, switched telemetry/event wording to fingerprint terminology, and removed persistent storage setting from config and UI wiring.

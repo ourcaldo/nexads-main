@@ -6,6 +6,7 @@ Browser initialization and cleanup using Camoufox.
 import random
 import asyncio
 from typing import Optional, Dict, List
+from urllib.parse import urlparse
 
 from camoufox.async_api import AsyncCamoufox
 from camoufox import DefaultAddons
@@ -21,8 +22,7 @@ from app.core.telemetry import emit_mobile_fingerprint_event
 
 
 # Hardcoded mobile fingerprint strategy for this milestone.
-MOBILE_FINGERPRINT_ENABLED = False
-MOBILE_FINGERPRINT_DRY_RUN = True
+MOBILE_FINGERPRINT_DRY_RUN = False
 MOBILE_FINGERPRINT_MAX_REGEN_ATTEMPTS = 1
 MOBILE_FINGERPRINT_TIMEOUT_MS = 5000
 MOBILE_FINGERPRINT_BROWSERS = ["chrome", "safari"]
@@ -33,7 +33,31 @@ MOBILE_SCREEN_BOUNDS = {
     "min_height": 740,
     "max_height": 932,
 }
-MOBILE_TARGET_DOMAIN = "example.com"
+
+
+def _extract_target_domain_from_config(config: dict) -> str:
+    """Extract first configured URL domain for fingerprint generation context."""
+    urls = config.get('urls', [])
+    if not isinstance(urls, list):
+        return "example.com"
+
+    for item in urls:
+        if not isinstance(item, dict):
+            continue
+        raw_url = str(item.get('url', '')).strip()
+        if not raw_url:
+            continue
+
+        # Handle comma-separated URLs used by random_page mode.
+        candidate = raw_url.split(',')[0].strip()
+        if not candidate:
+            continue
+
+        host = (urlparse(candidate).hostname or '').strip().lower()
+        if host:
+            return host
+
+    return "example.com"
 
 
 def _looks_like_host(value: str) -> bool:
@@ -342,7 +366,8 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             'validation_reason_codes': [],
         }
 
-        if not MOBILE_FINGERPRINT_ENABLED:
+        # Use existing config device weights to decide whether this session uses mobile fingerprint path.
+        if device_type != 'mobile':
             return setup_result
 
         constraints = parse_mobile_constraints(MOBILE_SCREEN_BOUNDS)
@@ -350,6 +375,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             MOBILE_FINGERPRINT_BROWSERS,
             MOBILE_FINGERPRINT_OSES,
         )
+        target_domain = _extract_target_domain_from_config(config)
 
         emit_mobile_fingerprint_event(
             worker_id=worker_id,
@@ -366,7 +392,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
 
         for attempt in range(MOBILE_FINGERPRINT_MAX_REGEN_ATTEMPTS + 1):
             fingerprint = await generate_mobile_fingerprint(
-                domain=MOBILE_TARGET_DOMAIN,
+                domain=target_domain,
                 browser_family=browser_family,
                 os=mobile_os,
                 screen_constraints=constraints,
