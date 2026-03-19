@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T14:45:00-07:00
+- Short description: Re-enable CDP mobile identity with real Chrome version, remove WebGL route injection
+- What you do: Re-enabled CDP Emulation.setUserAgentOverride and setTouchEmulationEnabled for mobile sessions. UA is transformed from real Chrome (keeps version 146) with only OS swapped to Android. Removed WebGL route injection and build_webgl_override_script/setup_webgl_route_handler (caused WebGL exception). CDP-only approach: no HTML interception, no init scripts, no JavaScript overrides.
+- File path that changes: app/browser/mobile.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T14:15:00-07:00
 - Short description: Revert UA/CDP/WebGL spoofing — return to clean patchright stealth
 - What you do: Removed custom UA injection, CDP UA/touch overrides, WebGL route injection, and mobile environment init script. These spoofing layers caused version mismatch (-5%), OS mismatch (-5%), and WebGL exception — dropping score from 97% to 87%. Reverted to patchright best practice of not injecting custom identity. Only viewport, locale, timezone, is_mobile, has_touch, and device_scale_factor from BrowserForge are kept as context options.

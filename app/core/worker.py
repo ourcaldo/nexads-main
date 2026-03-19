@@ -311,6 +311,31 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     browser = context
                     pages = context.pages
                     page = pages[0] if pages else await context.new_page()
+                    # Apply CDP overrides for mobile identity (platform, UA, touch).
+                    mobile_fp = browser_setup.get("fingerprint")
+                    if mobile_fp:
+                        try:
+                            from app.browser.mobile import build_cdp_mobile_overrides
+                            real_ua = await page.evaluate(
+                                "() => navigator.userAgent",
+                                isolated_context=False,
+                            )
+                            cdp_overrides = build_cdp_mobile_overrides(
+                                mobile_fp, real_ua,
+                            )
+                            cdp = await context.new_cdp_session(page)
+                            await cdp.send(
+                                "Emulation.setUserAgentOverride",
+                                cdp_overrides["ua_override"],
+                            )
+                            await cdp.send(
+                                "Emulation.setTouchEmulationEnabled",
+                                cdp_overrides["touch"],
+                            )
+                        except Exception as cdp_err:
+                            print(
+                                f"Worker {worker_id}: CDP mobile override failed: {cdp_err}"
+                            )
                     print(
                         f"Worker {worker_id}: Using patchright persistent context"
                     )
