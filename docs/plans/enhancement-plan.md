@@ -7,7 +7,7 @@
 | 16 | GDPR Consent Failure: Click Interception Handling | Implemented | Universal consent handling and interception-aware fallback flow are active. |
 | 17 | Redirect-Resilient Navigation Guard | Implemented | NavigationIntent, intent-aware matching, reason codes, and per-intent redirect budgets are active. |
 | 18 | Same-Tab Ad Landing Handling (Keep It Simple) | Implemented | Same-tab/new-tab detection is automatic, and same-tab dwell uses existing ads min/max settings without new config keys. |
-| 19 | Step-Level Crash and Failure Telemetry | Not Started | Structured event emitter and step-level schema are not yet implemented. |
+| 19 | Step-Level Crash and Failure Telemetry | Implemented | Step-level JSONL telemetry is active in data/worker_events.jsonl and mirrored failures in data/worker_errors.jsonl. |
 | 20 | Prioritized Next Sprint Checklist | In Progress | Several prerequisites are in place, but checklist deliverables are not fully complete yet. |
 
 Status legend: `Not Started`, `In Progress`, `Implemented`.
@@ -307,6 +307,10 @@ Need structured diagnostics to identify exact failure phase quickly.
 
 Emit a lightweight structured event record for every major worker step.
 
+Runtime outputs:
+- `data/worker_events.jsonl` for all emitted step events.
+- `data/worker_errors.jsonl` for failure-only mirrored events.
+
 ### Implementation approach
 
 1. Add emit_worker_event helper (JSON line print or file sink) with:
@@ -341,8 +345,8 @@ Emit a lightweight structured event record for every major worker step.
 
 ## 20. Prioritized Next Sprint Checklist
 
-1. P0: Keep same-tab handling simple and aligned with existing ads min/max (Section 18).
-2. P0: Step-level telemetry with failure reason codes (Section 19).
+1. P0: Keep same-tab handling simple and aligned with existing ads min/max (Section 18). Completed.
+2. P0: Step-level telemetry with failure reason codes (Section 19). Completed.
 3. P1: Intent-aware redirect guard and redirect budgets (Section 17).
 4. P1: Add session-end counters:
 - redirect_recoveries

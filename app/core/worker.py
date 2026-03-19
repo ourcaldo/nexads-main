@@ -25,6 +25,7 @@ from app.navigation.tabs import (
     process_ads_tabs,
     natural_exit,
 )
+from app.core.telemetry import emit_worker_event
 from app.ads.adsense import (
     interact_with_ads, check_and_handle_vignette, smart_click
 )
@@ -176,6 +177,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 print(f"Worker {worker_id}: Starting normal session")
 
             session_count += 1
+            session_id = f"w{worker_id}-s{session_count}-{int(time.time() * 1000)}"
             session_successful = False
             browser = None
             context = None
@@ -184,13 +186,54 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 ctx.config.get("browser", {}).get("persist_profile", False)
             )
 
+            def _emit_step(step_name: str, status: str,
+                           url_value: str = "", url_idx: int | None = None,
+                           intent_type: str = "", reason_code: str = "",
+                           error: Exception | None = None,
+                           duration_ms: int | None = None,
+                           meta: dict | None = None):
+                emit_worker_event(
+                    worker_id=worker_id,
+                    session_id=session_id,
+                    url_index=url_idx,
+                    step_name=step_name,
+                    status=status,
+                    url=url_value,
+                    intent_type=intent_type,
+                    reason_code=reason_code,
+                    error_type=type(error).__name__ if error else "",
+                    error_message=str(error) if error else "",
+                    duration_ms=duration_ms,
+                    meta=meta,
+                )
+
+            _emit_step(
+                "session",
+                "started",
+                reason_code="session_started",
+                meta={"is_ads_session": is_ads_session},
+            )
+
             try:
                 # --- BROWSER INIT ---
+                browser_init_started = time.time()
                 browser = await configure_browser(ctx.config, worker_id, get_delay)
                 if not browser:
                     print(f"Worker {worker_id}: Failed to initialize browser")
+                    _emit_step(
+                        "browser_init",
+                        "failed",
+                        reason_code="configure_browser_returned_none",
+                        duration_ms=int((time.time() - browser_init_started) * 1000),
+                    )
                     await asyncio.sleep(10)
                     continue
+
+                _emit_step(
+                    "browser_init",
+                    "ok",
+                    duration_ms=int((time.time() - browser_init_started) * 1000),
+                )
 
                 context_kwargs = {}
                 if persist_profile:
@@ -237,6 +280,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         url = url_data['url'].strip()
 
                     print(f"Worker {worker_id}: [URL {url_index + 1}/{len(ctx.config['urls'])}] Visiting: {url}")
+                    url_step_started = time.time()
+                    _emit_step("url_navigation", "started", url_value=url, url_idx=url_index + 1)
 
                     # --- FIRST URL ---
                     if url_index == 0:
@@ -253,6 +298,15 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 await page.goto(url, timeout=90000, wait_until="networkidle")
                             except Exception as e:
                                 print(f"Worker {worker_id}: Error visiting URL: {str(e)}")
+                                _emit_step(
+                                    "url_navigation",
+                                    "failed",
+                                    url_value=url,
+                                    url_idx=url_index + 1,
+                                    reason_code="initial_direct_goto_failed",
+                                    error=e,
+                                    duration_ms=int((time.time() - url_step_started) * 1000),
+                                )
                                 raise SessionFailedException("Failed to visit initial URL")
 
                         elif referrer_type == "organic":
@@ -265,6 +319,14 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             if not await perform_organic_search(
                                     page, keyword, target_domain, worker_id, ctx.config, extract_domain):
                                 print(f"Worker {worker_id}: Organic search failed")
+                                _emit_step(
+                                    "url_navigation",
+                                    "failed",
+                                    url_value=url,
+                                    url_idx=url_index + 1,
+                                    reason_code="organic_search_failed",
+                                    duration_ms=int((time.time() - url_step_started) * 1000),
+                                )
                                 raise SessionFailedException("Organic search failed")
 
                         else:
@@ -273,6 +335,15 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 await page.goto(url, timeout=90000, wait_until="networkidle")
                             except Exception as e:
                                 print(f"Worker {worker_id}: Error visiting URL: {str(e)}")
+                                _emit_step(
+                                    "url_navigation",
+                                    "failed",
+                                    url_value=url,
+                                    url_idx=url_index + 1,
+                                    reason_code="initial_other_goto_failed",
+                                    error=e,
+                                    duration_ms=int((time.time() - url_step_started) * 1000),
+                                )
                                 raise SessionFailedException("Failed to visit initial URL")
 
                     # --- SUBSEQUENT URLS ---
@@ -292,18 +363,52 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 await page.goto(url, timeout=90000, wait_until="networkidle")
                             except Exception as e:
                                 print(f"Worker {worker_id}: Error visiting URL: {str(e)}")
+                                _emit_step(
+                                    "url_navigation",
+                                    "failed",
+                                    url_value=url,
+                                    url_idx=url_index + 1,
+                                    reason_code="sequence_fallback_goto_failed",
+                                    error=e,
+                                    duration_ms=int((time.time() - url_step_started) * 1000),
+                                )
                                 raise SessionFailedException("Failed to navigate to URL")
 
                     # Re-anchor immediately after URL load/click navigation.
                     page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=25)
                     if not success or not page:
+                        _emit_step(
+                            "ensure_tab",
+                            "failed",
+                            url_value=url,
+                            url_idx=url_index + 1,
+                            intent_type="target_page_intent",
+                            reason_code="target_recovery_after_navigation_failed",
+                        )
                         raise SessionFailedException("Could not recover target tab after navigation")
+
+                    _emit_step(
+                        "ensure_tab",
+                        "ok",
+                        url_value=url,
+                        url_idx=url_index + 1,
+                        intent_type="target_page_intent",
+                        duration_ms=int((time.time() - url_step_started) * 1000),
+                    )
 
                     if ctx.config['browser']['auto_accept_cookies']:
                         await accept_google_cookies(page)
 
                     page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=20)
                     if not success or not page:
+                        _emit_step(
+                            "ensure_tab",
+                            "failed",
+                            url_value=url,
+                            url_idx=url_index + 1,
+                            intent_type="target_page_intent",
+                            reason_code="target_recovery_after_cookies_failed",
+                        )
                         raise SessionFailedException("Could not recover target tab after cookie handling")
 
                     gdpr_max_wait = int(
@@ -322,20 +427,53 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             f"Worker {worker_id}: Consent unresolved "
                             f"(reason={consent_result.get('reason')}, attempts={consent_result.get('attempts')})"
                         )
+                        _emit_step(
+                            "consent",
+                            "failed",
+                            url_value=url,
+                            url_idx=url_index + 1,
+                            reason_code=f"consent_unresolved_{gdpr_on_fail}",
+                            meta=consent_result,
+                        )
                         if gdpr_on_fail == 'skip_url':
                             print(f"Worker {worker_id}: Skipping URL due to unresolved consent")
                             continue
                         if gdpr_on_fail == 'abort_session':
                             raise SessionFailedException("Consent unresolved")
+                    else:
+                        _emit_step(
+                            "consent",
+                            "ok",
+                            url_value=url,
+                            url_idx=url_index + 1,
+                            reason_code=str(consent_result.get("reason", "")),
+                            meta=consent_result,
+                        )
 
                     page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=20)
                     if not success or not page:
+                        _emit_step(
+                            "ensure_tab",
+                            "failed",
+                            url_value=url,
+                            url_idx=url_index + 1,
+                            intent_type="target_page_intent",
+                            reason_code="target_recovery_after_consent_failed",
+                        )
                         raise SessionFailedException("Could not recover target tab after consent handling")
 
                     await _check_vignette(page, worker_id)
 
                     page, success = await _ensure_tab_target(browser, page, url, worker_id, timeout=20)
                     if not success or not page:
+                        _emit_step(
+                            "ensure_tab",
+                            "failed",
+                            url_value=url,
+                            url_idx=url_index + 1,
+                            intent_type="target_page_intent",
+                            reason_code="target_recovery_after_vignette_failed",
+                        )
                         raise SessionFailedException("Could not recover target tab after vignette handling")
 
                     min_stay = int(url_data['min_time'])
@@ -347,6 +485,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             (min_stay + max_stay) / 2, 0.5, min_stay, max_stay
                         )))
                     print(f"Worker {worker_id}: Staying on page for {stay_time} seconds")
+                    _emit_step(
+                        "activity_loop",
+                        "started",
+                        url_value=url,
+                        url_idx=url_index + 1,
+                        duration_ms=stay_time * 1000,
+                    )
 
                     activity_start = time.time()
                     remaining_time = stay_time
@@ -362,8 +507,17 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             if delay > 0:
                                 await asyncio.sleep(delay)
 
+                    _emit_step(
+                        "activity_loop",
+                        "ok",
+                        url_value=url,
+                        url_idx=url_index + 1,
+                        duration_ms=int((time.time() - activity_start) * 1000),
+                    )
+
                     if is_ads_session and not ad_click_success:
                         print(f"Worker {worker_id}: Checking for ads elements on URL {url_index + 1}")
+                        _emit_step("ad_click", "started", url_value=url, url_idx=url_index + 1)
                         tabs_before = len(context.pages)
                         pre_click_url = page.url
                         ad_click_success = await interact_with_ads(page, browser, worker_id, extract_domain)
@@ -373,6 +527,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             if tabs_after > tabs_before:
                                 print(f"Worker {worker_id}: Ad click successful (new tab opened)")
                                 successful_ads_sessions += 1
+                                _emit_step(
+                                    "ad_click",
+                                    "ok",
+                                    url_value=url,
+                                    url_idx=url_index + 1,
+                                    reason_code="new_tab_navigation",
+                                )
                             else:
                                 post_click_url = page.url
                                 print(
@@ -380,6 +541,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                     f"{pre_click_url} -> {post_click_url}"
                                 )
                                 successful_ads_sessions += 1
+                                _emit_step(
+                                    "ad_click",
+                                    "ok",
+                                    url_value=url,
+                                    url_idx=url_index + 1,
+                                    reason_code="same_tab_navigation",
+                                )
 
                                 min_ads = int(ctx.config['ads']['min_time'])
                                 max_ads = int(ctx.config['ads']['max_time'])
@@ -393,6 +561,14 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 await asyncio.sleep(ad_stay)
 
                                 try:
+                                    same_tab_return_started = time.time()
+                                    _emit_step(
+                                        "same_tab_return",
+                                        "started",
+                                        url_value=url,
+                                        url_idx=url_index + 1,
+                                        intent_type="recovery_intent",
+                                    )
                                     await page.goto(url, timeout=90000, wait_until="networkidle")
                                     page, recovered = await _ensure_tab(
                                         browser, page, url, worker_id, timeout=25,
@@ -400,21 +576,65 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                     )
                                     if recovered and page:
                                         print(f"Worker {worker_id}: Returned to target URL after same-tab ad")
+                                        _emit_step(
+                                            "same_tab_return",
+                                            "ok",
+                                            url_value=url,
+                                            url_idx=url_index + 1,
+                                            intent_type="recovery_intent",
+                                            duration_ms=int((time.time() - same_tab_return_started) * 1000),
+                                        )
                                     else:
                                         print(f"Worker {worker_id}: Could not fully recover target URL after same-tab ad")
+                                        _emit_step(
+                                            "same_tab_return",
+                                            "failed",
+                                            url_value=url,
+                                            url_idx=url_index + 1,
+                                            intent_type="recovery_intent",
+                                            reason_code="same_tab_return_not_recovered",
+                                            duration_ms=int((time.time() - same_tab_return_started) * 1000),
+                                        )
                                 except Exception as recover_err:
                                     print(
                                         f"Worker {worker_id}: Error returning to target URL after same-tab ad: "
                                         f"{recover_err}"
                                     )
+                                    _emit_step(
+                                        "same_tab_return",
+                                        "failed",
+                                        url_value=url,
+                                        url_idx=url_index + 1,
+                                        intent_type="recovery_intent",
+                                        reason_code="same_tab_return_exception",
+                                        error=recover_err,
+                                    )
+                        else:
+                            _emit_step(
+                                "ad_click",
+                                "failed",
+                                url_value=url,
+                                url_idx=url_index + 1,
+                                reason_code="ad_click_not_accepted",
+                            )
+
+                    _emit_step(
+                        "url_navigation",
+                        "ok",
+                        url_value=url,
+                        url_idx=url_index + 1,
+                        duration_ms=int((time.time() - url_step_started) * 1000),
+                    )
 
                 session_successful = True
 
             except SessionFailedException as e:
                 print(f"Worker {worker_id}: Session marked as failed: {str(e)}")
+                _emit_step("session", "failed", reason_code="session_failed_exception", error=e)
                 session_successful = False
             except Exception as e:
                 print(f"Worker {worker_id}: Critical error: {str(e)}")
+                _emit_step("session", "failed", reason_code="session_critical_exception", error=e)
                 session_successful = False
 
             finally:
@@ -443,6 +663,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 successful_sessions += 1
                 delay = get_delay(10, 30)
                 print(f"Worker {worker_id}: Session successful, waiting {delay}s")
+                _emit_step("session", "ok", reason_code="session_completed")
             else:
                 delay = get_delay(30, 60)
                 print(f"Worker {worker_id}: Session failed, waiting {delay}s")
