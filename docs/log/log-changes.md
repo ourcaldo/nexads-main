@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T16:30:00-07:00
+- Short description: Update fleet script to use existing setup/stop scripts, add patchright to setup
+- What you do: Rewrote nexads-remote.sh deploy action to use existing setup_ubuntu.sh and stop_nexads.sh instead of duplicating logic. Added patchright + Chrome installation to setup_ubuntu.sh. Handles nexads-main -> nexads rename for old directory layouts. Added nexdev-ausso to host list.
+- File path that changes: scripts/nexads-remote.sh; scripts/setup_ubuntu.sh; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T16:00:00-07:00
 - Short description: Add VPS fleet management script for remote start/stop/deploy
 - What you do: Created scripts/nexads-remote.sh for managing nexAds across 9 VPS servers. Supports actions: start (with xvfb virtual display), stop (graceful + force kill), status, deploy (git clone/update + all deps + Chrome + camoufox), logs. Handles both new servers and existing installations. Works with single host or 'all' for fleet-wide operations.

@@ -52,13 +52,15 @@ echo "[5/6] Installing Python dependencies from requirements.txt..."
 python3 -m pip install --break-system-packages --upgrade pip setuptools wheel
 python3 -m pip install --break-system-packages -r requirements.txt
 
-echo "[6/6] Fetching Camoufox browser binaries..."
+echo "[6/8] Fetching Camoufox browser binaries..."
 python3 -m camoufox fetch
 
-if [ "${INSTALL_PLAYWRIGHT_FIREFOX:-0}" = "1" ]; then
-  echo "Installing Playwright Firefox (optional)..."
-  python3 -m playwright install firefox
-fi
+echo "[7/8] Installing Patchright + Chrome (mobile sessions)..."
+python3 -m pip install --break-system-packages -q patchright
+python3 -m patchright install chrome 2>&1 | tail -3
+
+echo "[8/8] Installing Playwright Firefox (for Camoufox)..."
+python3 -m playwright install firefox
 
 if [ "${RUN_IN_BACKGROUND}" = "1" ]; then
   echo "Starting nexAds in background..."
