@@ -2,12 +2,12 @@
     "proxy": {
         "type": "http",
         "credentials": "",
-        "file": "proxy.txt"
+        "file": "C:/Users/Administrator/Desktop/nexads/proxy.txt"
     },
     "browser": {
-        "headless_mode": "virtual",
+        "headless_mode": "False",
         "disable_ublock": true,
-        "random_activity": true,
+        "random_activity": false,
         "auto_accept_cookies": true,
         "prevent_redirects": true,
         "activities": [
@@ -25,14 +25,14 @@
         "count": 0,
         "max_time": 5
     },
-    "threads": 30,
+    "threads": 1,
     "os_fingerprint": [
         "windows",
         "macos"
     ],
     "device_type": {
-        "mobile": 0,
-        "desktop": 100
+        "mobile": 100,
+        "desktop": 0
     },
     "referrer": {
         "types": [
@@ -43,67 +43,7 @@
     },
     "urls": [
         {
-            "url": "https://app.camarjaya.co.id/",
-            "random_page": false,
-            "min_time": 5,
-            "max_time": 10
-        },
-        {
-            "url": "https://app.camarjaya.co.id/insights/",
-            "random_page": true,
-            "min_time": 10,
-            "max_time": 20
-        },
-        {
-            "url": "https://app.camarjaya.co.id/first-time-property-buyer-here-is-what-the-paperwork-is-actually-saying/",
-            "random_page": false,
-            "min_time": 30,
-            "max_time": 60
-        },
-        {
-            "url": "https://app.camarjaya.co.id/why-small-businesses-are-the-most-legally-vulnerable-and-what-to-do-about-it/",
-            "random_page": false,
-            "min_time": 30,
-            "max_time": 60
-        },
-        {
-            "url": "https://app.camarjaya.co.id/what-an-attorney-actually-does-and-why-it-matters-before-you-ever-need-one/",
-            "random_page": true,
-            "min_time": 10,
-            "max_time": 20
-        },
-        {
-            "url": "https://app.camarjaya.co.id/building-a-strong-corporate-legal-foundation-for-sustainable-business-growth/",
-            "random_page": true,
-            "min_time": 10,
-            "max_time": 20
-        },
-        {
-            "url": "https://app.camarjaya.co.id/what-most-people-get-wrong-about-legal-and-insurance-protection/",
-            "random_page": false,
-            "min_time": 29,
-            "max_time": 60
-        },
-        {
-            "url": "https://app.camarjaya.co.id/when-insurance-meets-legal-strategy-what-you-need-to-know-before-its-too-late/",
-            "random_page": false,
-            "min_time": 30,
-            "max_time": 60
-        },
-        {
-            "url": "https://app.camarjaya.co.id/understanding-the-role-of-attorneys-in-insurance-matters/",
-            "random_page": true,
-            "min_time": 10,
-            "max_time": 20
-        },
-        {
-            "url": "https://app.camarjaya.co.id/understanding-how-attorney-and-insurance-services-work-together-for-your-protection/",
-            "random_page": true,
-            "min_time": 10,
-            "max_time": 20
-        },
-        {
-            "url": "https://alco.camarjaya.co.id/",
+            "url": "https://www.browserscan.net/",
             "random_page": false,
             "min_time": 30,
             "max_time": 60

@@ -218,6 +218,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             session_successful = False
             browser = None
             context = None
+            is_persistent_context = False
 
             def _emit_step(
                 step_name: str,
@@ -269,8 +270,10 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     await asyncio.sleep(10)
                     continue
 
+                is_persistent_context = browser_setup.get("is_persistent_context", False)
                 browser = browser_setup.get("browser")
-                if not browser:
+
+                if not is_persistent_context and not browser:
                     print(
                         f"Worker {worker_id}: Browser setup returned without browser instance"
                     )
@@ -289,45 +292,33 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     duration_ms=int((time.time() - browser_init_started) * 1000),
                 )
 
-                context_kwargs = dict(browser_setup.get("context_options") or {})
                 fingerprint_mode = str(browser_setup.get("fingerprint_mode", "desktop"))
                 fallback_reason = str(browser_setup.get("fallback_reason", "") or "")
-                stealth = browser_setup.get("stealth")
-                stealth_kwargs = browser_setup.get("stealth_kwargs", {})
                 emit_mobile_fingerprint_event(
                     worker_id=worker_id,
                     event_type="session_fingerprint_mode",
                     session_id=session_id,
                     strategy_mode="active"
                     if fingerprint_mode == "mobile"
-                    else ("dry_run" if fingerprint_mode == "mobile" else "disabled"),
+                    else "disabled",
                     final_mode=fingerprint_mode,
                     reason=fallback_reason,
                     success=True,
                 )
 
-                print(
-                    f"Worker {worker_id}: Persistent browser storage disabled, starting fresh"
-                )
-                context = await browser.new_context(**context_kwargs)
-
-                if stealth:
-                    try:
-                        await stealth.apply_stealth_async(context)
-                        print(
-                            f"Worker {worker_id}: Applied playwright-stealth evasions"
-                        )
-                    except Exception as stealth_err:
-                        print(
-                            f"Worker {worker_id}: Stealth application failed: {str(stealth_err)}"
-                        )
-
-                fingerprint_injection_script = str(
-                    browser_setup.get("fingerprint_injection_script", "") or ""
-                )
-                if fingerprint_injection_script:
-                    await context.add_init_script(fingerprint_injection_script)
-                page = await context.new_page()
+                if is_persistent_context:
+                    # Patchright mobile: persistent context already created.
+                    context = browser_setup.get("context")
+                    pages = context.pages
+                    page = pages[0] if pages else await context.new_page()
+                    print(
+                        f"Worker {worker_id}: Using patchright persistent context"
+                    )
+                else:
+                    # Camoufox desktop: create context from browser.
+                    context_kwargs = dict(browser_setup.get("context_options") or {})
+                    context = await browser.new_context(**context_kwargs)
+                    page = await context.new_page()
                 ad_click_success = False
                 interaction_state = {"cursor_position": None}
 
@@ -852,12 +843,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
             finally:
                 try:
-                    if browser and context:
+                    if context:
                         await process_ads_tabs(
                             context, worker_id, ctx.config, _perform_activity, get_delay
                         )
                         await natural_exit(context, worker_id, get_delay)
-                        await cleanup_browser(browser, worker_id)
+                    if is_persistent_context and context:
+                        await cleanup_browser(None, worker_id, context=context)
                     elif browser:
                         await cleanup_browser(browser, worker_id)
                 except Exception as e:

@@ -1,6 +1,18 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T10:30:00-07:00
+- Short description: Merge copilot instructions into AGENTS.md
+- What you do: Copied git commit scope rules, change log rules, planning rule, and project-specific notes from .github/copilot-instructions.md into AGENTS.md so all agent instructions are in one place.
+- File path that changes: AGENTS.md; docs/log/log-changes.md
+
+## Entry
+- Date time: 2026-03-19T10:00:00-07:00
+- Short description: Migrate mobile sessions from playwright+playwright-stealth to patchright
+- What you do: Replaced playwright and playwright-stealth with patchright for mobile browser sessions. Rewrote app/browser/setup.py to use patchright launch_persistent_context with channel=chrome, removed 400-line JS fingerprint injection script, removed stealth wrapper code. Updated app/core/worker.py to handle persistent context (no browser.new_context for mobile), removed stealth application block. Updated requirements.txt (added patchright, removed playwright-stealth, kept playwright for camoufox dependency). Added viewport and device_scale_factor mapping from BrowserForge fingerprints (previously missing). Updated AGENTS.md with dual-browser architecture documentation. Created migration plan at docs/plans/2026-03-19-patchright-migration.md. Deleted .venv and .venv-1 directories.
+- File path that changes: app/browser/setup.py; app/core/worker.py; requirements.txt; AGENTS.md; docs/plans/2026-03-19-patchright-migration.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T08:38:51-07:00
 - Short description: Push latest user-updated config and docs snapshot
 - What you do: Staged and prepared all current non-cache workspace changes including updated configuration/runtime docs and telemetry data files for a single commit and push, excluding Python cache artifacts.

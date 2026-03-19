@@ -36,7 +36,8 @@ app/
 ### Installation
 ```bash
 pip install -r requirements.txt
-python -m playwright install firefox
+python -m camoufox fetch
+patchright install chrome
 ```
 
 ### Running
@@ -71,7 +72,26 @@ python -c "import ast; ast.parse(open('app/core/worker.py').read())"
 
 ## Agent Behaviour
 
-Commit and push workflow policy is maintained in `.github/copilot-instructions.md`.
+### Git Commit Scope Rules
+- Always commit and push after every change, including very small changes.
+- For each commit/push, include all non-cache changes in the working tree by default.
+- Exclude all Python cache artifacts under `__pycache__/` and `*.pyc` unless the user explicitly asks to include them.
+- Stage files explicitly; do not use broad staging that can include secrets or generated files by accident.
+
+### Change Log Rules
+- For every implementation/change, update `docs/log/log-changes.md` before commit/push.
+- Each log entry must include exactly these fields:
+  - `Date time`
+  - `Short description`
+  - `What you do`
+  - `File path that changes`
+- Log entries should be appended in reverse-chronological order (newest first).
+
+### Planning Rule
+When a user asks for a plan, write a comprehensive markdown file with step-by-step tasks, goals, and acceptance criteria. Store plans in `docs/plans/` with clear structure and detail. Do not execute code until explicitly told to implement.
+
+### Project-Specific Note
+- `config.json` is a user-managed runtime file and should be included in commits when the user asks to push all non-cache changes.
 
 ---
 
@@ -311,6 +331,29 @@ fp = FingerprintGenerator().generate(browser='chrome', os='android', device='mob
   }
 }
 ```
+
+### Dual-Browser Architecture (Critical)
+
+Camoufox does NOT support mobile device emulation. The project uses two separate browser engines:
+
+- **Desktop sessions**: Camoufox (anti-detect Firefox) — handles fingerprinting, geoip, humanization at engine level
+- **Mobile sessions**: Patchright (undetected Chromium) — patched Playwright fork that avoids CDP detection leaks
+
+#### Patchright (Mobile Engine)
+- **What it is**: Drop-in replacement for Playwright that patches `Runtime.enable` CDP leaks, removes automation flags, and executes JS in isolated contexts to avoid bot detection.
+- **Import**: `from patchright.async_api import async_playwright` (same API as Playwright)
+- **Chromium only**: Firefox and WebKit are NOT supported by Patchright. This is fine since mobile sessions target Chrome/Android.
+- **Best practice for maximum stealth**:
+  - Use `launch_persistent_context()` with `channel="chrome"` and `headless=False` (use virtual display on servers)
+  - Do NOT inject custom User-Agent or browser headers — let the real Chrome identity through
+  - Patchright automatically handles: `navigator.webdriver=false`, automation flag removal, extension enablement
+- **playwright-stealth is NOT used**: Patchright replaces both `playwright` and `playwright-stealth`. The stealth is built into the driver itself at a deeper level than JS-based patches.
+- **Install**: `pip install patchright` then `patchright install chrome`
+- **Passes**: Cloudflare, Datadome, Kasada, Akamai, CreepJS, Fingerprint.com, Sannysoft, Browserscan, Pixelscan, IPHey
+
+#### Key Architectural Rule
+- Never use raw `playwright` or `playwright-stealth` for any browser session. Desktop uses Camoufox. Mobile uses Patchright.
+- BrowserForge fingerprints are still generated for mobile context metadata (viewport, locale, touch, etc.) but heavy JS fingerprint injection should be minimized since Patchright's stealth works best with a clean Chrome identity.
 
 ### Known Issues / Tech Debt
 - `SessionFailedException` is defined in both `automation.py` and `worker.py` (duplicate).

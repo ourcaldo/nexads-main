@@ -1,19 +1,19 @@
 """
 nexads/browser/setup.py
-Browser initialization and cleanup using Camoufox.
+Browser initialization and cleanup.
+Desktop: Camoufox (anti-detect Firefox).
+Mobile: Patchright (undetected Chromium via persistent context).
 """
 
 import random
 import asyncio
-import json
+import tempfile
 from typing import Optional, Dict, List
 from urllib.parse import urlparse
 
 from camoufox.async_api import AsyncCamoufox
 from camoufox import DefaultAddons
-from playwright.async_api import async_playwright
 from browserforge.fingerprints import Screen
-from playwright_stealth import Stealth
 
 from app.browser.mobile import (
     generate_mobile_fingerprint,
@@ -30,395 +30,8 @@ MOBILE_FINGERPRINT_TIMEOUT_MS = 5000
 MOBILE_HEADER_BROWSER = "chrome"
 MOBILE_HEADER_OS = "android"
 
-_PLAYWRIGHT_MANAGERS: Dict[int, object] = {}
-
-
-def build_mobile_fingerprint_injection_script(
-    fingerprint: dict, geoip_data: dict = None
-) -> str:
-    """Build init script that injects additional fingerprint fields on top of playwright-stealth."""
-    payload_json = json.dumps(fingerprint, ensure_ascii=True)
-    geoip_json = json.dumps(geoip_data or {}, ensure_ascii=True)
-    return f"""
-(() => {{
-    const fp = {payload_json};
-    const geoip = {geoip_json};
-    window.__nexads_browserforge_fingerprint = fp;
-    window.__nexads_geoip = geoip;
-
-    const defineGetter = (obj, key, value) => {{
-        try {{
-            Object.defineProperty(obj, key, {{
-                get: () => value,
-                configurable: true,
-            }});
-        }} catch (e) {{}}
-    }};
-
-    const nav = fp.navigator || {{}};
-    const scr = fp.screen || {{}};
-    const battery = fp.battery || null;
-    const pluginsData = fp.pluginsData || {{}};
-    const media = fp.multimediaDevices || {{}};
-    const videoCard = fp.videoCard || {{}};
-
-    Object.keys(nav).forEach((key) => {{
-        if (key === 'userAgentData' || key === 'extraProperties') return;
-        defineGetter(navigator, key, nav[key]);
-    }});
-
-    if (nav.userAgentData) {{
-        defineGetter(navigator, 'userAgentData', nav.userAgentData);
-    }}
-    if (nav.extraProperties && typeof nav.extraProperties === 'object') {{
-        Object.keys(nav.extraProperties).forEach((k) => defineGetter(navigator, k, nav.extraProperties[k]));
-    }}
-
-    if (battery) {{
-        navigator.getBattery = async () => battery;
-    }}
-
-    const pluginList = Array.isArray(pluginsData.plugins) ? pluginsData.plugins : [];
-    const mimeList = Array.isArray(pluginsData.mimeTypes) ? pluginsData.mimeTypes : [];
-    defineGetter(navigator, 'plugins', pluginList);
-    defineGetter(navigator, 'mimeTypes', mimeList);
-
-    if (scr && typeof scr === 'object') {{
-        Object.keys(scr).forEach((key) => defineGetter(screen, key, scr[key]));
-        if (typeof scr.devicePixelRatio !== 'undefined') {{
-            defineGetter(window, 'devicePixelRatio', scr.devicePixelRatio);
-        }}
-        if (typeof scr.innerWidth !== 'undefined') defineGetter(window, 'innerWidth', scr.innerWidth);
-        if (typeof scr.innerHeight !== 'undefined') defineGetter(window, 'innerHeight', scr.innerHeight);
-        if (typeof scr.outerWidth !== 'undefined') defineGetter(window, 'outerWidth', scr.outerWidth);
-        if (typeof scr.outerHeight !== 'undefined') defineGetter(window, 'outerHeight', scr.outerHeight);
-        if (typeof scr.pageXOffset !== 'undefined') defineGetter(window, 'pageXOffset', scr.pageXOffset);
-        if (typeof scr.pageYOffset !== 'undefined') defineGetter(window, 'pageYOffset', scr.pageYOffset);
-        if (typeof scr.screenX !== 'undefined') defineGetter(window, 'screenX', scr.screenX);
-        if (typeof scr.availWidth !== 'undefined') defineGetter(window, 'screenLeft', scr.availWidth);
-    }}
-
-    if (videoCard.vendor || videoCard.renderer) {{
-        const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(parameter) {{
-            if (parameter === 37445 && videoCard.vendor) return videoCard.vendor;
-            if (parameter === 37446 && videoCard.renderer) return videoCard.renderer;
-            return getParameter.call(this, parameter);
-        }};
-
-        if (typeof WebGL2RenderingContext !== 'undefined') {{
-            const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
-            WebGL2RenderingContext.prototype.getParameter = function(parameter) {{
-                if (parameter === 37445 && videoCard.vendor) return videoCard.vendor;
-                if (parameter === 37446 && videoCard.renderer) return videoCard.renderer;
-                return getParameter2.call(this, parameter);
-            }};
-        }}
-    }}
-
-    defineGetter(window, '__nexads_audio_codecs', fp.audioCodecs || {{}});
-    defineGetter(window, '__nexads_video_codecs', fp.videoCodecs || {{}});
-    defineGetter(window, '__nexads_fonts', fp.fonts || []);
-    defineGetter(window, '__nexads_multimedia_devices', media);
-
-    // --- STEALTH SCRIPTS ---
-    // Hide webdriver property to avoid bot detection
-    Object.defineProperty(navigator, 'webdriver', {{
-        get: () => undefined,
-        configurable: true
-    }});
-    try {{ Object.defineProperty(navigator, 'webdriver', {{ value: false }}); }} catch(e) {{}}
-
-    // Remove all automation detection variables
-    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
-    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-    delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
-    delete window.callSelenium;
-    delete window.cdc_qdCNJQlP;
-    window.cdc_adoQpoasnfa76pfcZLmcfl_Array = undefined;
-    window.cdc_adoQpoasnfa76pfcZLmcfl_Promise = undefined;
-    window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol = undefined;
-    window.callSelenium = undefined;
-    window.cdc_qdCNJQlP = undefined;
-
-    // Override chrome.runtime
-    if (typeof chrome !== 'undefined') {{
-        Object.defineProperty(chrome, 'runtime', {{
-            get: () => undefined,
-            configurable: true
-        }});
-    }}
-
-    // Override permissions.query
-    if (navigator.permissions && navigator.permissions.query) {{
-        const origQuery = navigator.permissions.query.bind(navigator.permissions);
-        navigator.permissions.query = (params) => {{
-            if (params.name === 'notifications') {{
-                return Promise.resolve({{ state: 'default' }});
-            }}
-            if (params.name === 'geolocation') {{
-                if (geoip && geoip.latitude && geoip.longitude) {{
-                    return Promise.resolve({{ state: 'prompt', coords: {{ latitude: geoip.latitude, longitude: geoip.longitude, accuracy: 100 }}, timestamp: Date.now() }});
-                }}
-            }}
-            return origQuery(params);
-        }};
-    }}
-
-    // Fake navigator.pdfViewerEnabled
-    defineGetter(navigator, 'pdfViewerEnabled', true);
-
-    // Override plugins
-    if (navigator.plugins && navigator.plugins.length === 0) {{
-        const fakePlugins = [
-            {{ name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format', 0: {{ type: 'application/pdf', suffixes: 'pdf' }} }},
-            {{ name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '', 0: {{ type: 'application/x-google-chrome-pdf', suffixes: 'pdf' }} }},
-            {{ name: 'Native Client', filename: 'internal-nacl-plugin', description: '', 0: {{ type: 'application/x-nacl', suffixes: 'nexe' }} }}
-        ];
-        defineGetter(navigator, 'plugins', fakePlugins);
-        defineGetter(navigator, 'mimeTypes', [
-            {{ type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format', enabledPlugin: fakePlugins[0] }},
-            {{ type: 'application/x-google-chrome-pdf', suffixes: 'pdf', description: '', enabledPlugin: fakePlugins[1] }}
-        ]);
-    }}
-
-    // Override languages based on geoip
-    if (geoip && geoip.locale) {{
-        defineGetter(navigator, 'language', geoip.locale.split('-')[0]);
-        defineGetter(navigator, 'languages', [geoip.locale, geoip.locale.split('-')[0], 'en']);
-    }}
-
-    // Override Date to match timezone
-    if (geoip && geoip.timezone) {{
-        try {{
-            const tzMatch = geoip.timezone.match(/([^/]+)\/([^/]+)$/);
-            if (tzMatch) {{
-                const tzAbbr = tzMatch[2].replace(/_/g, ' ');
-                defineGetter(Date.prototype, 'toTimeString', () => {{
-                    return ` ${{tzAbbr}}`;
-                }});
-            }}
-        }} catch(e) {{}}
-    }}
-
-    // Override connection API
-    if (navigator.connection) {{
-        defineGetter(navigator.connection, 'saveData', false);
-        defineGetter(navigator.connection, 'effectiveType', '4g');
-        defineGetter(navigator.connection, 'downlink', 10);
-        defineGetter(navigator.connection, 'rtt', 50);
-    }}
-
-    // Override battery API if missing
-    if (!navigator.getBattery) {{
-        navigator.getBattery = async () => ({{
-            charging: true,
-            chargingTime: 0,
-            dischargingTime: Infinity,
-            level: 1.0,
-            addEventListener: () => {{}},
-            removeEventListener: () => {{}}
-        }});
-    }}
-
-    // Override Notification.permission
-    Object.defineProperty(Notification, 'permission', {{
-        get: () => 'default',
-        configurable: true
-    }});
-
-    // Override MediaQueryList
-    if (typeof window.matchMedia === 'function') {{
-        const origMatchMedia = window.matchMedia.bind(window);
-        window.matchMedia = (query) => {{
-            const result = origMatchMedia(query);
-            Object.defineProperties(result, {{
-                addListener: {{ value: () => {{}}, writable: true, configurable: true }},
-                removeListener: {{ value: () => {{}}, writable: true, configurable: true }},
-                addEventListener: {{ value: () => {{}}, writable: true, configurable: true }},
-                removeEventListener: {{ value: () => {{}}, writable: true, configurable: true }}
-            }});
-            return result;
-        }};
-    }}
-
-    // Override iframe sandbox detection
-    try {{
-        const origHTML = HTMLIFrameElement.prototype.hasOwnProperty;
-        if (typeof origHTML === 'function') {{
-            // Don't interfere with this
-        }}
-    }} catch(e) {{}}
-
-    // Clear any performance metrics that might indicate automation
-    if (window.performance) {{
-        defineGetter(window.performance, 'memory', undefined);
-    }}
-
-    // Override getComputedStyle to avoid automation detection
-    const origGetComputedStyle = window.getComputedStyle.bind(window);
-    window.getComputedStyle = (elem, pseudo) => {{
-        const style = origGetComputedStyle(elem, pseudo);
-        // Ensure mozOsxnseline doesn't leak
-        if (style) {{
-            try {{ delete style.mozOsxInline; }} catch(e) {{}}
-        }}
-        return style;
-    }};
-
-    // --- ANTI-INCOGNITO DETECTION ---
-    // Make storage APIs appear to work normally
-    try {{
-        if (typeof localStorage === 'undefined' || localStorage === null) {{
-            const mockStorage = {{}};
-            Object.defineProperty(window, 'localStorage', {{
-                get: () => mockStorage,
-                configurable: true
-            }});
-        }}
-        
-        // Ensure localStorage.setItem doesn't throw
-        if (typeof Storage !== 'undefined') {{
-            const origSetItem = Storage.prototype.setItem;
-            Storage.prototype.setItem = function(key, value) {{
-                try {{ origSetItem.call(this, key, value); }} catch(e) {{}}
-            }};
-        }}
-    }} catch(e) {{}}
-
-    // Override navigator.storage for privacy API
-    if (navigator.storage && navigator.storage.estimate) {{
-        const origEstimate = navigator.storage.estimate.bind(navigator.storage);
-        navigator.storage.estimate = async () => {{
-            const result = await origEstimate();
-            return {{
-                ...result,
-                usage: result.usage || 1024 * 1024 * 5,
-                quota: result.quota || 1024 * 1024 * 100
-            }};
-        }};
-    }}
-
-    // Fake navigator.cookieEnabled behavior
-    defineGetter(navigator, 'cookieEnabled', true);
-
-    // Fake WebSQL to appear non-incognito
-    if (typeof window.openDatabase !== 'undefined') {{
-        // openDatabase exists, which is a good sign
-    }} else {{
-        window.openDatabase = (name, version, displayName, estimatedSize, creationCallback) => {{
-            return {{
-                transaction: () => {{}}
-            }};
-        }};
-    }}
-
-    // Override indexedDB to appear normal
-    if (typeof indexedDB === 'undefined') {{
-        window.indexedDB = {{
-            open: () => ({{ result: null, onsuccess: null, onerror: null }}),
-            deleteDatabase: () => ({{}}),
-            cmp: () => 0
-        }};
-    }}
-
-    // Fake document.visibilityState
-    defineGetter(document, 'visibilityState', 'visible');
-    defineGetter(document, 'hidden', false);
-
-    // Fake document.hasStorageAccess if available
-    if (typeof document.hasStorageAccess === 'function') {{
-        const origHasStorageAccess = document.hasStorageAccess.bind(document);
-        document.hasStorageAccess = async () => {{
-            try {{
-                return await origHasStorageAccess();
-            }} catch(e) {{
-                return true;
-            }}
-        }};
-    }}
-
-    // Fake permissions for storage-access
-    if (navigator.permissions && navigator.permissions.query) {{
-        const origQuery = navigator.permissions.query.bind(navigator.permissions);
-        navigator.permissions.query = (params) => {{
-            if (params.name === 'storage-access') {{
-                return Promise.resolve({{ state: 'granted' }});
-            }}
-            return origQuery(params);
-        }};
-    }}
-
-    // Fake battery again to ensure it's present
-    if (!navigator.getBattery) {{
-        Object.defineProperty(navigator, 'getBattery', {{
-            value: async () => ({{
-                charging: true,
-                chargingTime: 0,
-                dischargingTime: Infinity,
-                level: 1.0,
-                addEventListener: () => {{}},
-                removeEventListener: () => {{}}
-            }}),
-            configurable: true
-        }});
-    }}
-
-    // Override HardwareConcurrency
-    if (navigator.hardwareConcurrency !== undefined) {{
-        defineGetter(navigator, 'hardwareConcurrency', 8);
-    }}
-
-    // Override deviceMemory
-    if (navigator.deviceMemory !== undefined) {{
-        defineGetter(navigator, 'deviceMemory', 8);
-    }}
-
-    // Remove privacy.resistFingerprinting indicator
-    try {{
-        delete navigator.globalPrivacyControl;
-    }} catch(e) {{}}
-
-    // Fake service worker
-    Object.defineProperty(navigator, 'serviceWorker', {{
-        get: () => {{
-            return {{
-                register: () => Promise.resolve({{}}),
-                getRegistration: () => Promise.resolve(undefined),
-                getRegistrations: () => Promise.resolve([]),
-                ready: Promise.resolve({{}})
-            }};
-        }},
-        configurable: true
-    }});
-
-    // Ensure SpeechSynthesis looks normal
-    if (typeof speechSynthesis !== 'undefined') {{
-        Object.defineProperty(window, 'speechSynthesis', {{
-            get: () => (function() {{
-                let _speaking = false;
-                let _paused = false;
-                let _pending = [];
-                return {{
-                    speak: (utterance) => {{ _pending.push(utterance); }},
-                    cancel: () => {{ _pending = []; _speaking = false; }},
-                    pause: () => {{ _paused = true; }},
-                    resume: () => {{ _paused = false; }},
-                    getVoices: () => [],
-                    speaking: _speaking,
-                    paused: _paused,
-                    pending: _pending,
-                    onvoiceschanged: null,
-                    addEventListener: () => {{}},
-                    removeEventListener: () => {{}},
-                    dispatchEvent: () => true
-                }};
-            }})(),
-            configurable: true
-        }});
-    }}
-}})();
-"""
+# Track patchright playwright instances for cleanup.
+_PATCHRIGHT_MANAGERS: Dict[int, object] = {}
 
 
 def _fp_get(obj, key: str, default=None):
@@ -610,116 +223,82 @@ def _resolve_proxy_config(config: dict) -> Optional[Dict[str, str]]:
     }
 
 
-async def _launch_mobile_playwright_browser(
+async def _launch_mobile_patchright_context(
     headless_mode,
     proxy_cfg: Optional[Dict[str, str]],
-    browser_family: str,
     worker_id: int,
-    geoip_data: Optional[dict] = None,
+    context_options: Dict,
 ):
-    """Launch Playwright browser for mobile sessions with stealth settings."""
-    playwright_headless = False if headless_mode is False else True
+    """Launch Patchright persistent context for mobile sessions.
 
-    stealth_args = [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-web-security",
-        "--disable-features=IsolateOrigins,site-per-process",
-        "--allow-running-insecure-content",
-    ]
+    Returns (context, pw_instance) — context is a BrowserContext with
+    one default page already open.
+    """
+    from patchright.async_api import async_playwright
+
+    pw = await async_playwright().start()
 
     launch_kwargs = {
-        "headless": playwright_headless,
-        "args": stealth_args,
+        "user_data_dir": tempfile.mkdtemp(prefix="nexads_mobile_"),
+        "channel": "chrome",
+        "headless": False if headless_mode is False else True,
+        "no_viewport": False,
     }
+
+    # Merge mobile context options from fingerprint + geoip.
+    for key in (
+        "viewport",
+        "locale",
+        "timezone_id",
+        "device_scale_factor",
+        "is_mobile",
+        "has_touch",
+        "extra_http_headers",
+    ):
+        if key in context_options:
+            launch_kwargs[key] = context_options[key]
+
     if proxy_cfg:
         launch_kwargs["proxy"] = proxy_cfg
 
-    stealth_launch_kwargs = dict(launch_kwargs)
+    context = await pw.chromium.launch_persistent_context(**launch_kwargs)
 
-    stealth = Stealth()
+    # Track for cleanup.
+    _PATCHRIGHT_MANAGERS[id(context)] = pw
 
-    locale_override = None
-    if geoip_data and geoip_data.get("locale"):
-        locale_override = (geoip_data["locale"],)
-
-    stealth_kwargs = {
-        "navigator_languages_override": locale_override,
-    }
-
-    stealth_manager = stealth.use_async(async_playwright())
-    pw = await stealth_manager.__aenter__()
-
-    engine = pw.webkit if browser_family == "safari" else pw.chromium
-
-    try:
-        browser = await engine.launch(**stealth_launch_kwargs)
-    except Exception as launch_error:
-        if browser_family == "safari":
-            emit_mobile_fingerprint_event(
-                worker_id=worker_id,
-                event_type="mobile_engine_fallback",
-                strategy_mode="active",
-                reason="webkit_launch_failed",
-                reason_codes=["webkit_launch_failed"],
-                fallback_target="chromium",
-            )
-            browser = await pw.chromium.launch(**stealth_launch_kwargs)
-        else:
-            await stealth_manager.__aexit__(None, None, None)
-            raise launch_error
-
-    _PLAYWRIGHT_MANAGERS[id(browser)] = (pw, stealth_manager, stealth_kwargs)
-    return browser, stealth, stealth_kwargs
+    return context, pw
 
 
 def map_fingerprint_to_context_options(fingerprint: Optional[dict]) -> Dict:
-    """
-    Map BrowserForge fingerprint fields to Playwright context options (Task 3).
-
-    Args:
-        fingerprint: BrowserForge Fingerprint object or None
-
-    Returns:
-        Dict of context_options for browser.new_context(**options)
-    """
+    """Map BrowserForge fingerprint fields to Patchright persistent context options."""
     if not isinstance(fingerprint, dict):
         return {}
 
     navigator = fingerprint.get("navigator")
-    headers = fingerprint.get("headers")
+    screen = fingerprint.get("screen", {})
 
     context_opts = {}
 
-    if ua := _fp_get(navigator, "userAgent"):
-        context_opts["user_agent"] = ua
-
-    # Keep mobile identity broad; do not force viewport/screen dimensions.
+    # Mobile identity flags.
     context_opts["is_mobile"] = True
     context_opts["has_touch"] = True
 
+    # Viewport from fingerprint screen dimensions.
+    width = _fp_get(screen, "width", 412)
+    height = _fp_get(screen, "height", 915)
+    if width and height:
+        context_opts["viewport"] = {"width": int(width), "height": int(height)}
+
+    dpr = _fp_get(screen, "devicePixelRatio")
+    if dpr:
+        context_opts["device_scale_factor"] = float(dpr)
+
+    # Locale from navigator language.
     if lang := _fp_get(navigator, "language"):
         context_opts["locale"] = lang
 
-    safe_headers = {}
-    if isinstance(headers, dict):
-        for key, value in headers.items():
-            if key is None or value is None:
-                continue
-            safe_headers[str(key)] = str(value)
-    elif headers and hasattr(headers, "items"):
-        for key, value in headers.items():
-            if key is None or value is None:
-                continue
-            safe_headers[str(key)] = str(value)
-
-    locale = context_opts.get("locale", "")
-    if locale and "Accept-Language" not in safe_headers:
-        safe_headers["Accept-Language"] = locale
-
-    if safe_headers:
-        context_opts["extra_http_headers"] = safe_headers
+    # DO NOT set user_agent — patchright works best with real Chrome UA.
+    # DO NOT set custom browser headers — same reason.
 
     return context_opts
 
@@ -727,16 +306,7 @@ def map_fingerprint_to_context_options(fingerprint: Optional[dict]) -> Dict:
 def validate_fingerprint_consistency(
     fingerprint: Optional[dict], context_opts: Dict
 ) -> tuple[bool, List[str], List[str]]:
-    """
-    Validate consistency of mobile fingerprint identity (Task 4).
-
-    Args:
-        fingerprint: BrowserForge Fingerprint object or None
-        context_opts: Mapped context options
-
-    Returns:
-        Tuple of (is_valid, reason_codes, violations)
-    """
+    """Validate consistency of mobile fingerprint identity."""
     reason_codes = []
     violations = []
 
@@ -784,7 +354,7 @@ def validate_fingerprint_consistency(
     if max_touch < 5 and ("iPhone" in ua or "iPad" in ua):
         reason_codes.append("ua_ios_low_touchpoints")
         violations.append(
-            f"Impossible combo: iOS UA with maxTouchPoints={max_touch} (expected ≥5)"
+            f"Impossible combo: iOS UA with maxTouchPoints={max_touch} (expected >=5)"
         )
 
     locale = str(context_opts.get("locale", "") or "")
@@ -824,11 +394,12 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
 
         setup_result = {
             "browser": None,
+            "context": None,
             "context_options": {},
             "fingerprint_mode": "desktop",
             "fallback_reason": "",
             "validation_reason_codes": [],
-            "fingerprint_injection_script": "",
+            "is_persistent_context": False,
         }
 
         # Desktop path: Camoufox only.
@@ -851,7 +422,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             await asyncio.sleep(delay)
             return setup_result
 
-        # Mobile path: Playwright browser engine + fingerprinted context options.
+        # Mobile path: Patchright persistent context + BrowserForge fingerprint.
         browser_family = MOBILE_HEADER_BROWSER
         mobile_os = MOBILE_HEADER_OS
         target_domain = _extract_target_domain_from_config(config)
@@ -993,38 +564,38 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             return setup_result
 
         fp_summary = get_fingerprint_summary(fingerprint)
-        if MOBILE_FINGERPRINT_ADVANCED_OVERRIDE_ENABLED:
-            context_opts = dict(context_opts)
 
+        # Apply geoip overrides to context options.
         if geoip_data:
             if geoip_data.get("locale"):
                 context_opts["locale"] = geoip_data["locale"]
             if geoip_data.get("timezone"):
                 context_opts["timezone_id"] = geoip_data["timezone"]
             accept_lang = geoip_data.get("locale", "en-US")
-            context_opts["extra_http_headers"] = context_opts.get(
-                "extra_http_headers", {}
-            )
+            context_opts.setdefault("extra_http_headers", {})
             context_opts["extra_http_headers"]["Accept-Language"] = accept_lang
+        else:
+            print(
+                f"Worker {worker_id}: WARNING - No geoip data available. "
+                f"Timezone will not match proxy IP (detection risk)."
+            )
 
-        browser, stealth, stealth_kwargs = await _launch_mobile_playwright_browser(
+        # Launch patchright persistent context.
+        context, pw = await _launch_mobile_patchright_context(
             headless_mode=headless,
             proxy_cfg=proxy_cfg,
-            browser_family=browser_family,
             worker_id=worker_id,
-            geoip_data=geoip_data,
+            context_options=context_opts,
         )
         delay = get_random_delay_fn()
         await asyncio.sleep(delay)
-        setup_result["browser"] = browser
-        setup_result["stealth"] = stealth
-        setup_result["stealth_kwargs"] = stealth_kwargs
+
+        setup_result["context"] = context
         setup_result["context_options"] = context_opts
         setup_result["fingerprint_mode"] = "mobile"
         setup_result["geoip_data"] = geoip_data
-        setup_result["fingerprint_injection_script"] = (
-            build_mobile_fingerprint_injection_script(fingerprint, geoip_data)
-        )
+        setup_result["is_persistent_context"] = True
+
         emit_mobile_fingerprint_event(
             worker_id=worker_id,
             event_type="mobile_context_ready",
@@ -1035,7 +606,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             **fp_summary,
         )
         print(
-            f"Worker {worker_id}: Mobile fingerprint mode activated with playwright-stealth"
+            f"Worker {worker_id}: Mobile session activated with patchright (channel=chrome)"
         )
         return setup_result
 
@@ -1044,41 +615,41 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
         return None
 
 
-async def cleanup_browser(browser, worker_id: int):
-    """Clean up browser contexts and close the browser."""
+async def cleanup_browser(browser, worker_id: int, context=None):
+    """Clean up browser contexts and close the browser.
+
+    For desktop (Camoufox): closes contexts then browser.
+    For mobile (Patchright): closes persistent context then stops playwright.
+    """
     try:
+        # Patchright persistent context path.
+        if context is not None:
+            pw = _PATCHRIGHT_MANAGERS.pop(id(context), None)
+            try:
+                await context.close()
+            except Exception:
+                pass
+            if pw:
+                try:
+                    await pw.stop()
+                except Exception:
+                    pass
+            return
+
+        # Camoufox desktop path.
         if not browser:
             return
 
-        for context in browser.contexts:
+        for ctx in browser.contexts:
             try:
-                await context.close()
-            except:
+                await ctx.close()
+            except Exception:
                 pass
 
         try:
             await browser.close()
-        except:
+        except Exception:
             pass
-
-        manager_data = _PLAYWRIGHT_MANAGERS.pop(id(browser), None)
-        if manager_data:
-            try:
-                stealth_context = None
-                pw = None
-                if isinstance(manager_data, tuple):
-                    if len(manager_data) >= 1:
-                        pw = manager_data[0]
-                    if len(manager_data) >= 2:
-                        stealth_context = manager_data[1]
-                else:
-                    pw = manager_data
-                if stealth_context:
-                    await stealth_context.__aexit__(None, None, None)
-                if pw:
-                    await pw.stop()
-            except:
-                pass
 
     except Exception as e:
         print(f"Worker {worker_id}: Error during browser cleanup: {str(e)}")

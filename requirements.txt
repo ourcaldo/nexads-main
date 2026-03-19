@@ -10,9 +10,9 @@ pynput
 humanize
 setuptools
 playwright
+patchright
 urllib3<3
 chardet<5
 oxymouse
-humantyping[playwright]
+humantyping
 aiohttp
-playwright-stealth
