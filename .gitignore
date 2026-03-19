@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+.venv-1/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Proxy credentials
+proxy.txt
+socks5.txt
+
+# Runtime data
+data/*.jsonl
+
+# Temp profiles
+nexads_mobile_*/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

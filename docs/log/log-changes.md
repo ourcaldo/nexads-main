@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T11:15:00-07:00
+- Short description: Fix persistent context compatibility and harden mobile stealth
+- What you do: Fixed page.context.browser crash on persistent context by setting browser=context for mobile in worker.py and using fallback in urls.py. Added WebRTC IP leak prevention args for proxy sessions. Added temp profile dir cleanup in cleanup_browser via shutil.rmtree. Removed unused deps (selenium, undetected-chromedriver, keyboard, pynput, humanize) from requirements.txt. Added .gitignore. Deduplicated SessionFailedException (worker.py now imports from automation.py). Updated urls.py to import SessionFailedException from canonical source.
+- File path that changes: app/browser/setup.py; app/core/worker.py; app/navigation/urls.py; requirements.txt; .gitignore; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T10:30:00-07:00
 - Short description: Merge copilot instructions into AGENTS.md
 - What you do: Copied git commit scope rules, change log rules, planning rule, and project-specific notes from .github/copilot-instructions.md into AGENTS.md so all agent instructions are in one place.

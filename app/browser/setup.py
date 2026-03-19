@@ -7,6 +7,7 @@ Mobile: Patchright (undetected Chromium via persistent context).
 
 import random
 import asyncio
+import shutil
 import tempfile
 from typing import Optional, Dict, List
 from urllib.parse import urlparse
@@ -30,8 +31,9 @@ MOBILE_FINGERPRINT_TIMEOUT_MS = 5000
 MOBILE_HEADER_BROWSER = "chrome"
 MOBILE_HEADER_OS = "android"
 
-# Track patchright playwright instances for cleanup.
-_PATCHRIGHT_MANAGERS: Dict[int, object] = {}
+# Track patchright playwright instances and temp dirs for cleanup.
+# Maps context id -> (pw_instance, user_data_dir)
+_PATCHRIGHT_MANAGERS: Dict[int, tuple] = {}
 
 
 def _fp_get(obj, key: str, default=None):
@@ -238,8 +240,10 @@ async def _launch_mobile_patchright_context(
 
     pw = await async_playwright().start()
 
+    user_data_dir = tempfile.mkdtemp(prefix="nexads_mobile_")
+
     launch_kwargs = {
-        "user_data_dir": tempfile.mkdtemp(prefix="nexads_mobile_"),
+        "user_data_dir": user_data_dir,
         "channel": "chrome",
         "headless": False if headless_mode is False else True,
         "no_viewport": False,
@@ -260,11 +264,16 @@ async def _launch_mobile_patchright_context(
 
     if proxy_cfg:
         launch_kwargs["proxy"] = proxy_cfg
+        # Prevent WebRTC from leaking real IP when using proxy.
+        launch_kwargs["args"] = [
+            "--webrtc-ip-handling-policy=disable_non_proxied_udp",
+            "--enforce-webrtc-ip-permission-check",
+        ]
 
     context = await pw.chromium.launch_persistent_context(**launch_kwargs)
 
-    # Track for cleanup.
-    _PATCHRIGHT_MANAGERS[id(context)] = pw
+    # Track pw instance and temp dir for cleanup.
+    _PATCHRIGHT_MANAGERS[id(context)] = (pw, user_data_dir)
 
     return context, pw
 
@@ -624,7 +633,13 @@ async def cleanup_browser(browser, worker_id: int, context=None):
     try:
         # Patchright persistent context path.
         if context is not None:
-            pw = _PATCHRIGHT_MANAGERS.pop(id(context), None)
+            manager_data = _PATCHRIGHT_MANAGERS.pop(id(context), None)
+            pw = None
+            user_data_dir = None
+            if isinstance(manager_data, tuple):
+                pw = manager_data[0]
+                user_data_dir = manager_data[1] if len(manager_data) > 1 else None
+
             try:
                 await context.close()
             except Exception:
@@ -632,6 +647,12 @@ async def cleanup_browser(browser, worker_id: int, context=None):
             if pw:
                 try:
                     await pw.stop()
+                except Exception:
+                    pass
+            # Delete temp profile directory.
+            if user_data_dir:
+                try:
+                    shutil.rmtree(user_data_dir, ignore_errors=True)
                 except Exception:
                     pass
             return

@@ -47,10 +47,7 @@ class WorkerContext:
     successful_ads_sessions: object  # multiprocessing.Manager dict proxy
 
 
-class SessionFailedException(Exception):
-    """Raised when a session cannot continue."""
-
-    pass
+from app.core.automation import SessionFailedException
 
 
 async def worker_session(ctx: WorkerContext, worker_id: int):
@@ -308,7 +305,10 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
                 if is_persistent_context:
                     # Patchright mobile: persistent context already created.
+                    # Set browser = context so downstream code (ensure_correct_tab,
+                    # activities, urls) can use it as the top-level object.
                     context = browser_setup.get("context")
+                    browser = context
                     pages = context.pages
                     page = pages[0] if pages else await context.new_page()
                     print(
