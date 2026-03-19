@@ -389,7 +389,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                     ad_stay = int(round(lognormal_seconds(
                                         (min_ads + max_ads) / 2, 0.5, min_ads, max_ads
                                     )))
-                                ad_stay = max(3, min(ad_stay, 30))
                                 print(f"Worker {worker_id}: Staying on same-tab ad landing for {ad_stay}s")
                                 await asyncio.sleep(ad_stay)
 

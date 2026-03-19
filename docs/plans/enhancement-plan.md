@@ -6,7 +6,7 @@
 | 15 | Multi-Network Ad Detection (Beyond AdSense) | Not Started | Runtime is still primarily AdSense/Google-family focused. |
 | 16 | GDPR Consent Failure: Click Interception Handling | Implemented | Universal consent handling and interception-aware fallback flow are active. |
 | 17 | Redirect-Resilient Navigation Guard | Implemented | NavigationIntent, intent-aware matching, reason codes, and per-intent redirect budgets are active. |
-| 18 | Same-Tab Ad Landing Policy Controls | In Progress | Same-tab handling exists; configurable policy keys and strategy modes are not fully wired yet. |
+| 18 | Same-Tab Ad Landing Handling (Keep It Simple) | Implemented | Same-tab/new-tab detection is automatic, and same-tab dwell uses existing ads min/max settings without new config keys. |
 | 19 | Step-Level Crash and Failure Telemetry | Not Started | Structured event emitter and step-level schema are not yet implemented. |
 | 20 | Prioritized Next Sprint Checklist | In Progress | Several prerequisites are in place, but checklist deliverables are not fully complete yet. |
 
@@ -267,42 +267,32 @@ Build a small navigation state machine that tracks expected destination intent p
 
 ---
 
-## 18. Same-Tab Ad Landing Policy Controls
+## 18. Same-Tab Ad Landing Handling (Keep It Simple)
 
 ### Why this is needed
 
-Same-tab ad landings are common, but fixed dwell/return policy is too rigid for different campaign behavior.
+Same-tab ad landings are common, and should be handled automatically without introducing unnecessary config complexity.
 
 ### Objective
 
-Add explicit config controls for same-tab ad behavior.
-
-### Proposed config keys
-
-Under ads:
-- same_tab_enabled: true|false
-- same_tab_dwell_min: seconds
-- same_tab_dwell_max: seconds
-- same_tab_return_strategy: direct_goto|back_then_goto|new_tab_restore
-- same_tab_return_timeout: seconds
+Keep detection and dwell policy simple:
+- detect same-tab vs new-tab outcomes from runtime behavior,
+- reuse existing `ads.min_time` and `ads.max_time` for ad dwell,
+- avoid adding separate same-tab config unless proven necessary.
 
 ### Implementation approach
 
-1. Replace hardcoded same-tab dwell clamp with config-driven bounds.
-2. Implement back_then_goto fallback:
-- attempt page.go_back when history exists,
-- verify target domain,
-- fallback to page.goto(target).
-3. Add explicit logs:
-- same_tab_ad_started
-- same_tab_ad_dwell_completed
-- same_tab_return_success|failed.
+1. Detect navigation outcome from tab/page state after ad click.
+2. For same-tab ad landings, calculate dwell time from existing `ads.min_time` and `ads.max_time`.
+3. Return to target URL using current recovery guard path and keep existing logs.
+4. Defer extra same-tab-specific config unless recurring real-world failures justify it.
 
 ### Acceptance criteria
 
-1. Same-tab ad dwell and return strategy are fully configurable.
-2. Return path success/failure is visible in logs and metrics.
-3. Existing defaults preserve current behavior when keys are absent.
+1. Same-tab/new-tab outcomes are auto-detected reliably.
+2. Same-tab ad dwell uses existing ads min/max settings (no hardcoded override window).
+3. Return path success/failure remains visible in logs.
+4. No extra same-tab config keys are required for normal operation.
 
 ---
 
@@ -351,7 +341,7 @@ Emit a lightweight structured event record for every major worker step.
 
 ## 20. Prioritized Next Sprint Checklist
 
-1. P0: Configurable same-tab ad policy (Section 18).
+1. P0: Keep same-tab handling simple and aligned with existing ads min/max (Section 18).
 2. P0: Step-level telemetry with failure reason codes (Section 19).
 3. P1: Intent-aware redirect guard and redirect budgets (Section 17).
 4. P1: Add session-end counters:
