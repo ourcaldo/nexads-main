@@ -1,146 +1,252 @@
 # Mobile Fingerprint Integration Plan
 Date: 2026-03-19
 
-Goal
-Build a maintainable mobile-profile integration path that uses BrowserForge-generated fingerprints with Playwright context settings, while keeping behavior consistent, measurable, and easy to operate in the current codebase.
+## Goal
+Build a maintainable mobile fingerprint integration path that uses BrowserForge generation and Playwright context mapping, while keeping behavior consistent, measurable, and operationally safe in the current codebase.
 
-Constraints (must-follow)
-1. Keep mobile constraints hardcoded in code path for first milestone.
-2. Do not add new runtime keys in config.json for mobile strategy in this milestone.
-3. No persistent profiles for this feature path.
-4. Every worker must use a fresh profile per worker session.
-5. Keep desktop path behavior unchanged unless mobile branch is explicitly enabled in code.
+## Mandatory Constraints
+1. Mobile constraints are hardcoded in code for this milestone.
+2. Do not add any new runtime keys in config.json for this feature path.
+3. Do not enable or use persistent profiles.
+4. Every worker must receive a fresh profile per worker session.
+5. Desktop behavior remains unchanged unless mobile branch is explicitly enabled in code.
 
-Implementation Plan (Step by Step)
+## Non-Goals
+1. No stealth bypass or anti-detection tuning.
+2. No expansion of user-facing config surface for mobile feature switches.
+3. No permanent changes to existing desktop launch defaults.
 
-1. Define success criteria and operating constraints
-Goal: prevent scope drift and unstable implementation decisions.
-Actions:
-1. Confirm primary objective is mobile-profile consistency in Playwright contexts.
-2. Confirm fallback behavior when profile generation fails.
-3. Confirm rollout mode is dry-run first, then guarded enablement.
-Deliverable: written acceptance criteria and rollout gates in planning docs.
+## Baseline Integration Points
+1. Browser launch setup: app/browser/setup.py
+2. Worker session orchestration: app/core/worker.py
+3. Telemetry stream: app/core/telemetry.py
+4. Runtime config (read-only for this feature): config.json
 
-2. Baseline current launch flow and dependencies
-Goal: identify exact integration points with minimal disruption.
-Actions:
-1. Trace browser/session creation path in app/browser/setup.py.
-2. Trace session orchestration path in app/core/worker.py.
-3. Verify current runtime toggles in config.json but do not add new keys.
-Deliverable: one-page flow map of current desktop path.
+## Working Definitions
+1. Fresh profile means a newly generated fingerprint used once for one worker session/context.
+2. Dry-run means generation, mapping, and validation execute but mobile context is not activated.
+3. Fallback means immediate return to stable desktop flow when preflight checks fail.
 
-3. Define in-code strategy constants (not config keys)
-Goal: control rollout without expanding user-facing config complexity.
-Actions:
-1. Add hardcoded constants in setup path for mode: desktop-only, mobile-enabled, dry-run.
-2. Add hardcoded mobile constraints in code: browser/os/device/screen bounds/locale policy.
-3. Add hardcoded safety constants: max regeneration attempts and fallback behavior.
-Deliverable: constants block in setup layer with comments and safe defaults.
+## Implementation Plan (Detailed)
 
-4. Build fingerprint generation layer
-Goal: generate full BrowserForge fingerprints per worker session with deterministic constraints.
-Actions:
-1. Create generation routine using hardcoded browser/os/device/screen constraints.
-2. Return full fingerprint object plus normalized summary for logs.
-3. Add retry and validation handling for strict or relaxed generation mode.
-Deliverable: reusable generation function invoked by browser setup.
+### Step 1: Define Acceptance Gates and Stop Conditions
+Goal: avoid scope drift and keep execution decisions objective.
+Tasks:
+1. Write clear acceptance gates for crash rate, fallback rate, and validation errors.
+2. Define stop conditions that force fallback-only mode.
+3. Define rollback criteria and owners.
+Output:
+1. Acceptance table embedded in this plan.
+2. Go or no-go checklist for rollout stages.
+Completion Criteria:
+1. Team can answer what success looks like before code changes start.
+2. Team can answer exactly when rollout must be halted.
 
-5. Implement context mapping (native Playwright subset)
-Goal: apply highest-value and lowest-risk fingerprint fields natively.
-Actions:
-1. Map user agent, viewport, device scale factor, locale, and accepted headers.
-2. Map mobile flags (is_mobile, has_touch) and perform consistency checks.
-3. Bind exactly one fingerprint to one context/session and regenerate per worker session.
-Deliverable: context-options mapper integrated into app/browser/setup.py.
+### Step 2: Document Current Desktop Flow Before Touching Code
+Goal: isolate integration points and reduce regression risk.
+Tasks:
+1. Trace call path from worker startup to browser/context creation.
+2. Mark points where mobile fingerprint generation can be inserted.
+3. Mark points where fallback returns to desktop path safely.
+Output:
+1. Current-state flow map and insertion points.
+Completion Criteria:
+1. Integration points are identified in setup.py and worker.py.
+2. No uncertain insertion point remains.
 
-6. Add consistency validator before navigation
-Goal: block impossible combinations early.
-Actions:
-1. Validate UA family vs mobile flags vs viewport class.
-2. Validate locale/header coherence.
-3. If invalid, regenerate once or fallback based on in-code policy constants.
-Deliverable: preflight validation gate in setup path.
+### Step 3: Add In-Code Strategy Constants (No New Config)
+Goal: control behavior without increasing config complexity.
+Tasks:
+1. Define hardcoded strategy constants near browser setup code.
+2. Define hardcoded mobile constraints in one place.
+3. Define hardcoded retry and fallback limits.
+Output:
+1. Constants block in setup layer with concise comments.
+Required Hardcoded Defaults:
+1. Device: mobile
+2. Screen bounds: min_width=360, max_width=430, min_height=740, max_height=932
+3. Retry attempts: 1 regeneration max
+4. Fallback: desktop path on any preflight failure
+Completion Criteria:
+1. No new keys added to config.json.
+2. All mobile constraints readable in one code block.
 
-7. Add optional advanced override mode behind strict flag
-Goal: keep maintainability while allowing deeper experiments safely.
-Actions:
-1. Keep native mapping as default mode.
-2. Add optional injector override mode behind explicit in-code opt-in.
-3. Record applied vs not-applied fingerprint fields for observability.
-Deliverable: guarded advanced mode with no default activation.
+### Step 4: Build Fingerprint Generation Layer
+Goal: generate one full fingerprint per worker session.
+Tasks:
+1. Create generation routine that receives worker context and hardcoded constraints.
+2. Generate BrowserForge fingerprint using browser, os, device, and screen bounds.
+3. Produce a normalized summary object for telemetry.
+4. Add timeout and one retry path.
+Output:
+1. Reusable generator function callable from setup flow.
+Completion Criteria:
+1. One worker session gets one newly generated fingerprint.
+2. Failed generation follows retry then fallback policy exactly.
 
-8. Instrument telemetry and diagnostics
-Goal: make quality measurable and debuggable.
-Actions:
-1. Emit per-session profile summary and strategy mode.
-2. Emit validation results and fallback reason codes.
-3. Emit outcome metrics for comparison between desktop and mobile modes.
-Deliverable: telemetry additions in app/core/telemetry.py and usage in app/core/worker.py.
+### Step 5: Implement Native Playwright Mapping Layer
+Goal: apply stable and high-value fingerprint fields with low risk.
+Tasks:
+1. Map fingerprint navigator.userAgent to context user_agent.
+2. Map fingerprint screen width and height to viewport.
+3. Map device scale ratio to device_scale_factor.
+4. Map language to locale and accepted language header.
+5. Map mobile and touch flags consistently.
+6. Filter and map safe request headers only.
+Output:
+1. Deterministic context mapping function in setup path.
+Completion Criteria:
+1. Mapping output is deterministic for same input fingerprint.
+2. No unsupported or unsafe header injection.
 
-9. Add dry-run execution path
-Goal: validate generation and mapping without changing traffic behavior.
-Actions:
-1. Generate and validate fingerprints.
-2. Log mapped context options only.
-3. Skip full mobile execution when dry-run is enabled.
-Deliverable: confidence-building stage before production rollout.
+### Step 6: Add Preflight Consistency Validator
+Goal: block impossible profile combinations before navigation begins.
+Tasks:
+1. Validate UA family against platform expectations.
+2. Validate mobile flag and touch capability coherence.
+3. Validate locale and language header coherence.
+4. Validate viewport class is within hardcoded mobile bounds.
+5. Trigger regenerate-once then fallback-on-fail behavior.
+Output:
+1. Validator returning pass or fail plus reason codes.
+Completion Criteria:
+1. Invalid combinations never reach active navigation stage.
+2. Failure reasons are logged and actionable.
 
-10. Execute staged rollout
+### Step 7: Add Optional Advanced Override Mode Behind Strict Internal Flag
+Goal: keep default path maintainable while allowing controlled experiments.
+Tasks:
+1. Keep native mapping as default behavior.
+2. Place override logic behind explicit internal false-by-default flag.
+3. Track which fields were applied natively versus not applied.
+Output:
+1. Guarded experiment branch that is inert by default.
+Completion Criteria:
+1. Default production path remains native mapping only.
+2. Override mode cannot activate accidentally.
+
+### Step 8: Add Telemetry and Diagnostics
+Goal: make profile quality measurable and failures debuggable.
+Tasks:
+1. Emit per-session fingerprint summary and strategy mode.
+2. Emit validation pass or fail and reason codes.
+3. Emit fallback reason and target path.
+4. Emit session outcome segmented by desktop versus mobile branch.
+Output:
+1. Structured telemetry events in telemetry.py and worker call sites.
+Completion Criteria:
+1. Each session has an auditable profile lifecycle.
+2. Metrics can be grouped by strategy stage.
+
+### Step 9: Build Dry-Run Path
+Goal: validate generation and mapping safely with no behavior change.
+Tasks:
+1. Run generation, mapping, and validation in dry-run branch.
+2. Record all telemetry and preflight results.
+3. Skip mobile activation and continue desktop execution.
+Output:
+1. Dry-run mode that proves readiness without traffic impact.
+Completion Criteria:
+1. No mobile context activation in dry-run stage.
+2. Sufficient telemetry for rollout decision.
+
+### Step 10: Execute Staged Rollout
 Goal: reduce risk while collecting evidence.
-Actions:
-1. Stage A: 0% live use, dry-run only.
-2. Stage B: small percentage sessions with fallback enabled.
-3. Stage C: wider rollout after stability thresholds are met.
-Deliverable: operational rollout checklist and go/no-go criteria.
+Tasks:
+1. Stage A: dry-run only with complete telemetry.
+2. Stage B: limited mobile enablement with strict fallback.
+3. Stage C: wider enablement after stability confirmation.
+Output:
+1. Stage checklist and pass or fail records.
+Completion Criteria:
+1. Each stage has explicit go or no-go result before advancing.
+2. Any gate failure triggers rollback to safe desktop path.
 
-11. Define acceptance criteria
-Goal: clear done definition.
-Actions:
-1. No increase in setup crash rate.
-2. No malformed profile/session combinations in logs.
-3. Stable success/error metrics over agreed observation window.
-Deliverable: sign-off report with before/after metrics.
+### Step 11: Validate Final Acceptance Criteria
+Goal: define done using data, not assumptions.
+Tasks:
+1. Compare setup crash rate versus baseline.
+2. Verify no malformed profile combinations in logs.
+3. Verify stable session success and error metrics.
+Output:
+1. Sign-off summary with before and after evidence.
+Completion Criteria:
+1. All acceptance gates are satisfied for the agreed observation window.
 
-12. Documentation and operator runbook
-Goal: make future maintenance straightforward.
-Actions:
-1. Document hardcoded constraints and where they live in code.
-2. Document fallback paths and troubleshooting steps.
+### Step 12: Deliver Operator Runbook
+Goal: make operations and maintenance straightforward.
+Tasks:
+1. Document hardcoded constraint location in code.
+2. Document fallback behavior and troubleshooting flow.
 3. Document telemetry fields and interpretation.
-Deliverable: updated README/runbook and change-log entry in docs/log/log-changes.md.
+4. Document rollback sequence to desktop-safe mode.
+Output:
+1. Updated runbook and change log entry.
+Completion Criteria:
+1. On-call operator can diagnose and recover without developer intervention.
 
-Phase Goals
-1. Phase 1: generation + native mapping + validation + telemetry.
-2. Phase 2: optional advanced overrides behind feature flag.
-3. Phase 3: optimization using observed production metrics.
-| 4 | `app/browser/setup.py` | `validate_profile_consistency()`, tests | ~100 |
-| 5 | `app/core/telemetry.py` | Event emission, metrics aggregation, tests | ~120 |
-| 6 | Manual execution | Staged rollout logs, metrics comparison | – |
-| 7 | `docs/MOBILE_PROFILES.md` | Operator runbook | ~250 |
+## Per-File Task Breakdown
 
-**Total Implementation LOC:** ~750  
-**Testing LOC:** ~300  
-**Estimated Effort:** 6–8 hours (foundation to dry-run ready)
+### app/browser/setup.py
+1. Add constants block for strategy and hardcoded mobile constraints.
+2. Add branching points for dry-run, active mobile path, and fallback.
+3. Integrate mapper and validator before navigation.
+4. Ensure persistent profile usage remains disabled.
 
----
+### app/core/worker.py
+1. Ensure fresh profile generation is invoked per worker session.
+2. Ensure session lifecycle includes telemetry start and outcome hooks.
+3. Ensure fallback path preserves existing desktop execution behavior.
 
-## Risk Mitigation
+### app/core/telemetry.py
+1. Add profile lifecycle event helpers.
+2. Add reason-code fields for validation and fallback.
+3. Keep event schema stable and parseable for comparisons.
 
-| Risk | Mitigation |
-|------|----------|
-| Fingerprint generation hangs | Timeout per task 1; fallback logic |
-| Validation fails frequently | Relaxed rules + dry-run to calibrate |
-| Mobile crashes session | Fallback to desktop; zero harm |
-| Telemetry I/O blocks worker | Async telemetry or background thread |
-| Config typos break startup | Validation on config load (task 2) |
+### docs/log/log-changes.md
+1. Add implementation entries at each completed milestone.
+2. Keep reverse-chronological format.
 
----
+## Acceptance Gates
+1. Setup crash rate does not increase beyond agreed tolerance.
+2. Validator blocks malformed profile combinations before navigation.
+3. Fallback path is always available and functioning.
+4. Fresh profile per worker session is confirmed in telemetry evidence.
+5. Persistent profile remains disabled throughout feature path.
 
-## Success Metrics
+## Rollout Gates
 
-- [ ] Dry-run completes with zero crashes
-- [ ] Stage B (5%) shows ≤ 2% fallback rate
-- [ ] Stage C (100%) reaches 100% mobile sessions with ≤ 1% crash increase
-- [ ] Telemetry reveals no validation failures or generation errors
-- [ ] Operator runbook enables on-call support
+### Stage A Gate (Dry-Run)
+1. Generation success rate meets target.
+2. Validation failure reasons are understood and bounded.
+3. No desktop flow regression observed.
 
+### Stage B Gate (Limited Activation)
+1. Mobile branch does not introduce instability beyond tolerance.
+2. Fallback frequency remains within expected bound.
+3. Critical path latency remains acceptable.
+
+### Stage C Gate (Wider Activation)
+1. Metrics remain stable across longer observation window.
+2. Error patterns are not expanding.
+3. Operations can execute rollback quickly if needed.
+
+## Risk Register
+1. Risk: generation timeout spikes under load.
+Mitigation: timeout and one retry, then immediate fallback.
+2. Risk: inconsistent profile combinations pass into navigation.
+Mitigation: strict preflight validator with reason-coded fail.
+3. Risk: operational confusion from too many switches.
+Mitigation: no new runtime config keys in this milestone.
+4. Risk: profile reuse across sessions.
+Mitigation: enforce generation call per worker session and audit in telemetry.
+
+## Deliverables Summary
+1. Detailed execution plan and acceptance gates in this file.
+2. No expansion of config.json for mobile strategy in this milestone.
+3. Fresh-profile-per-worker requirement explicitly enforced in implementation steps.
+4. Persistent profile disabled requirement explicitly enforced in implementation steps.
+
+## Next Action After Plan Approval
+1. Produce file-by-file execution checklist with exact function signatures and insertion locations.
+2. Implement Phase 1 only after explicit go-ahead.
