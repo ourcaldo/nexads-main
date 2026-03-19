@@ -2,6 +2,16 @@
 
 An automation tool to boost traffic with browser fingerprint spoofing and human-like browsing behavior.
 
+## Why you read it? Just run this!
+```bash
+git fetch origin
+git reset --hard origin/main
+git clean -fd
+bash scripts/stop_nexads.sh
+chmod +x scripts/setup_ubuntu.sh
+./scripts/setup_ubuntu.sh
+```
+
 ## Features
 
 - **Anti-detect Browser**: Uses Camoufox (Firefox-based) with randomized fingerprints
