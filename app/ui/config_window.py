@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, QVB
                             QGroupBox, QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox, 
                             QSpinBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, 
                             QFileDialog, QDoubleSpinBox, QRadioButton, QButtonGroup, QAction, 
-                            QMessageBox, QSlider, QFrame)
+                            QMessageBox, QSlider, QFrame, QScrollArea)
 from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QPalette, QColor, QKeySequence, QFont
 
@@ -285,9 +285,9 @@ class ConfigWindow(QMainWindow):
         self.tabs.setDocumentMode(True)
         
         # Create tabs
-        self.general_tab = self.create_general_tab()
-        self.url_tab = self.create_url_tab()
-        self.ads_tab = self.create_ads_tab()
+        self.general_tab = self.wrap_in_scroll_area(self.create_general_tab())
+        self.url_tab = self.wrap_in_scroll_area(self.create_url_tab())
+        self.ads_tab = self.wrap_in_scroll_area(self.create_ads_tab())
         
         # Add tabs to main widget
         self.tabs.addTab(self.general_tab, "General Settings")
@@ -310,6 +310,16 @@ class ConfigWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
+
+    def wrap_in_scroll_area(self, content_widget: QWidget):
+        """Wrap a tab content widget in a scroll area so content is never clipped."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setWidget(content_widget)
+        return scroll
 
     def create_general_tab(self):
         """Create the General Settings tab."""
@@ -543,6 +553,8 @@ class ConfigWindow(QMainWindow):
         # Add columns to main layout
         layout.addLayout(left_col, 40)   # 40% width
         layout.addLayout(right_col, 60)  # 60% width
+        left_col.addStretch(1)
+        right_col.addStretch(1)
         tab.setLayout(layout)
         
         # Update activity options visibility

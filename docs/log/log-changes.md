@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T07:58:22-07:00
+- Short description: Prevent hidden settings via scrollable tab containers
+- What you do: Added scroll-area wrappers for all configuration tabs and vertical stretch balancing in general settings columns so sections like Session Settings remain accessible even when content exceeds viewport height.
+- File path that changes: app/ui/config_window.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T07:56:37-07:00
 - Short description: Rebalance GUI sizing proportions to avoid overlap
 - What you do: Normalized typography and control sizing across tabs/groups/inputs/buttons, reduced oversized tab and button dimensions, removed the large dashboard header/subtitle block, and tightened layout spacing so large elements no longer crowd smaller controls.
