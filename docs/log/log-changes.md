@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T12:15:00-07:00
+- Short description: Refactor browser module into separate files per engine
+- What you do: Split setup.py (680 lines) into four focused modules. Created proxy.py for proxy parsing/resolution. Created desktop.py for Camoufox launch/cleanup. Expanded mobile.py to include patchright launch/cleanup, fingerprint mapping, and validation (merged from setup.py). Slimmed setup.py to thin orchestrator (69 lines) that delegates to desktop or mobile. Removed duplicate _fp_get from setup.py (consolidated in mobile.py). Removed unused _header_get.
+- File path that changes: app/browser/setup.py; app/browser/proxy.py; app/browser/desktop.py; app/browser/mobile.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T11:45:00-07:00
 - Short description: Add DNS-over-HTTPS to prevent DNS leak on mobile sessions
 - What you do: Added --dns-over-https-templates and --dns-over-https-mode=secure Chrome flags to force DNS through Cloudflare DoH when proxy is configured, bypassing local ISP DNS resolver that caused the -3% DNS leak detection.
