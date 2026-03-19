@@ -307,19 +307,72 @@ def build_mobile_environment_script(fingerprint: dict) -> str:
 }})();"""
 
 
+def build_webgl_override_script(fingerprint: dict) -> str:
+    """Build inline <script> tag that overrides WebGL renderer in the main world.
+
+    This must be injected via HTML response interception (route handler)
+    because patchright isolates all add_init_script and CDP scripts.
+    Injecting as page HTML runs in the main world where detection scripts read WebGL.
+    """
+    import json
+    video_card = fingerprint.get("videoCard", {})
+    vendor = video_card.get("vendor", "Google Inc. (ARM)")
+    renderer = video_card.get("renderer", "ANGLE (ARM, Mali-G78, OpenGL ES 3.2)")
+
+    return f"""<script>(function(){{var o=WebGLRenderingContext.prototype.getParameter;WebGLRenderingContext.prototype.getParameter=function(p){{if(p===37445)return {json.dumps(vendor)};if(p===37446)return {json.dumps(renderer)};return o.call(this,p)}};if(typeof WebGL2RenderingContext!=='undefined'){{var o2=WebGL2RenderingContext.prototype.getParameter;WebGL2RenderingContext.prototype.getParameter=function(p){{if(p===37445)return {json.dumps(vendor)};if(p===37446)return {json.dumps(renderer)};return o2.call(this,p)}}}}}})();</script>"""
+
+
+async def setup_webgl_route_handler(context, fingerprint: dict):
+    """Install a route handler that injects WebGL overrides into HTML responses.
+
+    This is the only reliable way to run code in the main world with patchright,
+    since add_init_script and CDP scripts all run in isolated contexts.
+    """
+    webgl_script = build_webgl_override_script(fingerprint)
+
+    async def _inject_webgl(route):
+        try:
+            response = await route.fetch()
+            content_type = response.headers.get("content-type", "")
+            if "text/html" in content_type:
+                body = await response.text()
+                import re
+                # Inject before any other script in <head>.
+                body = re.sub(
+                    r"(<head[^>]*>)",
+                    r"\1" + webgl_script,
+                    body,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+                await route.fulfill(response=response, body=body)
+            else:
+                await route.fulfill(response=response)
+        except Exception:
+            try:
+                await route.continue_()
+            except Exception:
+                pass
+
+    await context.route("**/*", _inject_webgl)
+
+
 def _transform_ua_to_mobile(real_ua: str) -> str:
     """Transform a real desktop Chrome UA string into a mobile Android UA.
 
     Keeps the real Chrome version to avoid version mismatch detection.
-    Only swaps the OS portion: 'Windows NT 10.0; Win64; x64' -> 'Linux; Android 10; K'
+    Swaps the OS portion for any platform (Windows, Linux, macOS).
     """
     import re
-    # Replace OS portion inside the first parentheses.
+    # Replace the OS portion inside the first parentheses for any platform.
     mobile_ua = re.sub(
-        r"\(Windows NT [^)]+\)",
+        r"\([^)]+\)",
         "(Linux; Android 10; K)",
         real_ua,
+        count=1,
     )
+    # Replace HeadlessChrome with Chrome.
+    mobile_ua = mobile_ua.replace("HeadlessChrome/", "Chrome/")
     # Ensure 'Mobile' is before 'Safari' if not already present.
     if "Mobile" not in mobile_ua and "Safari/" in mobile_ua:
         mobile_ua = mobile_ua.replace("Safari/", "Mobile Safari/")

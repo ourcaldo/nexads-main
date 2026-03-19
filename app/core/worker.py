@@ -315,12 +315,15 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         await context.add_init_script(env_script)
                     pages = context.pages
                     page = pages[0] if pages else await context.new_page()
-                    # Apply CDP overrides for protected navigator properties.
-                    # Read real UA first, then build overrides with correct version.
+                    # Apply mobile identity overrides (CDP + WebGL route).
                     mobile_fp = browser_setup.get("fingerprint")
                     if mobile_fp:
                         try:
-                            from app.browser.mobile import build_cdp_mobile_overrides
+                            from app.browser.mobile import (
+                                build_cdp_mobile_overrides,
+                                setup_webgl_route_handler,
+                            )
+                            # Read real UA, build CDP overrides with correct version.
                             real_ua = await page.evaluate(
                                 "() => navigator.userAgent",
                                 isolated_context=False,
@@ -337,9 +340,11 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 "Emulation.setTouchEmulationEnabled",
                                 cdp_overrides["touch"],
                             )
+                            # Install WebGL override via HTML injection route.
+                            await setup_webgl_route_handler(context, mobile_fp)
                         except Exception as cdp_err:
                             print(
-                                f"Worker {worker_id}: CDP override failed: {cdp_err}"
+                                f"Worker {worker_id}: Mobile identity override failed: {cdp_err}"
                             )
                     print(
                         f"Worker {worker_id}: Using patchright persistent context"

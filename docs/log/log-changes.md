@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T13:45:00-07:00
+- Short description: Add WebGL GPU override and fix UA transform for all OS platforms
+- What you do: Fixed UA transform regex to handle Linux/macOS/HeadlessChrome (not just Windows) for VPS deployment. Added WebGL renderer override via HTML response injection route handler — the only way to run code in the main world with patchright since add_init_script and CDP scripts run in isolated contexts. Uses BrowserForge videoCard vendor/renderer values to match mobile GPU identity. This fixes the 'Different operating systems' detection where WebGL revealed Windows GPU (Direct3D11) while claiming Android.
+- File path that changes: app/browser/mobile.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T13:15:00-07:00
 - Short description: Use real Chrome version in mobile UA to avoid version mismatch detection
 - What you do: Changed mobile UA strategy to read the real Chrome UA from the launched browser, then only swap the OS portion (Windows -> Android) while keeping the real Chrome version number. This avoids 'different browser version' detection where BrowserForge's UA had Chrome/138 but actual Chrome was /146. CDP overrides now built after launch with the real UA. Removed user_agent from context options (set via CDP instead).
