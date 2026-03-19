@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T06:07:43-07:00
+- Short description: Switch mobile generation to single-constraint HeaderGenerator flow
+- What you do: Reworked mobile identity generation to use one fixed BrowserForge HeaderGenerator constraint set (chrome/android/mobile/en-US/http2), removed screen-bound dependency from mobile mapping/validation, and passed through full generated BrowserForge headers into context headers for broader and more natural output.
+- File path that changes: app/browser/mobile.py; app/browser/setup.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:56:02-07:00
 - Short description: Fix telemetry kwargs crash after mobile fingerprint generation
 - What you do: Expanded mobile fingerprint telemetry helper to accept and record locale/touch/client-hints fields plus future extra keyword fields, preventing runtime failures from unexpected telemetry arguments.

@@ -7,7 +7,7 @@ import asyncio
 import random
 from typing import Optional, Tuple, List
 
-from browserforge.fingerprints import FingerprintGenerator, Screen, Fingerprint
+from browserforge.headers import HeaderGenerator
 
 from app.core.telemetry import emit_mobile_fingerprint_event
 
@@ -45,22 +45,22 @@ async def generate_mobile_fingerprint(
     max_retries: int = 1,
     timeout_ms: int = 5000,
     retry_count: int = 0
-) -> Optional[Fingerprint]:
+) -> Optional[dict]:
     """
-    Generate a realistic mobile device fingerprint using BrowserForge.
+    Generate a broad mobile identity using BrowserForge HeaderGenerator.
     
     Args:
-        domain: Target domain (for future locale matching)
+        domain: Target domain (currently informational)
         browser_family: "chrome", "safari", "firefox", "edge"
         os: "android" or "ios"
-        screen_constraints: Dict with min_width, max_width, min_height, max_height
+        screen_constraints: Deprecated, ignored (kept for API compatibility)
         worker_id: Worker ID for logging
         max_retries: Maximum retry attempts after the first generation attempt
         timeout_ms: Timeout for generation in milliseconds
         retry_count: Internal retry counter (do not set)
     
     Returns:
-        Fingerprint dataclass (BrowserForge) or None on failure/fallback
+        Dict containing BrowserForge-generated headers and derived identity fields
     """
     try:
         retry_policy = 'regenerate_once'
@@ -73,35 +73,54 @@ async def generate_mobile_fingerprint(
             os=os
         )
         
-        # Create Screen constraint from config
-        screen = Screen(
-            min_width=screen_constraints.get('min_width', 360),
-            max_width=screen_constraints.get('max_width', 430),
-            min_height=screen_constraints.get('min_height', 740),
-            max_height=screen_constraints.get('max_height', 932)
+        # Generate headers with a single broad constraint set.
+        generator = HeaderGenerator(
+            browser=browser_family,
+            os=os,
+            device='mobile',
+            locale='en-US',
+            http_version=2,
         )
-        
-        # Generate fingerprint with timeout
-        generator = FingerprintGenerator()
         
         # Run generation in asyncio with timeout
         import time
         start_time = time.time()
-        fingerprint = await asyncio.wait_for(
-            asyncio.to_thread(
-                generator.generate,
-                browser=browser_family,
-                os=os,
-                device='mobile',
-                screen=screen
-            ),
-            timeout=timeout_ms / 1000.0
+        headers = await asyncio.wait_for(
+            asyncio.to_thread(generator.generate),
+            timeout=timeout_ms / 1000.0,
         )
         generation_ms = int((time.time() - start_time) * 1000)
+
+        if not isinstance(headers, dict):
+            headers = dict(headers or {})
+
+        normalized_headers = {
+            str(k): str(v)
+            for k, v in headers.items()
+            if k is not None and v is not None
+        }
+
+        ua_value = str(normalized_headers.get('User-Agent') or normalized_headers.get('user-agent') or '')
+        accept_language = str(
+            normalized_headers.get('Accept-Language') or
+            normalized_headers.get('accept-language') or
+            'en-US,en;q=0.9'
+        )
+        ua_lower = ua_value.lower()
+        platform_value = 'Linux armv8l' if 'android' in ua_lower else 'iPhone'
+        mobile_identity = {
+            'navigator': {
+                'userAgent': ua_value,
+                'platform': platform_value,
+                'language': accept_language.split(',')[0].strip() or 'en-US',
+                'maxTouchPoints': 5,
+            },
+            'headers': normalized_headers,
+            'browserforge_headers': normalized_headers,
+        }
         
         # Emit success event with profile summary
-        navigator = fingerprint.navigator if fingerprint else None
-        screen_data = fingerprint.screen if fingerprint else None
+        navigator = mobile_identity.get('navigator', {})
         ua_snippet = str(_fp_get(navigator, 'userAgent', 'N/A'))[:60]
         emit_mobile_fingerprint_event(
             worker_id=worker_id,
@@ -110,14 +129,13 @@ async def generate_mobile_fingerprint(
             os=os,
             ua_snippet=ua_snippet,
             platform=_fp_get(navigator, 'platform', 'N/A'),
-            viewport=f"{int(_fp_get(screen_data, 'width', 0))}x{int(_fp_get(screen_data, 'height', 0))}",
-            dpr=_fp_get(screen_data, 'devicePixelRatio', 1),
+            locale=_fp_get(navigator, 'language', 'en-US'),
             generation_ms=generation_ms
         )
         
         print(f"Worker {worker_id}: Mobile fingerprint generated ({browser_family}/{os}, "
               f"ua_snippet={ua_snippet}...)")
-        return fingerprint
+        return mobile_identity
         
     except asyncio.TimeoutError as e:
         print(f"Worker {worker_id}: Fingerprint generation timeout after {timeout_ms}ms (attempt {retry_count + 1})")
@@ -164,7 +182,7 @@ async def generate_mobile_fingerprint(
         return None
 
 
-def get_fingerprint_summary(fingerprint: Optional[Fingerprint]) -> dict:
+def get_fingerprint_summary(fingerprint: Optional[dict]) -> dict:
     """
     Extract summary fields from a BrowserForge fingerprint for logging/telemetry.
     
@@ -177,9 +195,8 @@ def get_fingerprint_summary(fingerprint: Optional[Fingerprint]) -> dict:
     if not fingerprint:
         return {}
     
-    navigator = fingerprint.navigator if fingerprint else None
-    screen = fingerprint.screen if fingerprint else None
-    headers = fingerprint.headers if fingerprint else None
+    navigator = (fingerprint or {}).get('navigator') if isinstance(fingerprint, dict) else None
+    headers = (fingerprint or {}).get('headers') if isinstance(fingerprint, dict) else None
     
     ua = str(_fp_get(navigator, 'userAgent', 'N/A'))
     ua_snippet = ua[:60] if ua else 'N/A'
@@ -194,8 +211,6 @@ def get_fingerprint_summary(fingerprint: Optional[Fingerprint]) -> dict:
     return {
         'ua_snippet': ua_snippet,
         'platform': _fp_get(navigator, 'platform', 'N/A'),
-        'viewport': f"{int(_fp_get(screen, 'width', 0))}x{int(_fp_get(screen, 'height', 0))}",
-        'dpr': _fp_get(screen, 'devicePixelRatio', 1),
         'locale': _fp_get(navigator, 'language', 'en'),
         'max_touch_points': _fp_get(navigator, 'maxTouchPoints', 0),
         'sec_ch_ua_mobile': sec_ch_ua_mobile

@@ -11,13 +11,12 @@ from urllib.parse import urlparse
 from camoufox.async_api import AsyncCamoufox
 from camoufox import DefaultAddons
 from playwright.async_api import async_playwright
-from browserforge.fingerprints import Screen, Fingerprint
+from browserforge.fingerprints import Screen
 
 from app.browser.mobile import (
     generate_mobile_fingerprint,
     get_fingerprint_summary,
-    parse_mobile_constraints,
-    select_mobile_fingerprint_params
+    select_mobile_fingerprint_params,
 )
 from app.core.telemetry import emit_mobile_fingerprint_event
 
@@ -26,14 +25,8 @@ from app.core.telemetry import emit_mobile_fingerprint_event
 MOBILE_FINGERPRINT_ADVANCED_OVERRIDE_ENABLED = False
 MOBILE_FINGERPRINT_MAX_REGEN_ATTEMPTS = 1
 MOBILE_FINGERPRINT_TIMEOUT_MS = 5000
-MOBILE_FINGERPRINT_BROWSERS = ["chrome", "safari"]
-MOBILE_FINGERPRINT_OSES = ["android", "ios"]
-MOBILE_SCREEN_BOUNDS = {
-    "min_width": 360,
-    "max_width": 430,
-    "min_height": 740,
-    "max_height": 932,
-}
+MOBILE_HEADER_BROWSER = "chrome"
+MOBILE_HEADER_OS = "android"
 
 _PLAYWRIGHT_MANAGERS: Dict[int, object] = {}
 
@@ -266,7 +259,7 @@ async def _launch_mobile_playwright_browser(
     return browser
 
 
-def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint]) -> Dict:
+def map_fingerprint_to_context_options(fingerprint: Optional[dict]) -> Dict:
     """
     Map BrowserForge fingerprint fields to Playwright context options (Task 3).
     
@@ -276,28 +269,20 @@ def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint]) -> Di
     Returns:
         Dict of context_options for browser.new_context(**options)
     """
-    if not fingerprint:
+    if not isinstance(fingerprint, dict):
         return {}
     
-    navigator = fingerprint.navigator if fingerprint else None
-    screen = fingerprint.screen if fingerprint else None
-    headers = fingerprint.headers if fingerprint else None
+    navigator = fingerprint.get('navigator')
+    headers = fingerprint.get('headers')
     
     context_opts = {}
     
     if ua := _fp_get(navigator, 'userAgent'):
         context_opts['user_agent'] = ua
     
-    width = int(_fp_get(screen, 'width', 360))
-    height = int(_fp_get(screen, 'height', 740))
-    context_opts['viewport'] = {'width': width, 'height': height}
-    
-    if dpr := _fp_get(screen, 'devicePixelRatio'):
-        context_opts['device_scale_factor'] = float(dpr)
-    
+    # Keep mobile identity broad; do not force viewport/screen dimensions.
     context_opts['is_mobile'] = True
-    max_touch = int(_fp_get(navigator, 'maxTouchPoints', 5))
-    context_opts['has_touch'] = max_touch > 0
+    context_opts['has_touch'] = True
     
     if lang := _fp_get(navigator, 'language'):
         context_opts['locale'] = lang
@@ -326,7 +311,7 @@ def map_fingerprint_to_context_options(fingerprint: Optional[Fingerprint]) -> Di
 
 
 def validate_fingerprint_consistency(
-    fingerprint: Optional[Fingerprint],
+    fingerprint: Optional[dict],
     context_opts: Dict
 ) -> tuple[bool, List[str], List[str]]:
     """
@@ -345,7 +330,7 @@ def validate_fingerprint_consistency(
     if not fingerprint:
         return False, ['fingerprint_missing'], ['Fingerprint is missing']
     
-    navigator = fingerprint.navigator if fingerprint else None
+    navigator = fingerprint.get('navigator') if isinstance(fingerprint, dict) else None
     ua = str(_fp_get(navigator, 'userAgent', ''))
     platform = str(_fp_get(navigator, 'platform', ''))
     
@@ -388,16 +373,6 @@ def validate_fingerprint_consistency(
         reason_codes.append('locale_header_mismatch')
         violations.append(f"Locale/header mismatch: locale={locale}, Accept-Language={accept_language}")
 
-    viewport = context_opts.get('viewport', {})
-    width = int(viewport.get('width', 0)) if isinstance(viewport, dict) else 0
-    height = int(viewport.get('height', 0)) if isinstance(viewport, dict) else 0
-    if width < MOBILE_SCREEN_BOUNDS['min_width'] or width > MOBILE_SCREEN_BOUNDS['max_width']:
-        reason_codes.append('viewport_width_out_of_bounds')
-        violations.append(f"Viewport width {width} outside mobile bounds")
-    if height < MOBILE_SCREEN_BOUNDS['min_height'] or height > MOBILE_SCREEN_BOUNDS['max_height']:
-        reason_codes.append('viewport_height_out_of_bounds')
-        violations.append(f"Viewport height {height} outside mobile bounds")
-    
     is_valid = len(violations) == 0
     
     return is_valid, reason_codes, violations
@@ -452,11 +427,8 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
             return setup_result
 
         # Mobile path: Playwright browser engine + fingerprinted context options.
-        constraints = parse_mobile_constraints(MOBILE_SCREEN_BOUNDS)
-        browser_family, mobile_os = select_mobile_fingerprint_params(
-            MOBILE_FINGERPRINT_BROWSERS,
-            MOBILE_FINGERPRINT_OSES,
-        )
+        browser_family = MOBILE_HEADER_BROWSER
+        mobile_os = MOBILE_HEADER_OS
         target_domain = _extract_target_domain_from_config(config)
 
         emit_mobile_fingerprint_event(
@@ -478,7 +450,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
                 domain=target_domain,
                 browser_family=browser_family,
                 os=mobile_os,
-                screen_constraints=constraints,
+                screen_constraints={},
                 worker_id=worker_id,
                 max_retries=0,
                 timeout_ms=MOBILE_FINGERPRINT_TIMEOUT_MS,
