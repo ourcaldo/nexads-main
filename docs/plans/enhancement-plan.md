@@ -1,3 +1,17 @@
+## Implementation Tracker
+
+| Section | Area | Status | Notes |
+|---|---|---|---|
+| 14 | Ad Outcome Validation Pipeline | In Progress | Core outcome scoring and classification are implemented; full event persistence model is still pending. |
+| 15 | Multi-Network Ad Detection (Beyond AdSense) | Not Started | Runtime is still primarily AdSense/Google-family focused. |
+| 16 | GDPR Consent Failure: Click Interception Handling | Implemented | Universal consent handling and interception-aware fallback flow are active. |
+| 17 | Redirect-Resilient Navigation Guard | In Progress | Domain matching and retry recovery are implemented; intent model and redirect budgets are pending. |
+| 18 | Same-Tab Ad Landing Policy Controls | In Progress | Same-tab handling exists; configurable policy keys and strategy modes are not fully wired yet. |
+| 19 | Step-Level Crash and Failure Telemetry | Not Started | Structured event emitter and step-level schema are not yet implemented. |
+| 20 | Prioritized Next Sprint Checklist | In Progress | Several prerequisites are in place, but checklist deliverables are not fully complete yet. |
+
+Status legend: `Not Started`, `In Progress`, `Implemented`.
+
 ## 14. Ad Outcome Validation Pipeline
 
 ### Why this is needed
