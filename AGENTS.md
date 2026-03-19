@@ -349,13 +349,41 @@ Camoufox does NOT support mobile device emulation. The project uses two separate
   - Patchright automatically handles: `navigator.webdriver=false`, automation flag removal, extension enablement
 - **playwright-stealth is NOT used**: Patchright replaces both `playwright` and `playwright-stealth`. The stealth is built into the driver itself at a deeper level than JS-based patches.
 - **Install**: `pip install patchright` then `patchright install chrome`
-- **Passes**: Cloudflare, Datadome, Kasada, Akamai, CreepJS, Fingerprint.com, Sannysoft, Browserscan, Pixelscan, IPHey
+- **Passes**: Cloudflare, Datadome, Kasada, Akamai, CreepJS, Fingerprint.com, Sannysoft, Browserscan (97%), Pixelscan, IPHey
+
+#### Patchright Stealth Rules (PROVEN — do not violate)
+These rules were tested and validated on 2026-03-19. Violating them causes detection regressions.
+
+1. **Do NOT inject custom User-Agent via CDP or context options** — `Emulation.setUserAgentOverride` does not propagate to Web Workers. Detection scripts compare main page vs Worker UA and flag the mismatch (`hasInconsistentWorkerValues`). This applies to ALL CDP-based UA/platform/userAgentData overrides.
+2. **Do NOT use `add_init_script` for navigator prototype overrides** — Patchright runs init scripts in an isolated context. Overrides to `Navigator.prototype` (platform, maxTouchPoints, plugins, pdfViewerEnabled) do NOT affect the main world. Only instance-level properties on shared objects (window, navigator instance) work.
+3. **Do NOT use `Page.addScriptToEvaluateOnNewDocument` via CDP** — Also runs in isolated context in patchright, same limitation as add_init_script.
+4. **Do NOT intercept HTML responses to inject scripts** — Route-based `<script>` injection into HTML causes WebGL exceptions and request failures. Also detectable via CSP and response integrity checks.
+5. **ONLY set these context options for mobile**: `viewport`, `locale`, `timezone_id`, `is_mobile`, `has_touch`, `device_scale_factor`, `extra_http_headers` (Accept-Language only).
+6. **WebRTC prevention works**: `--webrtc-ip-handling-policy=disable_non_proxied_udp` successfully prevents real IP leak via WebRTC when proxy is configured.
+7. **DNS-over-HTTPS via Chrome flags**: `--dns-over-https-mode=secure` with Cloudflare template is set but browserscan still flags DNS leak with HTTP proxy. SOCKS5 without auth would fix it but Chromium doesn't support SOCKS5 with auth.
+
+#### Known Limitations (cannot be fixed with patchright)
+- **Platform shows real OS** (Windows/Linux) — cannot spoof `navigator.platform` without triggering Worker inconsistency detection. Camoufox handles this at engine level but doesn't support mobile.
+- **WebGL shows real GPU** — cannot override `WebGLRenderingContext.getParameter` in main world from patchright's isolated context. Route injection works but causes WebGL exceptions.
+- **`hasInconsistentWorkerValues`** — `navigator.maxTouchPoints` is `undefined` in Web Workers but `0`/`1` in main page. This is standard Chromium behavior, affects even manual Chrome usage. Browserscan false positive.
+- **DNS leak (-3%)** — HTTP proxies don't tunnel DNS. Only SOCKS5 (without auth) fixes this.
+- **Best achievable score**: 97% on browserscan.net with HTTP proxy.
 
 #### Key Architectural Rule
 - Never use raw `playwright` or `playwright-stealth` for any browser session. Desktop uses Camoufox. Mobile uses Patchright.
-- BrowserForge fingerprints are still generated for mobile context metadata (viewport, locale, touch, etc.) but heavy JS fingerprint injection should be minimized since Patchright's stealth works best with a clean Chrome identity.
+- BrowserForge fingerprints are used for mobile context metadata (viewport, locale, touch, DPR) but NOT for identity spoofing (UA, platform, WebGL). Patchright's stealth works best with clean, real Chrome identity.
+
+#### Browser Module Structure
+```
+app/browser/
+  setup.py          # Thin orchestrator (~69 lines): picks desktop or mobile, delegates
+  proxy.py          # Proxy string parsing and config resolution (shared)
+  desktop.py        # Camoufox launch + cleanup
+  mobile.py         # Patchright launch/cleanup + BrowserForge fingerprint + mapping + validation
+  activities.py     # Human-like scroll, hover, click
+  humanization.py   # Mouse movement, timing helpers
+  geoip.py          # Proxy IP geolocation lookup
+```
 
 ### Known Issues / Tech Debt
-- `SessionFailedException` is defined in both `automation.py` and `worker.py` (duplicate).
-- No `.gitignore` -- `__pycache__/`, `.vscode/`, proxy credentials may be tracked.
-- Several dependencies in `requirements.txt` appear unused: `selenium`, `undetected-chromedriver`, `keyboard`, `pynput`, `humanize`.
+- `RateLimiter` class in `automation.py` is defined but `wait_if_needed()` is never called anywhere.

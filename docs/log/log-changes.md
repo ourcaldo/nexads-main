@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T15:30:00-07:00
+- Short description: Update AGENTS.md and memory with patchright stealth rules and limitations
+- What you do: Added proven stealth rules to AGENTS.md documenting what works and what doesn't with patchright (CDP UA spoofing fails, init scripts isolated, route injection breaks WebGL). Added known limitations section. Updated browser module structure. Updated memory with refactored file map and stealth findings. Cleaned up stale Known Issues (removed already-fixed items).
+- File path that changes: AGENTS.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T15:00:00-07:00
 - Short description: Revert all CDP/UA/WebGL spoofing — clean patchright identity only
 - What you do: Removed all CDP UA override, touch emulation, init script injection, WebGL route handler, and related helper functions (build_cdp_mobile_overrides, _transform_ua_to_mobile, _extract_chrome_version, build_mobile_environment_script). CDP UA spoofing caused hasInconsistentWorkerValues bot detection because Web Workers still report the original UA. Any UA spoofing via CDP is fundamentally detectable. Back to clean patchright with only context options (viewport, locale, timezone, is_mobile, has_touch, device_scale_factor).
