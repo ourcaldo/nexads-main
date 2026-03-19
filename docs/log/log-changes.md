@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T12:45:00-07:00
+- Short description: Add CDP-level mobile identity overrides for undetectable fingerprint
+- What you do: Added CDP Emulation.setUserAgentOverride and setTouchEmulationEnabled to override navigator.platform, maxTouchPoints, and userAgentData at the browser engine level (not JavaScript). Set mobile UA from BrowserForge fingerprint via context options. Added init script for deviceMemory, battery API, and touch support signals. Built from fingerprint data so all values are consistent with the generated mobile identity.
+- File path that changes: app/browser/mobile.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T12:15:00-07:00
 - Short description: Refactor browser module into separate files per engine
 - What you do: Split setup.py (680 lines) into four focused modules. Created proxy.py for proxy parsing/resolution. Created desktop.py for Camoufox launch/cleanup. Expanded mobile.py to include patchright launch/cleanup, fingerprint mapping, and validation (merged from setup.py). Slimmed setup.py to thin orchestrator (69 lines) that delegates to desktop or mobile. Removed duplicate _fp_get from setup.py (consolidated in mobile.py). Removed unused _header_get.

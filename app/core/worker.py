@@ -309,8 +309,29 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     # activities, urls) can use it as the top-level object.
                     context = browser_setup.get("context")
                     browser = context
+                    # Inject mobile environment signals before any page loads.
+                    env_script = browser_setup.get("mobile_environment_script", "")
+                    if env_script:
+                        await context.add_init_script(env_script)
                     pages = context.pages
                     page = pages[0] if pages else await context.new_page()
+                    # Apply CDP overrides for protected navigator properties.
+                    cdp_overrides = browser_setup.get("mobile_cdp_overrides")
+                    if cdp_overrides:
+                        try:
+                            cdp = await context.new_cdp_session(page)
+                            await cdp.send(
+                                "Emulation.setUserAgentOverride",
+                                cdp_overrides["ua_override"],
+                            )
+                            await cdp.send(
+                                "Emulation.setTouchEmulationEnabled",
+                                cdp_overrides["touch"],
+                            )
+                        except Exception as cdp_err:
+                            print(
+                                f"Worker {worker_id}: CDP override failed: {cdp_err}"
+                            )
                     print(
                         f"Worker {worker_id}: Using patchright persistent context"
                     )

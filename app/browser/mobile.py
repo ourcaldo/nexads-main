@@ -235,6 +235,11 @@ def map_fingerprint_to_context_options(fingerprint: Optional[dict]) -> Dict:
     context_opts["is_mobile"] = True
     context_opts["has_touch"] = True
 
+    # Set mobile UA from fingerprint — required for mobile emulation consistency.
+    # Patchright propagates this to UA, appVersion, and sec-ch-ua headers.
+    if ua := _fp_get(navigator, "userAgent"):
+        context_opts["user_agent"] = ua
+
     width = _fp_get(screen, "width", 412)
     height = _fp_get(screen, "height", 915)
     if width and height:
@@ -248,6 +253,110 @@ def map_fingerprint_to_context_options(fingerprint: Optional[dict]) -> Dict:
         context_opts["locale"] = lang
 
     return context_opts
+
+
+def build_mobile_environment_script(fingerprint: dict) -> str:
+    """Build init script for mobile signals that CDP cannot set.
+
+    CDP handles: platform, maxTouchPoints, userAgentData.
+    This script handles: deviceMemory, battery, connection, plugins.
+    Runs in patchright's isolated context — only instance-level overrides work.
+    """
+    import json
+
+    navigator = fingerprint.get("navigator", {})
+    battery = fingerprint.get("battery", {})
+
+    device_memory = _fp_get(navigator, "deviceMemory", 4)
+    hardware_concurrency = _fp_get(navigator, "hardwareConcurrency", 8)
+
+    battery_json = json.dumps(battery or {
+        "charging": True, "chargingTime": 0,
+        "dischargingTime": None, "level": 0.85,
+    }, ensure_ascii=True)
+
+    return f"""(() => {{
+    // Device hardware (instance-level, works in isolated context).
+    Object.defineProperty(navigator, 'deviceMemory', {{
+        get: () => {device_memory}, configurable: true,
+    }});
+    Object.defineProperty(navigator, 'hardwareConcurrency', {{
+        get: () => {hardware_concurrency}, configurable: true,
+    }});
+
+    // Battery API — mobile devices always have this.
+    const batteryData = {battery_json};
+    navigator.getBattery = () => Promise.resolve({{
+        ...batteryData,
+        addEventListener: () => {{}},
+        removeEventListener: () => {{}},
+        dispatchEvent: () => true,
+    }});
+
+    // Touch support marker.
+    if (!('ontouchstart' in window)) {{
+        window.ontouchstart = null;
+    }}
+
+    // Network Information API — mobile expects wifi/cellular.
+    if (navigator.connection) {{
+        try {{
+            Object.defineProperty(navigator.connection, 'type', {{
+                get: () => 'wifi', configurable: true,
+            }});
+        }} catch(e) {{}}
+    }}
+}})();"""
+
+
+def build_cdp_mobile_overrides(fingerprint: dict) -> dict:
+    """Build CDP override parameters for mobile identity.
+
+    These override navigator.platform, maxTouchPoints, and userAgentData
+    at the browser engine level (not JavaScript), so they cannot be detected.
+    """
+    navigator = fingerprint.get("navigator", {})
+    headers = fingerprint.get("headers", {})
+
+    ua = _fp_get(navigator, "userAgent",
+        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36")
+    platform = _fp_get(navigator, "platform", "Linux armv81")
+    max_touch = int(_fp_get(navigator, "maxTouchPoints", 5))
+
+    ua_data = _fp_get(navigator, "userAgentData", {})
+    brands = _fp_get(ua_data, "brands", [
+        {"brand": "Chromium", "version": "138"},
+        {"brand": "Google Chrome", "version": "138"},
+        {"brand": "Not=A?Brand", "version": "8"},
+    ])
+    full_version_list = _fp_get(ua_data, "fullVersionList", [
+        {"brand": "Chromium", "version": "138.0.0.0"},
+        {"brand": "Google Chrome", "version": "138.0.0.0"},
+        {"brand": "Not=A?Brand", "version": "8.0.0.0"},
+    ])
+    model = _fp_get(ua_data, "model", "K")
+    platform_version = _fp_get(ua_data, "platformVersion", "10.0.0")
+    ua_full_version = _fp_get(ua_data, "uaFullVersion", "138.0.0.0")
+
+    return {
+        "ua_override": {
+            "userAgent": ua,
+            "platform": platform,
+            "userAgentMetadata": {
+                "brands": [{"brand": str(b.get("brand", "")), "version": str(b.get("version", ""))} for b in brands] if isinstance(brands, list) else [],
+                "fullVersionList": [{"brand": str(b.get("brand", "")), "version": str(b.get("version", ""))} for b in full_version_list] if isinstance(full_version_list, list) else [],
+                "platform": "Android",
+                "platformVersion": str(platform_version),
+                "architecture": "",
+                "model": str(model),
+                "mobile": True,
+            },
+        },
+        "touch": {
+            "enabled": True,
+            "maxTouchPoints": max_touch,
+        },
+    }
 
 
 def validate_fingerprint_consistency(
@@ -575,6 +684,8 @@ async def configure_mobile_browser(
         "validation_reason_codes": [],
         "is_persistent_context": True,
         "geoip_data": geoip_data,
+        "mobile_environment_script": build_mobile_environment_script(fingerprint),
+        "mobile_cdp_overrides": build_cdp_mobile_overrides(fingerprint),
     }
 
 
