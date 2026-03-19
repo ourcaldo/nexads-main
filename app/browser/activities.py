@@ -29,8 +29,9 @@ def _get_reading_phase(progress: float) -> str:
     return "done"
 
 
-async def _idle_mouse_jitter(page, interaction_state: dict | None,
-                             running: bool, duration_seconds: float):
+async def _idle_mouse_jitter(
+    page, interaction_state: dict | None, running: bool, duration_seconds: float
+):
     """Create small mouse drifts during idle windows."""
     if duration_seconds <= 0:
         return
@@ -50,8 +51,12 @@ async def _idle_mouse_jitter(page, interaction_state: dict | None,
 
         viewport = page.viewport_size or {"width": 1280, "height": 720}
         start_x, start_y = get_cursor_start(page, interaction_state)
-        target_x = clamp(start_x + random.gauss(0, random.uniform(2, 8)), 1, viewport["width"] - 1)
-        target_y = clamp(start_y + random.gauss(0, random.uniform(2, 8)), 1, viewport["height"] - 1)
+        target_x = clamp(
+            start_x + random.gauss(0, random.uniform(2, 8)), 1, viewport["width"] - 1
+        )
+        target_y = clamp(
+            start_y + random.gauss(0, random.uniform(2, 8)), 1, viewport["height"] - 1
+        )
 
         await move_mouse_humanly(page, (start_x, start_y), (target_x, target_y))
         set_cursor_position(interaction_state, target_x, target_y)
@@ -107,20 +112,30 @@ async def _get_activity_capabilities(page) -> dict:
         return {"can_scroll": True, "can_hover": True, "can_click": True}
 
 
-async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
-                        running: bool, phase: str = "reading",
-                        expected_url: str | None = None):
+async def random_scroll(
+    page,
+    browser,
+    worker_id: int,
+    ensure_correct_tab_fn,
+    running: bool,
+    phase: str = "reading",
+    expected_url: str | None = None,
+):
     """Perform human-like scrolling with occasional up-scroll and corrections."""
     try:
         target_url = expected_url or page.url
-        page, success = await ensure_correct_tab_fn(browser, page, target_url, worker_id)
+        page, success = await ensure_correct_tab_fn(
+            browser, page, target_url, worker_id
+        )
         if not success:
             print(f"Worker {worker_id}: Could not ensure correct tab for scrolling")
             return False
 
         print(f"Worker {worker_id}: Performing human-like scroll")
 
-        height = await page.evaluate("Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)")
+        height = await page.evaluate(
+            "Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)"
+        )
         viewport_height = await page.evaluate("window.innerHeight")
         current_scroll = await page.evaluate("window.scrollY")
 
@@ -144,10 +159,14 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
         elif phase == "done":
             base_distance *= random.uniform(1.15, 1.7)
 
-        candidate_distance = int(base_distance + random.gauss(0, viewport_height * 0.16))
+        candidate_distance = int(
+            base_distance + random.gauss(0, viewport_height * 0.16)
+        )
         candidate_distance = int(clamp(candidate_distance, 90, viewport_height * 2.0))
 
-        available_distance = int(max_scroll - current_scroll) if direction > 0 else int(current_scroll)
+        available_distance = (
+            int(max_scroll - current_scroll) if direction > 0 else int(current_scroll)
+        )
         scroll_amount = min(candidate_distance, max(0, available_distance))
         if scroll_amount < 20:
             return False
@@ -165,17 +184,23 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
             if current_step == 0:
                 current_step = 15 if direction > 0 else -15
 
-            await page.evaluate("(distance) => window.scrollBy(0, distance)", current_step)
+            await page.evaluate(
+                "(distance) => window.scrollBy(0, distance)", current_step
+            )
             await page.wait_for_timeout(gaussian_ms(190, 70, 80, 450))
 
             # Micro-corrections in opposite direction simulate wheel overshoot.
             if random.random() < 0.22:
                 correction = int(-current_step * random.uniform(0.12, 0.28))
-                await page.evaluate("(distance) => window.scrollBy(0, distance)", correction)
+                await page.evaluate(
+                    "(distance) => window.scrollBy(0, distance)", correction
+                )
                 await page.wait_for_timeout(gaussian_ms(120, 40, 55, 240))
 
         direction_text = "down" if direction > 0 else "up"
-        print(f"Worker {worker_id}: Scrolled {direction_text} {scroll_amount}px in {steps} steps")
+        print(
+            f"Worker {worker_id}: Scrolled {direction_text} {scroll_amount}px in {steps} steps"
+        )
         return True
 
     except Exception as e:
@@ -183,13 +208,21 @@ async def random_scroll(page, browser, worker_id: int, ensure_correct_tab_fn,
         return False
 
 
-async def random_hover(page, browser, worker_id: int, ensure_correct_tab_fn,
-                       running: bool, interaction_state: dict | None = None,
-                       expected_url: str | None = None):
+async def random_hover(
+    page,
+    browser,
+    worker_id: int,
+    ensure_correct_tab_fn,
+    running: bool,
+    interaction_state: dict | None = None,
+    expected_url: str | None = None,
+):
     """Perform realistic mouse hover with tab checking."""
     try:
         target_url = expected_url or page.url
-        page, success = await ensure_correct_tab_fn(browser, page, target_url, worker_id)
+        page, success = await ensure_correct_tab_fn(
+            browser, page, target_url, worker_id
+        )
         if not success:
             print(f"Worker {worker_id}: Could not ensure correct tab for hovering")
             return
@@ -237,28 +270,39 @@ async def random_hover(page, browser, worker_id: int, ensure_correct_tab_fn,
         hover_time = lognormal_seconds(1.0, 0.45, 0.35, 3.4)
         await page.wait_for_timeout(int(hover_time * 1000))
 
-        print(f"Worker {worker_id}: Hovered at {target_x:.0f},{target_y:.0f} for {hover_time:.1f}s")
+        print(
+            f"Worker {worker_id}: Hovered at {target_x:.0f},{target_y:.0f} for {hover_time:.1f}s"
+        )
 
     except Exception as e:
         print(f"Worker {worker_id}: Error during hover: {str(e)}")
 
 
-async def random_click(page, browser, worker_id: int, current_domain: str,
-                       is_ads_session: bool, ensure_correct_tab_fn,
-                       smart_click_fn, extract_domain_fn,
-                       interaction_state: dict | None = None,
-                       expected_url: str | None = None):
+async def random_click(
+    page,
+    browser,
+    worker_id: int,
+    current_domain: str,
+    is_ads_session: bool,
+    ensure_correct_tab_fn,
+    smart_click_fn,
+    extract_domain_fn,
+    interaction_state: dict | None = None,
+    expected_url: str | None = None,
+):
     """Find random same-domain clickable elements and click one."""
     try:
         target_url = expected_url or page.url
-        page, success = await ensure_correct_tab_fn(browser, page, target_url, worker_id)
+        page, success = await ensure_correct_tab_fn(
+            browser, page, target_url, worker_id
+        )
         if not success:
             print(f"Worker {worker_id}: Could not ensure correct tab for clicking")
             return False
 
         original_url = page.url
 
-        elements = await page.query_selector_all('a, button, [onclick], [role=button]')
+        elements = await page.query_selector_all("a, button, [onclick], [role=button]")
         if not elements:
             print(f"Worker {worker_id}: No clickable elements found")
             return False
@@ -266,8 +310,12 @@ async def random_click(page, browser, worker_id: int, current_domain: str,
         same_domain_elements = []
         for element in elements:
             try:
-                href = await element.get_attribute('href') or ''
-                if href and not href.startswith('#') and current_domain in extract_domain_fn(href):
+                href = await element.get_attribute("href") or ""
+                if (
+                    href
+                    and not href.startswith("#")
+                    and current_domain in extract_domain_fn(href)
+                ):
                     same_domain_elements.append(element)
             except Exception:
                 continue
@@ -292,15 +340,28 @@ async def random_click(page, browser, worker_id: int, current_domain: str,
         return False
 
 
-async def perform_random_activity(page, browser, worker_id: int, stay_time: float,
-                                  config: dict, running: bool,
-                                  ensure_correct_tab_fn, smart_click_fn,
-                                  extract_domain_fn, check_vignette_fn,
-                                  is_ads_session: bool = False,
-                                  interaction_state: dict | None = None,
-                                  strict_target_url: str | None = None):
+async def perform_random_activity(
+    page,
+    browser,
+    worker_id: int,
+    stay_time: float,
+    config: dict,
+    running: bool,
+    ensure_correct_tab_fn,
+    smart_click_fn,
+    extract_domain_fn,
+    check_vignette_fn,
+    is_ads_session: bool = False,
+    interaction_state: dict | None = None,
+    strict_target_url: str | None = None,
+):
     """Perform randomized activities for the provided stay duration."""
-    if not config['browser']['random_activity'] and not is_ads_session:
+    random_activity_enabled = config["browser"].get("random_activity", False)
+    if not random_activity_enabled:
+        return False
+
+    activities_list = config["browser"].get("activities", [])
+    if not activities_list:
         return False
 
     if interaction_state is None:
@@ -315,7 +376,9 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
         remaining_time = stay_time
 
         while remaining_time > 0 and running:
-            page, success = await ensure_correct_tab_fn(browser, page, expected_url, worker_id)
+            page, success = await ensure_correct_tab_fn(
+                browser, page, expected_url, worker_id
+            )
             if not success:
                 print(f"Worker {worker_id}: Lost correct tab during activities")
                 return False
@@ -325,7 +388,9 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
             capabilities = await _get_activity_capabilities(page)
 
             raw_blocked = blocked_by_url.get(expected_url, [])
-            blocked_activities = set(raw_blocked) if isinstance(raw_blocked, list) else set()
+            blocked_activities = (
+                set(raw_blocked) if isinstance(raw_blocked, list) else set()
+            )
             if capabilities.get("can_scroll", True) and "scroll" in blocked_activities:
                 blocked_activities.discard("scroll")
 
@@ -353,32 +418,53 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
 
             weighted_activities: list[tuple[str, float]] = []
             if (
-                'scroll' in config['browser']['activities']
-                and capabilities.get('can_scroll', True)
-                and 'scroll' not in blocked_activities
+                "scroll" in config["browser"]["activities"]
+                and capabilities.get("can_scroll", True)
+                and "scroll" not in blocked_activities
             ):
-                weighted_activities.append((
-                    "scroll",
-                    {"arrival": 0.65, "reading": 0.60, "exploration": 0.35, "done": 0.55}[phase]
-                ))
+                weighted_activities.append(
+                    (
+                        "scroll",
+                        {
+                            "arrival": 0.65,
+                            "reading": 0.60,
+                            "exploration": 0.35,
+                            "done": 0.55,
+                        }[phase],
+                    )
+                )
             if (
-                'click' in config['browser']['activities']
-                and capabilities.get('can_click', True)
-                and 'click' not in blocked_activities
+                "click" in config["browser"]["activities"]
+                and capabilities.get("can_click", True)
+                and "click" not in blocked_activities
             ):
-                weighted_activities.append((
-                    "click",
-                    {"arrival": 0.10, "reading": 0.10, "exploration": 0.30, "done": 0.25}[phase]
-                ))
+                weighted_activities.append(
+                    (
+                        "click",
+                        {
+                            "arrival": 0.10,
+                            "reading": 0.10,
+                            "exploration": 0.30,
+                            "done": 0.25,
+                        }[phase],
+                    )
+                )
             if (
-                'hover' in config['browser']['activities']
-                and capabilities.get('can_hover', True)
-                and 'hover' not in blocked_activities
+                "hover" in config["browser"]["activities"]
+                and capabilities.get("can_hover", True)
+                and "hover" not in blocked_activities
             ):
-                weighted_activities.append((
-                    "hover",
-                    {"arrival": 0.25, "reading": 0.30, "exploration": 0.35, "done": 0.20}[phase]
-                ))
+                weighted_activities.append(
+                    (
+                        "hover",
+                        {
+                            "arrival": 0.25,
+                            "reading": 0.30,
+                            "exploration": 0.35,
+                            "done": 0.20,
+                        }[phase],
+                    )
+                )
 
             if not weighted_activities:
                 backoff = min(lognormal_seconds(1.2, 0.45, 0.5, 2.4), remaining_time)
@@ -394,28 +480,52 @@ async def perform_random_activity(page, browser, worker_id: int, stay_time: floa
 
             if selected == "scroll":
                 scroll_ok = await random_scroll(
-                    page, browser, worker_id, ensure_correct_tab_fn, running, phase, expected_url
+                    page,
+                    browser,
+                    worker_id,
+                    ensure_correct_tab_fn,
+                    running,
+                    phase,
+                    expected_url,
                 )
                 if not scroll_ok:
                     blocked_activities.add("scroll")
                     blocked_by_url[expected_url] = sorted(blocked_activities)
-                    print(f"Worker {worker_id}: Blocked activity 'scroll' for current URL state")
+                    print(
+                        f"Worker {worker_id}: Blocked activity 'scroll' for current URL state"
+                    )
             elif selected == "click":
                 await random_click(
-                    page, browser, worker_id, current_domain, is_ads_session,
-                    ensure_correct_tab_fn, smart_click_fn, extract_domain_fn,
-                    interaction_state, expected_url
+                    page,
+                    browser,
+                    worker_id,
+                    current_domain,
+                    is_ads_session,
+                    ensure_correct_tab_fn,
+                    smart_click_fn,
+                    extract_domain_fn,
+                    interaction_state,
+                    expected_url,
                 )
             else:
                 await random_hover(
-                    page, browser, worker_id, ensure_correct_tab_fn,
-                    running, interaction_state, expected_url
+                    page,
+                    browser,
+                    worker_id,
+                    ensure_correct_tab_fn,
+                    running,
+                    interaction_state,
+                    expected_url,
                 )
 
             # Hard re-anchor after each activity in case a redirect happened mid-action.
-            page, success = await ensure_correct_tab_fn(browser, page, expected_url, worker_id)
+            page, success = await ensure_correct_tab_fn(
+                browser, page, expected_url, worker_id
+            )
             if not success:
-                print(f"Worker {worker_id}: Could not recover target tab after activity")
+                print(
+                    f"Worker {worker_id}: Could not recover target tab after activity"
+                )
                 return False
 
             elapsed = time.time() - activity_start

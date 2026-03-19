@@ -7,7 +7,7 @@ import asyncio
 import random
 from typing import Optional, Tuple, List
 
-from browserforge.headers import HeaderGenerator
+from browserforge.fingerprints import FingerprintGenerator
 
 from app.core.telemetry import emit_mobile_fingerprint_event
 
@@ -47,7 +47,7 @@ async def generate_mobile_fingerprint(
     retry_count: int = 0
 ) -> Optional[dict]:
     """
-    Generate a broad mobile identity using BrowserForge HeaderGenerator.
+    Generate a full BrowserForge mobile fingerprint payload.
     
     Args:
         domain: Target domain (currently informational)
@@ -60,7 +60,7 @@ async def generate_mobile_fingerprint(
         retry_count: Internal retry counter (do not set)
     
     Returns:
-        Dict containing BrowserForge-generated headers and derived identity fields
+        Dict containing full BrowserForge fingerprint payload
     """
     try:
         retry_policy = 'regenerate_once'
@@ -73,51 +73,55 @@ async def generate_mobile_fingerprint(
             os=os
         )
         
-        # Generate headers with a single broad constraint set.
-        generator = HeaderGenerator(
-            browser=browser_family,
-            os=os,
-            device='mobile',
-            locale='en-US',
-            http_version=2,
-        )
+        generator = FingerprintGenerator()
         
         # Run generation in asyncio with timeout
         import time
         start_time = time.time()
-        headers = await asyncio.wait_for(
-            asyncio.to_thread(generator.generate),
+        fp_obj = await asyncio.wait_for(
+            asyncio.to_thread(
+                generator.generate,
+                browser=browser_family,
+                os=os,
+                device='mobile',
+            ),
             timeout=timeout_ms / 1000.0,
         )
         generation_ms = int((time.time() - start_time) * 1000)
 
-        if not isinstance(headers, dict):
-            headers = dict(headers or {})
+        def _to_plain(obj):
+            if obj is None:
+                return None
+            if isinstance(obj, (str, int, float, bool)):
+                return obj
+            if isinstance(obj, dict):
+                return {str(k): _to_plain(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple, set)):
+                return [_to_plain(v) for v in obj]
+            if hasattr(obj, 'model_dump'):
+                try:
+                    return _to_plain(obj.model_dump())
+                except Exception:
+                    pass
+            if hasattr(obj, '__dict__'):
+                return {
+                    str(k): _to_plain(v)
+                    for k, v in vars(obj).items()
+                    if not str(k).startswith('_')
+                }
+            return str(obj)
 
-        normalized_headers = {
-            str(k): str(v)
-            for k, v in headers.items()
-            if k is not None and v is not None
-        }
+        mobile_identity = _to_plain(fp_obj)
+        if not isinstance(mobile_identity, dict):
+            raise ValueError('BrowserForge fingerprint conversion failed')
 
-        ua_value = str(normalized_headers.get('User-Agent') or normalized_headers.get('user-agent') or '')
-        accept_language = str(
-            normalized_headers.get('Accept-Language') or
-            normalized_headers.get('accept-language') or
-            'en-US,en;q=0.9'
-        )
-        ua_lower = ua_value.lower()
-        platform_value = 'Linux armv8l' if 'android' in ua_lower else 'iPhone'
-        mobile_identity = {
-            'navigator': {
-                'userAgent': ua_value,
-                'platform': platform_value,
-                'language': accept_language.split(',')[0].strip() or 'en-US',
-                'maxTouchPoints': 5,
-            },
-            'headers': normalized_headers,
-            'browserforge_headers': normalized_headers,
-        }
+        headers = mobile_identity.get('headers', {})
+        if isinstance(headers, dict):
+            mobile_identity['headers'] = {
+                str(k): str(v)
+                for k, v in headers.items()
+                if k is not None and v is not None
+            }
         
         # Emit success event with profile summary
         navigator = mobile_identity.get('navigator', {})
