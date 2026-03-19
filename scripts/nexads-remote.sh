@@ -23,6 +23,7 @@ ALL_HOSTS=(
     nexdev-auscen
     nexdev-nz
     nexdev-my
+    nexdev-ausso
     nexdev-austria
     nexdev-bc
     nexdev-bs
