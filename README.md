@@ -269,6 +269,12 @@ All settings are stored in `config.json`. Edit via the GUI (`--config`) or manua
 | **urls** | List of `{url, random_page, min_time, max_time}` |
 | **ads** | `ctr` (percentage), `min_time`, `max_time` (seconds on ad page) |
 
+## Mobile Fingerprint Operations
+
+Operator rollout, validation gates, telemetry interpretation, and rollback procedure are documented in:
+
+- `docs/runbook-mobile-fingerprint.md`
+
 ## Files
 
 | File | Purpose |

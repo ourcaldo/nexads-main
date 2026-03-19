@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T05:42:31-07:00
+- Short description: Complete remaining mobile fingerprint rollout and operations deliverables
+- What you do: Added reason-code and strategy/session metadata fields to fingerprint telemetry, added advanced override guard in setup, expanded plan file with implementation status plus Stage A/B/C go-no-go checklist template, created a dedicated operator runbook with rollout gates and rollback procedure, and linked runbook in README.
+- File path that changes: app/core/telemetry.py; app/browser/setup.py; app/core/worker.py; docs/plans/2026-03-19-mobile-profiles-implementation.md; docs/runbook-mobile-fingerprint.md; README.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T05:31:44-07:00
 - Short description: Activate mobile fingerprint application for mobile sessions
 - What you do: Changed setup strategy to disable dry-run so sessions selected as mobile by device_type now apply mapped mobile fingerprint context options instead of desktop dry-run behavior.

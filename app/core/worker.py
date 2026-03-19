@@ -248,6 +248,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 emit_mobile_fingerprint_event(
                     worker_id=worker_id,
                     event_type='session_fingerprint_mode',
+                    session_id=session_id,
+                    strategy_mode='active' if fingerprint_mode == 'mobile' else ('dry_run' if fingerprint_mode == 'dry_run' else 'disabled'),
                     final_mode=fingerprint_mode,
                     reason=fallback_reason,
                     success=True,
@@ -668,6 +670,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             emit_mobile_fingerprint_event(
                 worker_id=worker_id,
                 event_type='session_outcome',
+                session_id=session_id,
+                strategy_mode='active' if (fingerprint_mode if 'fingerprint_mode' in locals() else 'desktop') == 'mobile' else ('dry_run' if (fingerprint_mode if 'fingerprint_mode' in locals() else 'desktop') == 'dry_run' else 'disabled'),
                 final_mode=fingerprint_mode if 'fingerprint_mode' in locals() else 'desktop',
                 success=session_successful,
                 reason=fallback_reason if 'fallback_reason' in locals() else '',

@@ -247,3 +247,39 @@ Mitigation: enforce generation call per worker session and audit in telemetry.
 ## Next Action After Plan Approval
 1. Produce file-by-file execution checklist with exact function signatures and insertion locations.
 2. Implement Phase 1 only after explicit go-ahead.
+
+## Implementation Status (Completed)
+1. Mobile fingerprint branch integrated in `app/browser/setup.py` using existing `device_type` runtime split.
+2. Fresh fingerprint identity generation is invoked per mobile-selected worker session.
+3. Preflight consistency validator blocks malformed combinations and emits reason-coded telemetry.
+4. Desktop fallback is immediate on preflight failure and preserves stable session flow.
+5. Persistent browser storage path is removed from runtime worker context creation.
+6. Telemetry lifecycle events and session outcome segmentation are implemented.
+7. Runbook delivered in `docs/runbook-mobile-fingerprint.md`.
+
+## Go/No-Go Checklist Template
+Use this checklist at each rollout stage.
+
+### Stage A (Dry-Run)
+1. [ ] Generation success rate meets target.
+2. [ ] Validation reason codes are bounded and understood.
+3. [ ] Desktop regression not observed.
+4. Result: [ ] Go [ ] No-Go
+5. Decision owner: __________
+6. Date time: __________
+
+### Stage B (Limited Activation)
+1. [ ] Fallback frequency within expected range.
+2. [ ] Setup crash rate within tolerance.
+3. [ ] Latency impact acceptable.
+4. Result: [ ] Go [ ] No-Go
+5. Decision owner: __________
+6. Date time: __________
+
+### Stage C (Wider Activation)
+1. [ ] Stability remains consistent over observation window.
+2. [ ] No expanding error pattern in telemetry reason codes.
+3. [ ] Rollback can be executed quickly by operators.
+4. Result: [ ] Go [ ] No-Go
+5. Decision owner: __________
+6. Date time: __________
