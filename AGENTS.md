@@ -151,6 +151,167 @@ Follow this pattern when adding new functionality that needs access to shared st
 - **Click fallback chain:** mouse click -> native `.click()` -> JS `evaluate("el.click()")`
 - **Random human-like delays** injected everywhere via `random.randint()` / `random.uniform()`
 
+### Mobile BrowserForge Fingerprint Reference (Required)
+- Use BrowserForge `FingerprintGenerator` for mobile fingerprint requests when full payload is needed.
+- Canonical generation command (Python):
+```python
+from browserforge.fingerprints import FingerprintGenerator
+fp = FingerprintGenerator().generate(browser='chrome', os='android', device='mobile')
+```
+- For mobile fingerprint injection flows: **use the full payload**, not only user agent or a subset.
+  - Required top-level sections to preserve and carry through: `headers`, `navigator`, `screen`, `battery`, `audioCodecs`, `videoCodecs`, `videoCard`, `pluginsData`, `multimediaDevices`, `fonts`.
+  - Preserve full `navigator.userAgentData` and `navigator.extraProperties` if present.
+  - Keep original header key casing and values from BrowserForge response.
+  - Use the following full example payload structure for reference:
+```json
+{
+  "audioCodecs": {
+    "aac": "probably",
+    "m4a": "maybe",
+    "mp3": "probably",
+    "ogg": "probably",
+    "wav": "probably"
+  },
+  "battery": {
+    "charging": false,
+    "chargingTime": null,
+    "dischargingTime": null,
+    "level": 0.87
+  },
+  "fonts": [
+    "sans-serif-thin"
+  ],
+  "headers": {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br, zstd",
+    "Accept-Language": "en-US;q=1.0",
+    "Sec-Fetch-Dest": "navigate",
+    "Sec-Fetch-Mode": "same-site",
+    "Sec-Fetch-Site": "?1",
+    "Sec-Fetch-User": "document",
+    "Upgrade-Insecure-Requests": "1",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
+    "sec-ch-ua": "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
+    "sec-ch-ua-mobile": "?1",
+    "sec-ch-ua-platform": "\"Android\""
+  },
+  "mockWebRTC": false,
+  "multimediaDevices": {
+    "micros": [],
+    "speakers": [],
+    "webcams": [
+      {
+        "deviceId": "",
+        "groupId": "",
+        "kind": "videoinput",
+        "label": ""
+      }
+    ]
+  },
+  "navigator": {
+    "appCodeName": "Mozilla",
+    "appName": "Netscape",
+    "appVersion": "5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
+    "deviceMemory": 8,
+    "doNotTrack": null,
+    "extraProperties": {
+      "globalPrivacyControl": null,
+      "installedApps": [],
+      "pdfViewerEnabled": null,
+      "vendorFlavors": [
+        "chrome"
+      ]
+    },
+    "hardwareConcurrency": 8,
+    "language": "en-US",
+    "languages": [
+      "en-US"
+    ],
+    "maxTouchPoints": 5,
+    "oscpu": null,
+    "platform": "Linux armv81",
+    "product": "Gecko",
+    "productSub": "20030107",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
+    "userAgentData": {
+      "architecture": "",
+      "bitness": "",
+      "brands": [
+        {
+          "brand": "Not)A;Brand",
+          "version": "8"
+        },
+        {
+          "brand": "Chromium",
+          "version": "138"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "138"
+        }
+      ],
+      "fullVersionList": [
+        {
+          "brand": "Not)A;Brand",
+          "version": "8.0.0.0"
+        },
+        {
+          "brand": "Chromium",
+          "version": "138.0.7204.179"
+        },
+        {
+          "brand": "Google Chrome",
+          "version": "138.0.7204.179"
+        }
+      ],
+      "mobile": true,
+      "model": "V1818CA",
+      "platform": "Android",
+      "platformVersion": "8.1.0",
+      "uaFullVersion": "138.0.7204.179"
+    },
+    "vendor": "Google Inc.",
+    "vendorSub": null,
+    "webdriver": false
+  },
+  "pluginsData": {
+    "mimeTypes": [],
+    "plugins": []
+  },
+  "screen": {
+    "availHeight": 910,
+    "availLeft": 0,
+    "availTop": 0,
+    "availWidth": 360,
+    "clientHeight": 18,
+    "clientWidth": 0,
+    "colorDepth": 24,
+    "devicePixelRatio": 1,
+    "hasHDR": false,
+    "height": 910,
+    "innerHeight": 0,
+    "innerWidth": 0,
+    "outerHeight": 780,
+    "outerWidth": 360,
+    "pageXOffset": 0,
+    "pageYOffset": 0,
+    "pixelDepth": 24,
+    "screenX": 0,
+    "width": 360
+  },
+  "slim": false,
+  "videoCard": {
+    "renderer": "ANGLE (ARM, Mali-G51, OpenGL ES 3.2)",
+    "vendor": "Google Inc. (ARM)"
+  },
+  "videoCodecs": {
+    "h264": "probably",
+    "ogg": "",
+    "webm": "probably"
+  }
+}
+```
+
 ### Known Issues / Tech Debt
 - `SessionFailedException` is defined in both `automation.py` and `worker.py` (duplicate).
 - No `.gitignore` -- `__pycache__/`, `.vscode/`, proxy credentials may be tracked.

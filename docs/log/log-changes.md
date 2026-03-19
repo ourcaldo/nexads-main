@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-19T08:38:51-07:00
+- Short description: Push latest user-updated config and docs snapshot
+- What you do: Staged and prepared all current non-cache workspace changes including updated configuration/runtime docs and telemetry data files for a single commit and push, excluding Python cache artifacts.
+- File path that changes: AGENTS.md; README.md; config.json; data/worker_events.jsonl; data/ad_click_events.jsonl; data/telemetry_mobile.jsonl; data/worker_errors.jsonl; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-19T07:58:22-07:00
 - Short description: Prevent hidden settings via scrollable tab containers
 - What you do: Added scroll-area wrappers for all configuration tabs and vertical stretch balancing in general settings columns so sections like Session Settings remain accessible even when content exceeds viewport height.
