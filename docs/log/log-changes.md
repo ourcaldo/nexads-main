@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T01:20:00+00:00
+- Short description: Wait for full page load after navigation before any interaction
+- What you do: Added page.wait_for_load_state("load") with 15s timeout after navigation succeeds. This waits for images, iframes, ads, and scripts to finish loading — not just DOM parsing. Previously only waited for domcontentloaded which fires before ads/iframes render, causing elements to not be ready. Added visible "Page loaded, settling..." log message followed by 2-4s additional delay. Both waits happen before health check, cookies, consent, and activity loop.
+- File path that changes: app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T01:10:00+00:00
 - Short description: Add page render delay right before activity loop starts
 - What you do: Added 2-4s delay between "Staying on page" log and activity_start. Previous delay at line 605 was before health check/cookies/consent — too early, already consumed by the time activities start. New delay is right before activity_start so it's not counted in stay time and gives the page time to fully render ads/scripts.
