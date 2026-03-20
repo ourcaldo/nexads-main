@@ -84,6 +84,13 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                 print(f"Worker {worker_id}: Page unhealthy, skipping link navigation: {health.get('reason')}")
                 raise SessionFailedException(f"Page unhealthy: {health.get('reason')}")
 
+            # Scroll to top so header/nav links are visible and interactable
+            try:
+                await page.evaluate("window.scrollTo(0, 0)")
+                await page.wait_for_timeout(random.randint(300, 700))
+            except Exception:
+                pass
+
             print(f"Worker {worker_id}: Scanning page for links to {target_domain}")
 
             all_links = await page.query_selector_all('a[href]')
@@ -121,31 +128,40 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                     scroll_success = False
                     scroll_attempts = 0
 
-                    while scroll_attempts < 3 and not scroll_success:
+                    while scroll_attempts < 2 and not scroll_success:
                         try:
                             attached = await page.evaluate("(el) => el && el.isConnected", link)
                             if not attached:
                                 raise Exception("Element is not attached to the DOM")
-                            await link.scroll_into_view_if_needed(timeout=22500)
+                            await link.scroll_into_view_if_needed(timeout=5000)
                             scroll_success = True
                         except Exception as e:
                             scroll_attempts += 1
-                            if scroll_attempts == 3:
+                            if scroll_attempts == 2:
                                 raise
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(0.5)
 
                     await page.wait_for_timeout(random.randint(500, 1500))
 
                     current_domain = extract_domain(page.url)
                     if await smart_click_fn(page, worker_id, current_domain, link):
-                        await page.wait_for_load_state("networkidle", timeout=45000)
-                        print(f"Worker {worker_id}: Successfully clicked {match_type} match")
+                        try:
+                            await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                        except Exception:
+                            pass  # Navigation may have completed anyway
 
-                        if config['browser']['auto_accept_cookies']:
-                            await accept_cookies_fn(page)
+                        # Check if we actually navigated to the target domain
+                        post_click_domain = extract_domain(page.url)
+                        if post_click_domain == target_domain:
+                            print(f"Worker {worker_id}: Successfully clicked {match_type} match")
 
-                        await check_vignette_fn(page, worker_id)
-                        return True
+                            if config['browser']['auto_accept_cookies']:
+                                await accept_cookies_fn(page)
+
+                            await check_vignette_fn(page, worker_id)
+                            return True
+
+                        print(f"Worker {worker_id}: Click did not navigate to target (at {post_click_domain})")
 
                 except Exception as e:
                     print(f"Worker {worker_id}: Link click failed: {str(e)}")
@@ -216,21 +232,24 @@ async def random_navigation(page, worker_id: int, target_domain: str,
 
             link = random.choice(all_links)
 
-            for attempt in range(3):
+            for attempt in range(2):
                 try:
-                    await link.scroll_into_view_if_needed(timeout=22500)
+                    await link.scroll_into_view_if_needed(timeout=5000)
                     break
                 except Exception as e:
                     print(f"Worker {worker_id}: Scroll attempt {attempt + 1} failed: {str(e)}")
-                    if attempt == 2:
+                    if attempt == 1:
                         raise
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)
 
             await page.wait_for_timeout(random.randint(500, 1500))
 
             current_domain = extract_domain(page.url)
             if await smart_click_fn(page, worker_id, current_domain, link):
-                await page.wait_for_load_state("networkidle", timeout=45000)
+                try:
+                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except Exception:
+                    pass
 
                 if config['browser']['auto_accept_cookies']:
                     await accept_cookies_fn(page)

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T21:30:00+00:00
+- Short description: Fix navigation click timeouts and scroll-into-view failures
+- What you do: (1) Changed post-click wait from networkidle/45s to domcontentloaded/15s — networkidle never resolves on pages with persistent ad/analytics connections. (2) Don't throw away successful clicks if load state times out — check URL to confirm navigation happened. (3) Scroll to top before scanning for links so header/nav links are visible. (4) Reduced scroll_into_view_if_needed timeout from 22.5s to 5s and retries from 3 to 2 in both navigate_to_url_by_click and random_navigation. Total worst-case waste reduced from 67.5s+45s per link to 10.5s per link.
+- File path that changes: app/navigation/urls.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T21:10:00+00:00
 - Short description: Add page health check to detect error/timeout/proxy failures
 - What you do: Added check_page_health() to urls.py that detects HTTP errors (404, 502, 503, 504), browser error pages (ERR_TIMED_OUT, ERR_PROXY, etc.), proxy errors, blank pages, and connection failures via JS evaluation. Integrated at 3 points: (1) after navigation in worker.py — skips to next URL if page is broken, (2) at start of each activity iteration in activities.py — stops activities on unhealthy page, (3) in navigate_to_url_by_click — raises SessionFailedException immediately instead of burning time retrying on a dead page.
