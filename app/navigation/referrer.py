@@ -100,7 +100,6 @@ def get_random_keyword(config: dict):
     if valid_keywords:
         return random.choice(valid_keywords)
 
-    print(f"DEBUG - Raw keyword data: {repr(keywords)}")
     return None
 
 

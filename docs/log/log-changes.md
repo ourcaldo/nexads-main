@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:06:00+00:00
+- Short description: Remove debug print statement from get_random_keyword (L-4)
+- What you do: Removed `print(f"DEBUG - Raw keyword data: {repr(keywords)}")` left in production code.
+- File path that changes: app/navigation/referrer.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:05:00+00:00
 - Short description: Remove dead code RateLimiter and get_random_delay from automation.py (L-2, L-3)
 - What you do: Removed unused RateLimiter class (defined but wait_if_needed never called) and unused get_random_delay method (duplicated by worker.py's get_delay which uses lognormal). Updated AGENTS.md Known Issues.
