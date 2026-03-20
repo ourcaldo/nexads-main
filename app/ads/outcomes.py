@@ -103,33 +103,27 @@ def score_click_outcome(outcome_type: str,
                         classification: str,
                         reason_codes: list[str],
                         redirect_chain: list[str]) -> float:
-    """Compute confidence score in [0, 1] for ad click validity."""
-    score = 0.0
+    """Compute confidence score in [0, 1] for ad click validity.
 
+    Success means navigation happened — either a new tab opened or the page
+    navigated to an external domain.  Both are equally valid; different ad
+    providers use different mechanisms.
+    """
+    # New tab opened — success regardless of parent page URL
     if outcome_type == "new_tab_navigation":
-        score += 0.25
-    elif outcome_type == "same_tab_navigation":
-        score += 0.18
+        return 0.80
 
-    if final_url and final_url != source_url:
-        score += 0.25
-    else:
-        score -= 0.20
+    # Same-tab navigation to an external domain — success
+    if outcome_type == "same_tab_navigation":
+        source_domain = _extract_domain(source_url)
+        final_domain = _extract_domain(final_url)
+        if final_domain and final_domain != source_domain:
+            return 0.80
+        # Navigated but stayed on same domain — internal link, not an ad click
+        return 0.20
 
-    if any(code == "ad_host_signature" for code in reason_codes):
-        score += 0.20
-
-    if len(redirect_chain) >= 2:
-        score += 0.10
-
-    if classification == "ad_destination":
-        score += 0.20
-    elif classification == "blocked_or_failed":
-        score -= 0.30
-    elif classification == "same_site_internal":
-        score -= 0.12
-
-    return max(0.0, min(1.0, score))
+    # No navigation at all — click didn't work
+    return 0.0
 
 
 async def evaluate_ad_click_outcome(page, context,

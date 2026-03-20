@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T01:00:00+00:00
+- Short description: Rewrite ad click scoring with clear success logic
+- What you do: Replaced the broken weighted scoring system in outcomes.py. Old system penalized "parent page didn't change" even when a new tab opened, making iframe ad clicks always score 0.00. New logic: new tab opened = 0.80 (success), same-tab navigation to external domain = 0.80 (success), same-tab same domain = 0.20 (internal link), no navigation = 0.00 (failed). Both new tab and same-tab external navigation are equally valid since different providers use different mechanisms.
+- File path that changes: app/ads/outcomes.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T00:45:00+00:00
 - Short description: Fix navigation settle delay and Adsterra iframe click error
 - What you do: (1) Moved settle delay (2-4s) to right after navigation succeeds, before health check and cookie/consent handling. Removed duplicate delay before activity loop. Delay is outside stay time budget. (2) Fixed 'Frame object has no attribute is_closed' error in smart_click by using hasattr guard. (3) Fixed Adsterra iframe clicks: always pass the top-level page to smart_click (needs page.mouse, page.context), not the Frame object. Element handles from iframes work with parent page since bounding_box() returns main-viewport coordinates.
