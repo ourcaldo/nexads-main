@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T16:00:00+00:00
+- Short description: Add session.min_time field to GUI config window
+- What you do: Added Min Session Time spinner to Session Settings group in config window. Includes save/load support, toggle enable/disable with session checkbox, and validation (min <= max). Defaults to 0 (disabled) when key is missing from config.json via .get().
+- File path that changes: app/ui/config_window.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:55:00+00:00
 - Short description: Reduce page navigation timeout from 90s to 30s and use domcontentloaded (E-6)
 - What you do: Changed all page.goto() calls from timeout=90000/networkidle to timeout=30000/domcontentloaded. Many sites never reach networkidle due to tracking scripts, wasting 90s per failed navigation. domcontentloaded fires when the page is interactive, which is sufficient for automation. Applied to worker.py (4 locations), tabs.py (1 location), referrer.py (1 location).

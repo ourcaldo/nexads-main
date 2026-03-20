@@ -475,12 +475,18 @@ class ConfigWindow(QMainWindow):
         session_layout.addWidget(QLabel("Session Count (0=unlimited):"))
         session_layout.addWidget(self.session_count)
         
+        self.session_min_time = QSpinBox()
+        self.session_min_time.setRange(0, 1440)
+        self.session_min_time.setValue(self.config["session"].get("min_time", 0))
+        session_layout.addWidget(QLabel("Min Session Time (minutes, 0=disabled):"))
+        session_layout.addWidget(self.session_min_time)
+
         self.session_max_time = QSpinBox()
         self.session_max_time.setRange(1, 1440)
         self.session_max_time.setValue(self.config["session"]["max_time"])
         session_layout.addWidget(QLabel("Max Session Time (minutes):"))
         session_layout.addWidget(self.session_max_time)
-        
+
         session_group.setLayout(session_layout)
         right_col.addWidget(session_group)
         
@@ -769,7 +775,10 @@ class ConfigWindow(QMainWindow):
 
     def toggle_session_options(self):
         """Show/hide session options based on checkbox state."""
-        self.session_count.setEnabled(self.session_enabled.isChecked())
+        enabled = self.session_enabled.isChecked()
+        self.session_count.setEnabled(enabled)
+        self.session_min_time.setEnabled(enabled)
+        self.session_max_time.setEnabled(enabled)
 
     def load_proxy_file(self):
         """Open file dialog to load proxy list."""
@@ -915,6 +924,7 @@ class ConfigWindow(QMainWindow):
             config["session"] = {
                 "enabled": self.session_enabled.isChecked(),
                 "count": self.session_count.value(),
+                "min_time": self.session_min_time.value(),
                 "max_time": self.session_max_time.value()
             }
             
@@ -978,6 +988,8 @@ class ConfigWindow(QMainWindow):
                 errors.append("Delay: min time must be ≤ max time")
             if config["ads"]["min_time"] > config["ads"]["max_time"]:
                 errors.append("Ads time: min time must be ≤ max time")
+            if config["session"].get("min_time", 0) > 0 and config["session"]["min_time"] > config["session"]["max_time"]:
+                errors.append("Session: min time must be ≤ max time")
             for i, url_data in enumerate(config["urls"]):
                 if url_data["min_time"] > url_data["max_time"]:
                     errors.append(f"URL row {i + 1}: min time must be ≤ max time")
