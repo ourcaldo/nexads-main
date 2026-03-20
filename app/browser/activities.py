@@ -540,7 +540,7 @@ async def perform_random_activity(
                 )
 
                 if ad_success:
-                    interaction_state["ad_click_success"] = True
+                    # ad_click_success is managed by the dispatcher
                     tabs_after = len(context_obj.pages)
 
                     if tabs_after <= tabs_before:

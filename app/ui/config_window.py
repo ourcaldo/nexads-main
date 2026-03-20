@@ -1,11 +1,12 @@
 import json
 import os
 from pathlib import Path
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, 
-                            QGroupBox, QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox, 
-                            QSpinBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView, 
-                            QFileDialog, QDoubleSpinBox, QRadioButton, QButtonGroup, QAction, 
-                            QMessageBox, QSlider, QFrame, QScrollArea)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
+                            QGroupBox, QLabel, QLineEdit, QPushButton, QComboBox, QCheckBox,
+                            QSpinBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView,
+                            QFileDialog, QDoubleSpinBox, QRadioButton, QButtonGroup, QAction,
+                            QMessageBox, QSlider, QFrame, QScrollArea, QListWidget, QListWidgetItem,
+                            QAbstractItemView)
 from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QPalette, QColor, QKeySequence, QFont
 
@@ -177,6 +178,29 @@ class ConfigWindow(QMainWindow):
                 background: #4B7FE8;
                 border-radius: 5px;
             }
+
+            QListWidget {
+                background: #2A2F3A;
+                color: #E8ECF5;
+                border: 1px solid #3B4454;
+                border-radius: 8px;
+                padding: 4px;
+                font-size: 10pt;
+            }
+
+            QListWidget::item {
+                padding: 6px 8px;
+                border-radius: 4px;
+            }
+
+            QListWidget::item:selected {
+                background: #3D73D8;
+                color: #FFFFFF;
+            }
+
+            QListWidget::item:hover {
+                background: #333A48;
+            }
         """)
 
         dark_palette = QPalette()
@@ -240,6 +264,8 @@ class ConfigWindow(QMainWindow):
             ],
             "ads": {
                 "ctr": 5.0,
+                "providers": ["adsense"],
+                "strategy": "first_success",
                 "min_time": 10,
                 "max_time": 30
             }
@@ -684,48 +710,138 @@ class ConfigWindow(QMainWindow):
         return tab
 
     def create_ads_tab(self):
-        """Create the Ads Settings tab with compact layout."""
+        """Create the Ads Settings tab with multi-provider support."""
         tab = QWidget()
         layout = QVBoxLayout()
         layout.setSpacing(12)
-        
-        # CTR Settings - Compact version
+
+        # CTR Settings
         ctr_group = QGroupBox("CTR Settings")
         ctr_layout = QVBoxLayout()
-        
+
         ctr_layout.addWidget(QLabel("CTR Percentage:"))
         self.ctr = QDoubleSpinBox()
         self.ctr.setRange(0.1, 100.0)
         self.ctr.setValue(self.config["ads"]["ctr"])
         ctr_layout.addWidget(self.ctr)
-        
+
         ctr_group.setLayout(ctr_layout)
         layout.addWidget(ctr_group)
-        
-        # Ads Time Settings - Compact version
-        ads_time_group = QGroupBox("Ads Time Settings")
+
+        # Ad Providers
+        providers_group = QGroupBox("Ad Providers")
+        providers_layout = QVBoxLayout()
+
+        self.adsense_provider_check = QCheckBox("AdSense")
+        self.adsterra_provider_check = QCheckBox("Adsterra")
+
+        providers_cfg = self.config["ads"].get("providers", ["adsense"])
+        self.adsense_provider_check.setChecked("adsense" in providers_cfg)
+        self.adsterra_provider_check.setChecked("adsterra" in providers_cfg)
+
+        self.adsense_provider_check.stateChanged.connect(self._update_provider_order_list)
+        self.adsterra_provider_check.stateChanged.connect(self._update_provider_order_list)
+
+        providers_layout.addWidget(self.adsense_provider_check)
+        providers_layout.addWidget(self.adsterra_provider_check)
+        providers_group.setLayout(providers_layout)
+        layout.addWidget(providers_group)
+
+        # Ad Strategy
+        strategy_group = QGroupBox("Ad Strategy")
+        strategy_layout = QVBoxLayout()
+
+        strategy_layout.addWidget(QLabel("Strategy:"))
+        self.strategy_combo = QComboBox()
+        self.strategy_combo.addItems(["First Success", "One Per Provider"])
+
+        current_strategy = self.config["ads"].get("strategy", "first_success")
+        self.strategy_combo.setCurrentIndex(1 if current_strategy == "one_per_provider" else 0)
+        self.strategy_combo.currentIndexChanged.connect(self._toggle_provider_order)
+
+        strategy_layout.addWidget(self.strategy_combo)
+        strategy_group.setLayout(strategy_layout)
+        layout.addWidget(strategy_group)
+
+        # Provider Priority Order (drag-and-drop)
+        self.provider_order_group = QGroupBox("Provider Priority Order (drag to reorder)")
+        order_layout = QVBoxLayout()
+
+        self.provider_order_list = QListWidget()
+        self.provider_order_list.setDragDropMode(QAbstractItemView.InternalMove)
+        self.provider_order_list.setDefaultDropAction(Qt.MoveAction)
+        self.provider_order_list.setMinimumHeight(80)
+        self.provider_order_list.setMaximumHeight(120)
+
+        order_layout.addWidget(self.provider_order_list)
+        self.provider_order_group.setLayout(order_layout)
+        layout.addWidget(self.provider_order_group)
+
+        # Populate order list from config and set visibility
+        self._update_provider_order_list()
+        self._toggle_provider_order()
+
+        # Ads Time Settings
+        ads_time_group = QGroupBox("Ad Landing Stay Time")
         ads_time_layout = QVBoxLayout()
-        
+
         ads_time_layout.addWidget(QLabel("Min. Time (seconds):"))
         self.ads_min_time = QSpinBox()
         self.ads_min_time.setRange(1, 300)
         self.ads_min_time.setValue(self.config["ads"]["min_time"])
         ads_time_layout.addWidget(self.ads_min_time)
-        
+
         ads_time_layout.addWidget(QLabel("Max. Time (seconds):"))
         self.ads_max_time = QSpinBox()
         self.ads_max_time.setRange(1, 300)
         self.ads_max_time.setValue(self.config["ads"]["max_time"])
         ads_time_layout.addWidget(self.ads_max_time)
-        
+
         ads_time_group.setLayout(ads_time_layout)
         layout.addWidget(ads_time_group)
-        
-        # Add stretch to push everything up
+
         layout.addStretch()
-        
+
         tab.setLayout(layout)
         return tab
+
+    def _update_provider_order_list(self):
+        """Update the provider order list based on checked providers."""
+        _key_to_display = {"adsense": "AdSense", "adsterra": "Adsterra"}
+        _display_to_key = {"AdSense": "adsense", "Adsterra": "adsterra"}
+
+        # Remember current widget order
+        current_order = []
+        for i in range(self.provider_order_list.count()):
+            display = self.provider_order_list.item(i).text()
+            current_order.append(_display_to_key.get(display, display.lower()))
+
+        # On first load, use config order
+        if not current_order:
+            current_order = self.config["ads"].get("providers", ["adsense"])
+
+        # Enabled providers
+        enabled = set()
+        if self.adsense_provider_check.isChecked():
+            enabled.add("adsense")
+        if self.adsterra_provider_check.isChecked():
+            enabled.add("adsterra")
+
+        # Preserve order for still-enabled, add new ones alphabetically
+        ordered = [p for p in current_order if p in enabled]
+        for p in sorted(enabled):
+            if p not in ordered:
+                ordered.append(p)
+
+        self.provider_order_list.clear()
+        for p in ordered:
+            item = QListWidgetItem(_key_to_display.get(p, p))
+            self.provider_order_list.addItem(item)
+
+    def _toggle_provider_order(self):
+        """Show provider order only when strategy is First Success."""
+        is_first_success = self.strategy_combo.currentIndex() == 0
+        self.provider_order_group.setVisible(is_first_success)
 
     def update_referrer_checks(self):
         """Update referrer checkboxes with the correct logic."""
@@ -975,9 +1091,19 @@ class ConfigWindow(QMainWindow):
                 }
                 config["urls"].append(url_data)
             
-            # Ads settings
+            # Ads settings — build ordered provider list from drag-and-drop widget
+            _display_to_key = {"AdSense": "adsense", "Adsterra": "adsterra"}
+            providers = []
+            for i in range(self.provider_order_list.count()):
+                display = self.provider_order_list.item(i).text()
+                providers.append(_display_to_key.get(display, display.lower()))
+
+            strategy = "first_success" if self.strategy_combo.currentIndex() == 0 else "one_per_provider"
+
             config["ads"] = {
                 "ctr": self.ctr.value(),
+                "providers": providers,
+                "strategy": strategy,
                 "min_time": self.ads_min_time.value(),
                 "max_time": self.ads_max_time.value()
             }

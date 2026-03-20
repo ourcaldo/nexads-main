@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T20:30:00+00:00
+- Short description: Multi-provider ad system with Adsterra support, dispatcher, and GUI
+- What you do: (1) Created app/ads/adsterra.py with Adsterra ad detection using cosmetic domains (sourshaped.com, skinnycrawlinglax.com, wayfarerorthodox.com, realizationnewestfangs.com) and interaction logic mirroring adsense.py. (2) Created app/ads/dispatcher.py with two strategies: first_success (try providers in order, stop on first click) and one_per_provider (1 success needed per enabled provider). (3) Updated worker.py to use dispatcher instead of direct adsense import. (4) Updated activities.py to let dispatcher manage ad_click_success state. (5) Updated config_window.py GUI with provider checkboxes, strategy dropdown, and drag-and-drop provider priority reordering via QListWidget. (6) Added providers and strategy fields to config.json.
+- File path that changes: app/ads/adsterra.py; app/ads/dispatcher.py; app/browser/activities.py; app/core/worker.py; app/ui/config_window.py; config.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T19:45:00+00:00
 - Short description: Enforce minimum ad dimensions to filter tracking/pixel iframes
 - What you do: Raised bounding box threshold in detect_adsense_ads from >0 to >=50 width and >=30 height (smallest standard ad is 320x50). Added dimension check to _has_rendered_content IFRAME path — Google tracking/reporting iframes have ad URLs but tiny/zero dimensions. Previously 6 "rendered" ads passed on a page where most were tracking iframes at positions like (0,-4233).

@@ -37,7 +37,8 @@ from app.navigation.tabs import (
     natural_exit,
 )
 from app.core.telemetry import emit_worker_event, emit_mobile_fingerprint_event, emit_heartbeat
-from app.ads.adsense import interact_with_ads, check_and_handle_vignette, smart_click
+from app.ads.adsense import check_and_handle_vignette, smart_click
+from app.ads.dispatcher import dispatch_ad_interaction
 
 
 @dataclass
@@ -205,6 +206,15 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
         target_url=None,
     ):
         ensure_tab_fn = _ensure_tab_ad if is_ads else _ensure_tab_target
+
+        ads_fn = None
+        if is_ads and interaction_state is not None:
+            async def _dispatch_ads(p, b, w, edf, max_duration=0):
+                return await dispatch_ad_interaction(
+                    p, b, w, edf, ctx.config, interaction_state, max_duration
+                )
+            ads_fn = _dispatch_ads
+
         return await perform_random_activity(
             page,
             browser,
@@ -219,7 +229,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             is_ads,
             interaction_state,
             target_url if not is_ads else None,
-            interact_with_ads_fn=interact_with_ads if is_ads else None,
+            interact_with_ads_fn=ads_fn,
         )
 
     try:
