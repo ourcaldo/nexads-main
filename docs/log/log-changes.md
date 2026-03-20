@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T14:30:00+00:00
+- Short description: Add mandatory git workflow rules to .claude/rules/
+- What you do: Created .claude/rules/git-workflow.md with enforced rules for one-commit-per-change, log-before-commit, and immediate push. These rules are loaded automatically by Claude Code on every conversation.
+- File path that changes: .claude/rules/git-workflow.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T14:00:00+00:00
 - Short description: Fix critical variable initialization bug on mobile persistent context path
 - What you do: Moved ad_click_success and interaction_state initialization before the if/else persistent context branch. Previously these were only set in the desktop (else) branch, causing UnboundLocalError when mobile sessions tried ads or activities. Also moved _random_nav definition outside the desktop-only branch so mobile sessions can navigate subsequent URLs.
