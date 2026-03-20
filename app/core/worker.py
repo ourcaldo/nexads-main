@@ -741,6 +741,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     if remaining_budget < float("inf") and stay_time > remaining_budget:
                         stay_time = max(1, int(remaining_budget))
 
+                    print(f"Worker {worker_id}: Waiting 3s for page to settle...")
+                    await asyncio.sleep(3)
+
                     print(
                         f"Worker {worker_id}: Staying on page for {stay_time} seconds"
                     )
@@ -751,9 +754,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         url_idx=url_index + 1,
                         duration_ms=stay_time * 1000,
                     )
-
-                    # 3s delay before activities — let ads/scripts finish loading
-                    await asyncio.sleep(3)
 
                     activity_start = time.time()
                     remaining_time = stay_time
