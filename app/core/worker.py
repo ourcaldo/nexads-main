@@ -886,6 +886,15 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
                 session_successful = True
 
+                # Enforce minimum session duration if configured
+                session_min_seconds = ctx.config.get("session", {}).get("min_time", 0) * 60
+                if session_min_seconds > 0:
+                    elapsed = time.time() - session_start_time
+                    remaining_min = session_min_seconds - elapsed
+                    if remaining_min > 1:
+                        print(f"Worker {worker_id}: Session completed early, padding {int(remaining_min)}s to meet min_time")
+                        await asyncio.sleep(remaining_min)
+
             except SessionFailedException as e:
                 print(f"Worker {worker_id}: Session marked as failed: {str(e)}")
                 _emit_step(
