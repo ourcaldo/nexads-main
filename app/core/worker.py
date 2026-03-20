@@ -426,8 +426,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         if not next_data["random_page"]:
                             next_url = next_data["url"].strip()
 
-                    # Clear pre-scan cache from previous URL
+                    # Clear per-page state from previous URL
                     interaction_state.pop("pre_scanned_nav", None)
+                    interaction_state.pop("ad_attempted_this_page", None)
 
                     print(
                         f"Worker {worker_id}: [URL {url_index + 1}/{len(ctx.config['urls'])}] Visiting: {url}"

@@ -426,6 +426,67 @@ async def perform_random_activity(
             progress = (stay_time - remaining_time) / max(1.0, stay_time)
             phase = _get_reading_phase(progress)
 
+            # --- Priority ad attempt: once per page on ads sessions ---
+            if (
+                is_ads_session
+                and interact_with_ads_fn
+                and not interaction_state.get("ad_attempted_this_page")
+                and not interaction_state.get("ad_click_success")
+                and phase != "arrival"
+            ):
+                interaction_state["ad_attempted_this_page"] = True
+                ad_time_budget = min(remaining_time, 30)
+                context_obj = page.context
+                tabs_before = len(context_obj.pages)
+
+                ad_success = await interact_with_ads_fn(
+                    page, browser, worker_id, extract_domain_fn,
+                    max_duration=ad_time_budget,
+                )
+
+                if ad_success:
+                    tabs_after = len(context_obj.pages)
+
+                    if tabs_after <= tabs_before:
+                        min_ads = int(config.get("ads", {}).get("min_time", 5))
+                        max_ads = int(config.get("ads", {}).get("max_time", 15))
+                        if min_ads >= max_ads:
+                            ad_stay = min_ads
+                        else:
+                            ad_stay = int(round(lognormal_seconds(
+                                (min_ads + max_ads) / 2, 0.5, min_ads, max_ads
+                            )))
+
+                        elapsed_now = time.time() - activity_start
+                        time_left = stay_time - elapsed_now
+                        ad_stay = max(0, min(ad_stay, time_left - 3))
+
+                        if ad_stay > 0:
+                            print(f"Worker {worker_id}: Staying on same-tab ad landing for {ad_stay}s")
+                            await asyncio.sleep(ad_stay)
+
+                        try:
+                            await page.goto(expected_url, timeout=30000, wait_until="domcontentloaded")
+                            print(f"Worker {worker_id}: Returned to target after same-tab ad")
+                        except Exception as e:
+                            print(f"Worker {worker_id}: Error returning after ad: {e}")
+                    else:
+                        print(f"Worker {worker_id}: Ad opened new tab")
+
+                # Recalculate time and continue with normal activities
+                elapsed = time.time() - activity_start
+                remaining_time = stay_time - elapsed
+                if remaining_time <= 0:
+                    break
+                # Re-anchor after ad attempt
+                page, success = await ensure_correct_tab_fn(
+                    browser, page, expected_url, worker_id
+                )
+                if not success:
+                    return False
+                continue
+
+            # --- Normal weighted activities (scroll, hover, click) ---
             weighted_activities: list[tuple[str, float]] = []
             if (
                 "scroll" in config["browser"]["activities"]
@@ -475,17 +536,6 @@ async def perform_random_activity(
                         }[phase],
                     )
                 )
-
-            if (
-                is_ads_session
-                and interact_with_ads_fn
-                and not interaction_state.get("ad_click_success")
-                and phase != "arrival"
-            ):
-                weighted_activities.append((
-                    "ad_click",
-                    {"reading": 0.12, "exploration": 0.25, "done": 0.15}.get(phase, 0.10),
-                ))
 
             if not weighted_activities:
                 backoff = min(lognormal_seconds(1.2, 0.45, 0.5, 2.4), remaining_time)
@@ -538,46 +588,6 @@ async def perform_random_activity(
                     interaction_state,
                     expected_url,
                 )
-            elif selected == "ad_click" and interact_with_ads_fn:
-                ad_time_budget = min(remaining_time, 30)
-                context_obj = page.context
-                tabs_before = len(context_obj.pages)
-
-                ad_success = await interact_with_ads_fn(
-                    page, browser, worker_id, extract_domain_fn,
-                    max_duration=ad_time_budget,
-                )
-
-                if ad_success:
-                    # ad_click_success is managed by the dispatcher
-                    tabs_after = len(context_obj.pages)
-
-                    if tabs_after <= tabs_before:
-                        # Same-tab navigation — brief stay on ad landing, then return
-                        min_ads = int(config.get("ads", {}).get("min_time", 5))
-                        max_ads = int(config.get("ads", {}).get("max_time", 15))
-                        if min_ads >= max_ads:
-                            ad_stay = min_ads
-                        else:
-                            ad_stay = int(round(lognormal_seconds(
-                                (min_ads + max_ads) / 2, 0.5, min_ads, max_ads
-                            )))
-
-                        elapsed_now = time.time() - activity_start
-                        time_left = stay_time - elapsed_now
-                        ad_stay = max(0, min(ad_stay, time_left - 3))
-
-                        if ad_stay > 0:
-                            print(f"Worker {worker_id}: Staying on same-tab ad landing for {ad_stay}s")
-                            await asyncio.sleep(ad_stay)
-
-                        try:
-                            await page.goto(expected_url, timeout=30000, wait_until="domcontentloaded")
-                            print(f"Worker {worker_id}: Returned to target after same-tab ad")
-                        except Exception as e:
-                            print(f"Worker {worker_id}: Error returning after ad: {e}")
-                    else:
-                        print(f"Worker {worker_id}: Ad opened new tab")
 
             # Hard re-anchor after each activity in case a redirect happened mid-action.
             page, success = await ensure_correct_tab_fn(

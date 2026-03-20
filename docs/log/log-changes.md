@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T23:30:00+00:00
+- Short description: Priority ad attempt per page instead of random weighted selection
+- What you do: Removed ad_click from the weighted activity pool. On ads sessions, the first eligible iteration (after arrival phase) now forces an ad attempt. If it succeeds or fails, the rest of the stay time continues with normal activities (scroll/hover/click). Per-page flag ad_attempted_this_page is reset at each URL iteration in worker.py. For one_per_provider, only unsatisfied providers are tried; satisfied ones are skipped automatically by the dispatcher.
+- File path that changes: app/browser/activities.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T23:15:00+00:00
 - Short description: Fix one_per_provider dispatcher skipping subsequent providers
 - What you do: Removed early return False after first provider failure in one_per_provider strategy. Previously, if adsterra had no ads, the dispatcher returned immediately without ever trying adsense. Now it continues to the next unsatisfied provider within the same time budget.
