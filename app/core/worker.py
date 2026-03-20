@@ -601,6 +601,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         duration_ms=int((time.time() - url_step_started) * 1000),
                     )
 
+                    # Let the page settle after navigation (not counted in stay time)
+                    await asyncio.sleep(random.uniform(2.0, 4.0))
+
                     # Page health check — detect error/timeout/proxy failures early
                     health = await check_page_health(page)
                     if not health.get("healthy", True):
@@ -748,9 +751,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         url_idx=url_index + 1,
                         duration_ms=stay_time * 1000,
                     )
-
-                    # Let the page settle after navigation before starting activities
-                    await asyncio.sleep(random.uniform(1.0, 3.0))
 
                     activity_start = time.time()
                     remaining_time = stay_time

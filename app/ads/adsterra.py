@@ -212,15 +212,11 @@ async def _click_ad_element(page, ad_info: dict, worker_id: int,
                             extract_domain_fn, interaction_state: dict) -> bool:
     """Click an ad element, handling both top-level and iframe contexts."""
     element = ad_info["element"]
-    frame = ad_info.get("frame")
     source = ad_info.get("source", "unknown")
-
-    # For iframe ads, use the frame's page context for clicking
-    click_page = frame if frame else page
 
     try:
         box = await element.bounding_box()
-        if not box:
+        if not box or box['width'] < 10 or box['height'] < 10:
             return False
 
         ad_position = f"({box['x']:.0f},{box['y']:.0f})"
@@ -228,8 +224,10 @@ async def _click_ad_element(page, ad_info: dict, worker_id: int,
 
         current_domain = extract_domain_fn(page.url)
 
+        # Always use the top-level page for smart_click (needs page.mouse, page.context).
+        # Element handles from iframes still work — bounding_box() returns main-viewport coords.
         if await smart_click(
-            click_page, worker_id, current_domain, element,
+            page, worker_id, current_domain, element,
             is_ad_activity=True, interaction_state=interaction_state,
         ):
             return True

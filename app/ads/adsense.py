@@ -331,8 +331,12 @@ async def smart_click(page, worker_id: int, current_domain: str,
                       interaction_state: dict | None = None) -> bool:
     """Perform a smart click with curved movement and realistic click variance."""
     try:
-        if not page or page.is_closed():
+        if not page:
             print(f"Worker {worker_id}: Page is closed or invalid during smart click")
+            return False
+        # Frame objects don't have is_closed(); only check on Page objects
+        if hasattr(page, 'is_closed') and page.is_closed():
+            print(f"Worker {worker_id}: Page is closed during smart click")
             return False
 
         if not element:

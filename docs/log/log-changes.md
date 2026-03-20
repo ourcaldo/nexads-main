@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T00:45:00+00:00
+- Short description: Fix navigation settle delay and Adsterra iframe click error
+- What you do: (1) Moved settle delay (2-4s) to right after navigation succeeds, before health check and cookie/consent handling. Removed duplicate delay before activity loop. Delay is outside stay time budget. (2) Fixed 'Frame object has no attribute is_closed' error in smart_click by using hasattr guard. (3) Fixed Adsterra iframe clicks: always pass the top-level page to smart_click (needs page.mouse, page.context), not the Frame object. Element handles from iframes work with parent page since bounding_box() returns main-viewport coordinates.
+- File path that changes: app/core/worker.py; app/ads/adsense.py; app/ads/adsterra.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T00:30:00+00:00
 - Short description: Add 1-3s settle delay after navigation before activities start
 - What you do: Added random 1-3 second delay in worker.py after page navigation completes and before the activity loop begins. Gives the page time to fully render and settle (ads loading, scripts executing) before activities interact with the DOM.
