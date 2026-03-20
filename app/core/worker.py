@@ -725,6 +725,10 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             target_url=url,
                         )
 
+                        # Recalculate after activity so delay uses fresh time
+                        elapsed = time.time() - activity_start
+                        remaining_time = stay_time - elapsed
+
                         if remaining_time > 0:
                             delay = min(
                                 lognormal_seconds(1.1, 0.4, 0.4, 2.8), remaining_time

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T19:15:00+00:00
+- Short description: Fix stale remaining_time in worker.py outer activity loop
+- What you do: Added remaining_time recalculation after _perform_activity returns in the outer while loop. Previously, the delay check at line 728 used the stale value from before the activity ran, causing an extra ~1s sleep and unnecessary loop iteration after stay time was already exhausted.
+- File path that changes: app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T19:05:00+00:00
 - Short description: Integrate ad clicking into activity loop with rendered-content detection
 - What you do: (1) Added _has_rendered_content() check to detect_adsense_ads so phantom/unloaded ad containers are filtered out — only ads with actual iframe or visible child content pass detection. (2) Moved ad interaction from post-stay-time block into the weighted activity loop in perform_random_activity as an "ad_click" activity, so ads respect the per-page stay time budget. (3) Added max_duration parameter to interact_with_ads to cap time spent trying ads. (4) Removed the post-activity-loop ad click block from worker.py; ad success is now tracked via interaction_state and summarized after the URL loop.
