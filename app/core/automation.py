@@ -22,35 +22,6 @@ class SessionFailedException(Exception):
     pass
 
 
-class RateLimiter:
-    """Async-compatible rate limiter capped at max_calls_per_minute."""
-
-    def __init__(self, max_calls_per_minute: int = 300):
-        self.max_calls = max_calls_per_minute
-        self.calls = []
-        self._lock = None  # created lazily inside the event loop
-
-    def _get_lock(self):
-        import asyncio
-        if self._lock is None:
-            self._lock = asyncio.Lock()
-        return self._lock
-
-    async def wait_if_needed(self):
-        import asyncio
-        import time as _time
-        async with self._get_lock():
-            now = _time.time()
-            self.calls = [t for t in self.calls if now - t < 60]
-            if len(self.calls) >= self.max_calls:
-                oldest_call = self.calls[0]
-                wait_time = 60 - (now - oldest_call)
-                if wait_time > 0:
-                    print(f"Rate limit reached, waiting {wait_time:.2f} seconds")
-                    await asyncio.sleep(wait_time)
-            self.calls.append(_time.time())
-
-
 class nexAds:
     """Main nexAds automation controller."""
 
@@ -64,7 +35,6 @@ class nexAds:
         self.ads_sessions = 0
         self.calculate_session_distribution()
         self.manager = None
-        self.rate_limiter = RateLimiter()
 
     def load_config(self):
         """Load configuration from JSON file."""
@@ -109,12 +79,6 @@ class nexAds:
         else:
             # Unlimited: start with a generous budget; workers will run indefinitely
             self.ads_sessions = max(1, int(100 * (self.config['ads']['ctr'] / 100)))
-
-    def get_random_delay(self, min_time=None, max_time=None) -> int:
-        """Generate a random delay between min and max time."""
-        min_val = min_time if min_time is not None else self.config['delay']['min_time']
-        max_val = max_time if max_time is not None else self.config['delay']['max_time']
-        return random.randint(min_val, max_val)
 
     def start(self):
         """Start the nexAds automation with configured threads."""

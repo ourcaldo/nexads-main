@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:05:00+00:00
+- Short description: Remove dead code RateLimiter and get_random_delay from automation.py (L-2, L-3)
+- What you do: Removed unused RateLimiter class (defined but wait_if_needed never called) and unused get_random_delay method (duplicated by worker.py's get_delay which uses lognormal). Updated AGENTS.md Known Issues.
+- File path that changes: app/core/automation.py; AGENTS.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:04:00+00:00
 - Short description: Remove unused import Any from worker.py (L-1)
 - What you do: Removed unused `from typing import Any` import.

@@ -224,4 +224,4 @@ app/browser/
 ```
 
 ### Known Issues / Tech Debt
-- `RateLimiter` class in `automation.py` is defined but `wait_if_needed()` is never called anywhere.
+- None currently tracked.
