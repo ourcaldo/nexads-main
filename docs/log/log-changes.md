@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T16:15:00+00:00
+- Short description: Update config for production deployment
+- What you do: Updated config.json with production settings: headless_mode=virtual, threads=20, session min_time=5/max_time=10, desktop only (mobile=0), all target URLs.
+- File path that changes: config.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T16:10:00+00:00
 - Short description: Fix navigation hang on persistent context by removing page.context.browser access
 - What you do: Replaced `page.context.browser or page.context` with `page.context` in navigate_to_url_by_click and random_navigation. On CloakBrowser persistent contexts, accessing page.context.browser can hang or return None. page.context always works for both regular and persistent contexts. The ensure_correct_tab function already handles BrowserContext via hasattr fallback.
