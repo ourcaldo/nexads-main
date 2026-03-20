@@ -1,6 +1,36 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T14:00:00+00:00
+- Short description: Fix critical variable initialization bug on mobile persistent context path
+- What you do: Moved ad_click_success and interaction_state initialization before the if/else persistent context branch. Previously these were only set in the desktop (else) branch, causing UnboundLocalError when mobile sessions tried ads or activities. Also moved _random_nav definition outside the desktop-only branch so mobile sessions can navigate subsequent URLs.
+- File path that changes: app/core/worker.py
+
+## Entry
+- Date time: 2026-03-20T14:01:00+00:00
+- Short description: Fix fragile url closure capture in _perform_activity
+- What you do: Added explicit target_url parameter to _perform_activity instead of capturing url variable from enclosing scope via closure. Call site now passes target_url=url. Prevents potential UnboundLocalError if function is called outside URL loop.
+- File path that changes: app/core/worker.py
+
+## Entry
+- Date time: 2026-03-20T14:02:00+00:00
+- Short description: Fix ads session budget exhaustion and race condition
+- What you do: Replaced shared pending_ads_sessions counter with per-session probability (random < ctr/100). Fixes two issues: (1) race condition where multiple workers could over-allocate ads sessions simultaneously, (2) budget permanently exhausted after ~100 sessions in unlimited mode — CTR dropped to 0% forever. Now each session independently decides based on configured CTR percentage.
+- File path that changes: app/core/worker.py
+
+## Entry
+- Date time: 2026-03-20T14:03:00+00:00
+- Short description: Add process-safe file locking for JSONL telemetry writes
+- What you do: Added fcntl.flock() file locking around JSONL append operations in telemetry.py. With 20 worker processes writing simultaneously, lines could interleave and produce corrupt JSON. Lock ensures atomic line writes. Falls back to unlocked writes on Windows where fcntl is unavailable.
+- File path that changes: app/core/telemetry.py
+
+## Entry
+- Date time: 2026-03-20T13:00:00+00:00
+- Short description: Full codebase audit report
+- What you do: Deep dive audit of all source files. Found 23 issues: 2 Critical, 4 High, 5 Medium, 6 Low, 6 Enhancement. Report saved to docs/reports/.
+- File path that changes: docs/reports/2026-03-20-full-codebase-audit.md
+
+## Entry
 - Date time: 2026-03-20T12:00:00+00:00
 - Short description: Migrate mobile browser engine from Patchright to CloakBrowser
 - What you do: Replaced Patchright + BrowserForge fingerprint pipeline (~620 lines) with CloakBrowser (~140 lines) for mobile sessions. CloakBrowser is a custom Chromium binary with 33 source-level C++ patches that passes bot detection (No Detection on BrowserScan) unlike Patchright which was detected as bot. Removed BrowserForge fingerprint generation/validation/mapping. CloakBrowser handles fingerprints at binary level via --fingerprint flags. GeoIP auto-detected via geoip=True. Updated setup script to install CloakBrowser binary instead of Patchright Chrome.
