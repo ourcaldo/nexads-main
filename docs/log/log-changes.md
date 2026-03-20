@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:50:00+00:00
+- Short description: Add JSONL telemetry log rotation at startup (E-5)
+- What you do: Added _rotate_telemetry_logs() to automation.py start(). At each startup, truncates JSONL files larger than 10MB to prevent unbounded growth on long-running servers. Affects worker_events, worker_errors, telemetry_mobile, ad_click_events.
+- File path that changes: app/core/automation.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:45:00+00:00
 - Short description: Add worker heartbeat monitoring file (E-4)
 - What you do: Added emit_heartbeat() to telemetry.py that writes per-worker last-active timestamps to data/worker_heartbeats.json. Called after each session completes. File is process-safe via fcntl. Fleet script can check this file to detect stuck workers without parsing logs.

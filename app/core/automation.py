@@ -91,6 +91,9 @@ class nexAds:
         self.running = True
         self.start_time = datetime.now()
 
+        # Rotate JSONL telemetry files at startup to prevent unbounded growth.
+        self._rotate_telemetry_logs()
+
         # Refresh AdSense signal cache once in the parent process before workers spawn.
         try:
             updated, message = ensure_adsense_signals_updated()
@@ -164,6 +167,21 @@ class nexAds:
               f"(Target: {self.config['ads']['ctr']}%)")
 
         self._shutdown_manager()
+
+    def _rotate_telemetry_logs(self):
+        """Truncate JSONL telemetry files at startup to prevent unbounded growth."""
+        data_dir = _PKG_ROOT / "data"
+        for filename in ("worker_events.jsonl", "worker_errors.jsonl",
+                         "telemetry_mobile.jsonl", "ad_click_events.jsonl"):
+            filepath = data_dir / filename
+            if filepath.exists():
+                try:
+                    size_mb = filepath.stat().st_size / (1024 * 1024)
+                    if size_mb > 10:
+                        filepath.write_text("")
+                        print(f"Rotated {filename} ({size_mb:.1f}MB -> 0)")
+                except Exception:
+                    pass
 
     def _shutdown_manager(self):
         """Shut down the multiprocessing Manager server process."""
