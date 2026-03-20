@@ -458,6 +458,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 await page.goto(
                                     url, timeout=30000, wait_until="domcontentloaded"
                                 )
+                                await asyncio.sleep(3)
                             except Exception as e:
                                 print(
                                     f"Worker {worker_id}: Error visiting URL: {str(e)}"
@@ -513,6 +514,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 await page.goto(
                                     url, timeout=30000, wait_until="domcontentloaded"
                                 )
+                                await asyncio.sleep(3)
                             except Exception as e:
                                 print(
                                     f"Worker {worker_id}: Error visiting URL: {str(e)}"
@@ -556,6 +558,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 await page.goto(
                                     url, timeout=30000, wait_until="domcontentloaded"
                                 )
+                                await asyncio.sleep(3)
                             except Exception as e:
                                 print(
                                     f"Worker {worker_id}: Error visiting URL: {str(e)}"

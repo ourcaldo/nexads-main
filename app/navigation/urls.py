@@ -135,6 +135,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                                 pass
                             if extract_domain(page.url) == target_domain:
                                 print(f"Worker {worker_id}: Successfully navigated via pre-scanned link")
+                                await asyncio.sleep(3)
                                 if config['browser']['auto_accept_cookies']:
                                     await accept_cookies_fn(page)
                                 await check_vignette_fn(page, worker_id)
@@ -206,6 +207,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                         post_click_domain = extract_domain(page.url)
                         if post_click_domain == target_domain:
                             print(f"Worker {worker_id}: Successfully clicked {match_type} match")
+                            await asyncio.sleep(3)
 
                             if config['browser']['auto_accept_cookies']:
                                 await accept_cookies_fn(page)

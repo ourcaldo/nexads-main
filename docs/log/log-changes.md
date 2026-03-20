@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T01:30:00+00:00
+- Short description: Add 3s delay at every navigation point
+- What you do: Added asyncio.sleep(3) at every navigation completion point: (1) after first URL page.goto (social referrer path), (2) after first URL page.goto (direct/other path), (3) after fallback direct navigation page.goto, (4) after successful link click in navigate_to_url_by_click, (5) after successful pre-scanned link click. All delays happen right after the page loads, before cookies/consent/activities. Kept existing 3s delay before activity_start in worker.py.
+- File path that changes: app/core/worker.py; app/navigation/urls.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T01:25:00+00:00
 - Short description: Clean 3s delay before activities, remove wait_for_load_state bloat
 - What you do: Removed wait_for_load_state("load") and random 2-4s delays. Replaced with a single clean 3s delay right before activity_start. Delay is after page load, cookies, consent, vignette — right before activities begin. Not counted in stay time.
