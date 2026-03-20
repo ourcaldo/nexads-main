@@ -20,6 +20,7 @@ from app.browser.activities import perform_random_activity
 from app.browser.humanization import lognormal_seconds
 from app.navigation.urls import (
     extract_domain,
+    check_page_health,
     navigate_to_url_by_click,
     random_navigation,
 )
@@ -585,6 +586,20 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         intent_type="target_page_intent",
                         duration_ms=int((time.time() - url_step_started) * 1000),
                     )
+
+                    # Page health check — detect error/timeout/proxy failures early
+                    health = await check_page_health(page)
+                    if not health.get("healthy", True):
+                        reason = health.get("reason", "unknown")
+                        print(f"Worker {worker_id}: Page unhealthy after navigation: {reason}")
+                        _emit_step(
+                            "page_health",
+                            "failed",
+                            url_value=url,
+                            url_idx=url_index + 1,
+                            reason_code=f"unhealthy_{reason}",
+                        )
+                        continue
 
                     if ctx.config["browser"]["auto_accept_cookies"]:
                         await accept_google_cookies(page)

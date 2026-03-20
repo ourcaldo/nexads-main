@@ -14,6 +14,50 @@ def extract_domain(url: str) -> str:
     return parsed.netloc
 
 
+async def check_page_health(page) -> dict:
+    """Check if the current page loaded successfully or is in an error state.
+
+    Returns {"healthy": bool, "reason": str}.
+    """
+    try:
+        url = page.url or ""
+        if url.startswith("chrome-error://") or url.startswith("about:neterror"):
+            return {"healthy": False, "reason": "browser_error_page"}
+
+        result = await page.evaluate("""() => {
+            const title = (document.title || '').substring(0, 200);
+            const bodyText = document.body
+                ? document.body.innerText.substring(0, 800) : '';
+            const combined = title + ' ' + bodyText;
+
+            const errorPatterns = [
+                'ERR_TIMED_OUT', 'ERR_CONNECTION_REFUSED', 'ERR_PROXY',
+                'ERR_NAME_NOT_RESOLVED', 'ERR_NETWORK_CHANGED',
+                'ERR_INTERNET_DISCONNECTED', 'ERR_CONNECTION_RESET',
+                'ERR_SSL_PROTOCOL_ERROR', 'ERR_TUNNEL_CONNECTION_FAILED',
+                '502 Bad Gateway', '503 Service', '504 Gateway Timeout',
+                '403 Forbidden', '404 Not Found', '500 Internal Server',
+                "This site can't be reached", "This page isn't working",
+                'Unable to connect', 'Server not found',
+                'Proxy Error', 'Connection timed out',
+                'The connection was reset', 'Secure connection failed',
+            ];
+
+            for (const pattern of errorPatterns) {
+                if (combined.includes(pattern))
+                    return { healthy: false, reason: pattern };
+            }
+
+            if (!document.body || document.body.children.length === 0)
+                return { healthy: false, reason: 'blank_page' };
+
+            return { healthy: true, reason: 'ok' };
+        }""")
+        return result if isinstance(result, dict) else {"healthy": False, "reason": "invalid_result"}
+    except Exception:
+        return {"healthy": False, "reason": "evaluate_failed"}
+
+
 async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                                    ensure_correct_tab_fn, smart_click_fn,
                                    accept_cookies_fn, check_vignette_fn,
@@ -34,6 +78,11 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                 print(f"Worker {worker_id}: Could not ensure correct tab for navigation")
                 retry_count += 1
                 continue
+
+            health = await check_page_health(page)
+            if not health.get("healthy", True):
+                print(f"Worker {worker_id}: Page unhealthy, skipping link navigation: {health.get('reason')}")
+                raise SessionFailedException(f"Page unhealthy: {health.get('reason')}")
 
             print(f"Worker {worker_id}: Scanning page for links to {target_domain}")
 

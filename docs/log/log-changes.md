@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T21:10:00+00:00
+- Short description: Add page health check to detect error/timeout/proxy failures
+- What you do: Added check_page_health() to urls.py that detects HTTP errors (404, 502, 503, 504), browser error pages (ERR_TIMED_OUT, ERR_PROXY, etc.), proxy errors, blank pages, and connection failures via JS evaluation. Integrated at 3 points: (1) after navigation in worker.py — skips to next URL if page is broken, (2) at start of each activity iteration in activities.py — stops activities on unhealthy page, (3) in navigate_to_url_by_click — raises SessionFailedException immediately instead of burning time retrying on a dead page.
+- File path that changes: app/navigation/urls.py; app/core/worker.py; app/browser/activities.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T20:50:00+00:00
 - Short description: Background GDPR/consent detection throughout session lifecycle
 - What you do: Added try_dismiss_consent() to consent.py — a quick one-shot consent dialog check and dismiss. Integrated it into the _check_vignette closure in worker.py so it runs at the start and end of every activity iteration (via perform_random_activity's check_vignette_fn calls). Consent dialogs that appear at any time (after scroll, navigation, ad load) are now detected and dismissed automatically.

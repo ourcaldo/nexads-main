@@ -7,6 +7,7 @@ import asyncio
 import random
 import time
 
+from app.navigation.urls import check_page_health
 from app.browser.humanization import (
     clamp,
     choose_click_point,
@@ -382,6 +383,11 @@ async def perform_random_activity(
             )
             if not success:
                 print(f"Worker {worker_id}: Lost correct tab during activities")
+                return False
+
+            health = await check_page_health(page)
+            if not health.get("healthy", True):
+                print(f"Worker {worker_id}: Page unhealthy during activities: {health.get('reason')}")
                 return False
 
             current_domain = extract_domain_fn(page.url)
