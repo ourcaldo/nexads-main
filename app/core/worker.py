@@ -36,7 +36,7 @@ from app.navigation.tabs import (
     process_ads_tabs,
     natural_exit,
 )
-from app.core.telemetry import emit_worker_event, emit_mobile_fingerprint_event
+from app.core.telemetry import emit_worker_event, emit_mobile_fingerprint_event, emit_heartbeat
 from app.ads.adsense import interact_with_ads, check_and_handle_vignette, smart_click
 
 
@@ -967,6 +967,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 success=session_successful,
                 reason=fallback_reason,
             )
+
+            emit_heartbeat(worker_id, session_count, successful_sessions)
 
             await asyncio.sleep(delay)
 

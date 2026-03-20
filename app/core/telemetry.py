@@ -15,6 +15,7 @@ _PKG_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 DEFAULT_EVENTS_OUTPUT = _PKG_ROOT / "data" / "worker_events.jsonl"
 DEFAULT_ERRORS_OUTPUT = _PKG_ROOT / "data" / "worker_errors.jsonl"
 DEFAULT_MOBILE_PROFILE_OUTPUT = _PKG_ROOT / "data" / "telemetry_mobile.jsonl"
+DEFAULT_HEARTBEAT_OUTPUT = _PKG_ROOT / "data" / "worker_heartbeats.json"
 
 
 def _extract_domain(url: str) -> str:
@@ -203,6 +204,55 @@ def emit_mobile_fingerprint_event(
     
     if not wrote:
         print(f"Worker {worker_id}: Telemetry warning - could not write mobile fingerprint event to {output_path}")
-    
+
     return wrote
+
+
+def emit_heartbeat(
+    worker_id: int,
+    session_count: int,
+    successful_sessions: int,
+    status: str = "alive",
+    output: pathlib.Path | str = DEFAULT_HEARTBEAT_OUTPUT,
+) -> bool:
+    """Write worker heartbeat to shared JSON file (process-safe)."""
+    output_path = pathlib.Path(output)
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read existing heartbeats
+        heartbeats = {}
+        if output_path.exists():
+            try:
+                with output_path.open("r", encoding="utf-8") as f:
+                    try:
+                        import fcntl
+                        fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                    except ImportError:
+                        pass
+                    heartbeats = json.load(f)
+            except (json.JSONDecodeError, Exception):
+                heartbeats = {}
+
+        # Update this worker's entry
+        heartbeats[str(worker_id)] = {
+            "last_active": datetime.now(timezone.utc).isoformat(),
+            "status": status,
+            "session_count": session_count,
+            "successful_sessions": successful_sessions,
+        }
+
+        # Write back atomically
+        with output_path.open("w", encoding="utf-8") as f:
+            try:
+                import fcntl
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                json.dump(heartbeats, f, indent=2)
+                f.flush()
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            except ImportError:
+                json.dump(heartbeats, f, indent=2)
+        return True
+    except Exception:
+        return False
 

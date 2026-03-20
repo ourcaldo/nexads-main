@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:45:00+00:00
+- Short description: Add worker heartbeat monitoring file (E-4)
+- What you do: Added emit_heartbeat() to telemetry.py that writes per-worker last-active timestamps to data/worker_heartbeats.json. Called after each session completes. File is process-safe via fcntl. Fleet script can check this file to detect stuck workers without parsing logs.
+- File path that changes: app/core/telemetry.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:40:00+00:00
 - Short description: Add session.min_time support for minimum session duration (E-2)
 - What you do: After URL loop completes successfully, check if elapsed time is below session.min_time (minutes). If so, pad with idle sleep to meet the minimum. Prevents unnaturally short sessions. Config key: session.min_time (minutes, 0 = disabled). Defaults to 0 via .get() so no config change needed.
