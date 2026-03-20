@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T16:10:00+00:00
+- Short description: Fix navigation hang on persistent context by removing page.context.browser access
+- What you do: Replaced `page.context.browser or page.context` with `page.context` in navigate_to_url_by_click and random_navigation. On CloakBrowser persistent contexts, accessing page.context.browser can hang or return None. page.context always works for both regular and persistent contexts. The ensure_correct_tab function already handles BrowserContext via hasattr fallback.
+- File path that changes: app/navigation/urls.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T16:05:00+00:00
 - Short description: Disable additional Chromium ad blockers in CloakBrowser mobile
 - What you do: Added AdsInterventions, HeavyAdIntervention, HeavyAdPrivacyMitigations to --disable-features flag alongside SubresourceFilter. Chromium has multiple built-in ad blocking features that block ad iframes with "Halaman ini diblokir oleh Chromium" message.

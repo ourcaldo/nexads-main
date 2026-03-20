@@ -29,7 +29,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
 
     while retry_count < max_retries:
         try:
-            page, success = await ensure_correct_tab_fn(page.context.browser or page.context, page, target_url, worker_id)
+            page, success = await ensure_correct_tab_fn(page.context, page, target_url, worker_id)
             if not success:
                 print(f"Worker {worker_id}: Could not ensure correct tab for navigation")
                 retry_count += 1
@@ -134,7 +134,7 @@ async def random_navigation(page, worker_id: int, target_domain: str,
     while retry_count < max_retries:
         try:
             current_url = page.url
-            page, success = await ensure_correct_tab_fn(page.context.browser or page.context, page, current_url, worker_id)
+            page, success = await ensure_correct_tab_fn(page.context, page, current_url, worker_id)
             if not success:
                 print(f"Worker {worker_id}: Could not ensure correct tab for random navigation")
                 retry_count += 1
