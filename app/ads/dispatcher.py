@@ -77,9 +77,6 @@ async def dispatch_ad_interaction(page, browser, worker_id: int, extract_domain_
                     interaction_state["ad_click_success"] = True
                 return True
 
-            # One provider attempted per call — don't exhaust budget on first
-            return False
-
         return False
 
     # first_success: try providers in config order, share time budget

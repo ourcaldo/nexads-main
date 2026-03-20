@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T23:15:00+00:00
+- Short description: Fix one_per_provider dispatcher skipping subsequent providers
+- What you do: Removed early return False after first provider failure in one_per_provider strategy. Previously, if adsterra had no ads, the dispatcher returned immediately without ever trying adsense. Now it continues to the next unsatisfied provider within the same time budget.
+- File path that changes: app/ads/dispatcher.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T23:00:00+00:00
 - Short description: Fix Adsterra detection to match actual DOM structure
 - What you do: Adsterra ads use div[id^="atContainer-"] + a[id^="atLink-"] + img pattern, NOT iframes from cosmetic domains. Updated _ADSTERRA_SELECTORS to use atContainer/atLink prefixes as primary selectors, kept iframe format as fallback. Rewrote _has_adsterra_content to look for anchor+image children instead of iframes. Updated interact_with_adsterra_ads to resolve the clickable <a> link inside the container rather than clicking the div.
