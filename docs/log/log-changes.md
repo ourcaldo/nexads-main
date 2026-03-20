@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T00:15:00+00:00
+- Short description: Rewrite Adsterra detection with iframe and external URL fallback
+- What you do: Complete rewrite of adsterra.py with 3-layer detection: (1) Direct DOM — atContainer/atLink selectors on top-level page. (2) Known iframe hosts — alco.camarjaya.co.id and elco.camarjaya.co.id, uses content_frame() to access cross-origin iframe DOM and find ad links inside. (3) External URL fallback — scans ALL page iframes for links pointing to external domains (not matching site domain), treats them as potential ads. Click handling updated to work with both top-level and iframe contexts. Outcomes track ad_source for telemetry.
+- File path that changes: app/ads/adsterra.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T23:45:00+00:00
 - Short description: Fix ad attempt never firing due to arrival phase gate
 - What you do: Removed the phase != "arrival" condition from the priority ad attempt check. The arrival phase (progress < 15%) combined with activity overhead meant the ad check was never reached on the first iteration, and by the second iteration all the stay time was consumed. Priority ad attempt now fires on the very first iteration of the activity loop regardless of phase.
