@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T01:25:00+00:00
+- Short description: Clean 3s delay before activities, remove wait_for_load_state bloat
+- What you do: Removed wait_for_load_state("load") and random 2-4s delays. Replaced with a single clean 3s delay right before activity_start. Delay is after page load, cookies, consent, vignette — right before activities begin. Not counted in stay time.
+- File path that changes: app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T01:20:00+00:00
 - Short description: Wait for full page load after navigation before any interaction
 - What you do: Added page.wait_for_load_state("load") with 15s timeout after navigation succeeds. This waits for images, iframes, ads, and scripts to finish loading — not just DOM parsing. Previously only waited for domcontentloaded which fires before ads/iframes render, causing elements to not be ready. Added visible "Page loaded, settling..." log message followed by 2-4s additional delay. Both waits happen before health check, cookies, consent, and activity loop.

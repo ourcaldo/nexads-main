@@ -601,14 +601,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         duration_ms=int((time.time() - url_step_started) * 1000),
                     )
 
-                    # Wait for full page load (images, iframes, ads) after navigation
-                    try:
-                        await page.wait_for_load_state("load", timeout=15000)
-                    except Exception:
-                        pass  # Timeout is OK — some pages never fully "load"
-                    print(f"Worker {worker_id}: Page loaded, settling...")
-                    await asyncio.sleep(random.uniform(2.0, 4.0))
-
                     # Page health check — detect error/timeout/proxy failures early
                     health = await check_page_health(page)
                     if not health.get("healthy", True):
@@ -757,8 +749,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         duration_ms=stay_time * 1000,
                     )
 
-                    # Let the page fully render before activities (not counted in stay time)
-                    await asyncio.sleep(random.uniform(2.0, 4.0))
+                    # 3s delay before activities — let ads/scripts finish loading
+                    await asyncio.sleep(3)
 
                     activity_start = time.time()
                     remaining_time = stay_time
