@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T19:30:00+00:00
+- Short description: Stricter ad rendered-content detection using data-ad-status and Google iframe verification
+- What you do: Rewrote _has_rendered_content() in adsense.py. Now checks data-ad-status attribute on INS elements (rejects unfilled/unprocessed), requires iframe child with Google ad URL pattern (googleads/doubleclick/googlesyndication/adservice.google), and enforces minimum 30x30px iframe dimensions. Removed loose "any visible child" fallback that was letting empty containers through.
+- File path that changes: app/ads/adsense.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T19:15:00+00:00
 - Short description: Fix stale remaining_time in worker.py outer activity loop
 - What you do: Added remaining_time recalculation after _perform_activity returns in the outer while loop. Previously, the delay check at line 728 used the stale value from before the activity ran, causing an extra ~1s sleep and unnecessary loop iteration after stay time was already exhausted.

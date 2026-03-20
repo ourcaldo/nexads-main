@@ -66,26 +66,30 @@ async def _has_rendered_content(element) -> bool:
     try:
         return await element.evaluate("""(el) => {
             const tag = el.tagName.toUpperCase();
-            // If the element itself is an iframe, it's already rendered content
-            if (tag === 'IFRAME') return true;
 
-            // For container elements, check for loaded iframe children
-            const iframes = el.querySelectorAll('iframe');
-            for (const iframe of iframes) {
-                const src = iframe.src || iframe.getAttribute('data-src') || '';
-                if (src.length > 0) {
-                    const rect = iframe.getBoundingClientRect();
-                    if (rect.width > 1 && rect.height > 1) return true;
-                }
+            // If the element itself is an iframe, verify it has a Google ad src
+            if (tag === 'IFRAME') {
+                const src = el.src || '';
+                return src.includes('googleads') || src.includes('doubleclick') ||
+                       src.includes('googlesyndication') || src.includes('adservice.google');
             }
 
-            // Check for any non-script visible children with real dimensions
-            for (const child of el.children) {
-                if (child.tagName === 'SCRIPT' || child.tagName === 'INS') continue;
-                const style = window.getComputedStyle(child);
-                if (style.display === 'none' || style.visibility === 'hidden') continue;
-                const rect = child.getBoundingClientRect();
-                if (rect.width > 5 && rect.height > 5) return true;
+            // For INS elements, check data-ad-status (most reliable signal)
+            if (tag === 'INS') {
+                const status = el.getAttribute('data-ad-status');
+                if (status === 'unfilled' || !status) return false;
+                // status === 'filled' — continue to iframe verification below
+            }
+
+            // Require an iframe child with a Google ad URL and real dimensions
+            const iframes = el.querySelectorAll('iframe');
+            for (const iframe of iframes) {
+                const src = iframe.src || '';
+                if (src.includes('googleads') || src.includes('doubleclick') ||
+                    src.includes('googlesyndication') || src.includes('adservice.google')) {
+                    const rect = iframe.getBoundingClientRect();
+                    if (rect.width > 30 && rect.height > 30) return true;
+                }
             }
 
             return false;
