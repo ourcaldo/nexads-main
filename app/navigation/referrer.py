@@ -113,85 +113,87 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
 
     interceptor_handler = await setup_request_interceptor(page)
 
-    while retry_count < max_retries:
-        try:
-            print(f"Worker {worker_id}: Performing organic search - visiting Google")
-            await page.goto("https://www.google.com/", timeout=90000, wait_until="networkidle")
+    try:
+        while retry_count < max_retries:
+            try:
+                print(f"Worker {worker_id}: Performing organic search - visiting Google")
+                await page.goto("https://www.google.com/", timeout=90000, wait_until="networkidle")
 
-            if config['browser']['auto_accept_cookies']:
-                await accept_google_cookies(page)
+                if config['browser']['auto_accept_cookies']:
+                    await accept_google_cookies(page)
 
-            print(f"Worker {worker_id}: Searching for keyword: {keyword}")
-            search_input = await page.wait_for_selector(
-                'textarea[name="q"], input[name="q"]', state="visible", timeout=45000)
+                print(f"Worker {worker_id}: Searching for keyword: {keyword}")
+                search_input = await page.wait_for_selector(
+                    'textarea[name="q"], input[name="q"]', state="visible", timeout=45000)
 
-            if not search_input:
-                print(f"Worker {worker_id}: Could not find search input")
-                return False
+                if not search_input:
+                    print(f"Worker {worker_id}: Could not find search input")
+                    return False
 
-            await search_input.click(click_count=3)
-            await search_input.press("Backspace")
+                await search_input.click(click_count=3)
+                await search_input.press("Backspace")
 
-            await _human_type_keyword(search_input, keyword)
+                await _human_type_keyword(search_input, keyword)
 
-            await search_input.press("Enter")
-            await page.wait_for_load_state("networkidle", timeout=45000)
-            print(f"Worker {worker_id}: Looking for {main_domain} in results")
+                await search_input.press("Enter")
+                await page.wait_for_load_state("networkidle", timeout=45000)
+                print(f"Worker {worker_id}: Looking for {main_domain} in results")
 
-            await page.wait_for_selector('div#search', state="visible", timeout=45000)
+                await page.wait_for_selector('div#search', state="visible", timeout=45000)
 
-            all_links = await page.query_selector_all('a[href]')
-            if not all_links:
-                print(f"Worker {worker_id}: No links found in search results")
-                return False
+                all_links = await page.query_selector_all('a[href]')
+                if not all_links:
+                    print(f"Worker {worker_id}: No links found in search results")
+                    return False
 
-            target_link = None
-            for link in all_links:
-                try:
-                    href = await link.get_attribute('href')
-                    if href and main_domain in extract_domain_fn(href):
-                        target_link = link
-                        break
-                except:
+                target_link = None
+                for link in all_links:
+                    try:
+                        href = await link.get_attribute('href')
+                        if href and main_domain in extract_domain_fn(href):
+                            target_link = link
+                            break
+                    except:
+                        continue
+
+                if not target_link:
+                    print(f"Worker {worker_id}: No links found matching main domain")
+                    return False
+
+                await target_link.scroll_into_view_if_needed()
+                await page.wait_for_timeout(gaussian_ms(900, 260, 350, 2200))
+
+                async with page.expect_navigation(timeout=45000):
+                    await target_link.click(delay=gaussian_ms(110, 30, 45, 220))
+
+                await page.wait_for_load_state("networkidle", timeout=45000)
+
+                current_main_domain = extract_domain_fn(page.url).replace('www.', '')
+                if main_domain not in current_main_domain:
+                    print(f"Worker {worker_id}: Navigation failed. Current: {current_main_domain}, Expected: {main_domain}")
+                    await page.go_back(timeout=45000)
+                    await page.wait_for_load_state("networkidle")
+                    retry_count += 1
                     continue
 
-            if not target_link:
-                print(f"Worker {worker_id}: No links found matching main domain")
-                return False
+                print(f"Worker {worker_id}: Successfully navigated to domain: {page.url}")
+                return True
 
-            await target_link.scroll_into_view_if_needed()
-            await page.wait_for_timeout(gaussian_ms(900, 260, 350, 2200))
-
-            async with page.expect_navigation(timeout=45000):
-                await target_link.click(delay=gaussian_ms(110, 30, 45, 220))
-
-            await page.wait_for_load_state("networkidle", timeout=45000)
-
-            current_main_domain = extract_domain_fn(page.url).replace('www.', '')
-            if main_domain not in current_main_domain:
-                print(f"Worker {worker_id}: Navigation failed. Current: {current_main_domain}, Expected: {main_domain}")
-                await page.go_back(timeout=45000)
-                await page.wait_for_load_state("networkidle")
+            except Exception as e:
+                print(f"Worker {worker_id}: Organic search error (attempt {retry_count + 1}): {str(e)}")
                 retry_count += 1
+                if retry_count < max_retries:
+                    await page.wait_for_timeout(gaussian_ms(2100, 280, 1300, 3200))
                 continue
 
-            print(f"Worker {worker_id}: Successfully navigated to domain: {page.url}")
+        print(f"Worker {worker_id}: Max retries reached for organic search")
+        return False
+
+    finally:
+        try:
             await page.unroute("**/*", interceptor_handler)
-            return True
-
-        except Exception as e:
-            print(f"Worker {worker_id}: Organic search error (attempt {retry_count + 1}): {str(e)}")
-            retry_count += 1
-            if retry_count < max_retries:
-                await page.wait_for_timeout(gaussian_ms(2100, 280, 1300, 3200))
-            continue
-
-    print(f"Worker {worker_id}: Max retries reached for organic search")
-    try:
-        await page.unroute("**/*", interceptor_handler)
-    except Exception:
-        pass
-    return False
+        except Exception:
+            pass
 
 
 def get_social_referrer() -> str:

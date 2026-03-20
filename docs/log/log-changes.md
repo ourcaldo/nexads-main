@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:02:00+00:00
+- Short description: Fix request interceptor leak in perform_organic_search (M-4)
+- What you do: Wrapped perform_organic_search body in try/finally to ensure page.unroute() is always called. Previously early returns (no search input, no links, no matching domain) left the Google accounts interceptor active for the rest of the session.
+- File path that changes: app/navigation/referrer.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:01:00+00:00
 - Short description: Fix random_navigation retry_count not incremented when click fails (M-3)
 - What you do: Added retry_count increment when smart_click_fn returns False in random_navigation. Previously execution fell through without incrementing, causing unnecessary extra iterations.
