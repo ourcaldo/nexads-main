@@ -35,7 +35,8 @@ MOBILE_FINGERPRINT_ARGS = [
 ]
 
 # Track temp user_data_dirs for cleanup.
-# Maps context id -> user_data_dir path
+# Maps context id -> user_data_dir path.
+# Process-safe: each multiprocessing worker gets its own copy of this dict.
 _CLOAKBROWSER_DIRS: Dict[int, str] = {}
 
 

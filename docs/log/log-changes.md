@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:03:00+00:00
+- Short description: Document multiprocessing assumption on _CLOAKBROWSER_DIRS (M-5)
+- What you do: Added comment clarifying that _CLOAKBROWSER_DIRS is process-safe because each multiprocessing worker gets its own copy. No code change.
+- File path that changes: app/browser/mobile.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:02:00+00:00
 - Short description: Fix request interceptor leak in perform_organic_search (M-4)
 - What you do: Wrapped perform_organic_search body in try/finally to ensure page.unroute() is always called. Previously early returns (no search input, no links, no matching domain) left the Google accounts interceptor active for the rest of the session.
