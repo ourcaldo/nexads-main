@@ -52,17 +52,36 @@ async def launch_desktop_browser(
 
 
 async def cleanup_desktop_browser(browser, worker_id: int):
-    """Close all Camoufox contexts and the browser."""
+    """Close all Camoufox contexts and the browser, with timeout fallback."""
     if not browser:
         return
 
     for ctx in browser.contexts:
         try:
-            await ctx.close()
+            await asyncio.wait_for(ctx.close(), timeout=10)
         except Exception:
             pass
 
     try:
-        await browser.close()
+        await asyncio.wait_for(browser.close(), timeout=15)
+    except asyncio.TimeoutError:
+        print(f"Worker {worker_id}: Browser close timed out, force-killing")
+        _force_kill_browser(browser)
+    except Exception:
+        pass
+
+
+def _force_kill_browser(browser):
+    """Force-kill the underlying browser process if graceful close failed."""
+    import signal
+    try:
+        # Playwright/Camoufox exposes the underlying process via ._impl_obj
+        proc = getattr(browser, '_impl_obj', None)
+        if proc and hasattr(proc, '_process'):
+            pid = proc._process.pid
+            if pid:
+                import os
+                os.kill(pid, signal.SIGKILL)
+                return
     except Exception:
         pass

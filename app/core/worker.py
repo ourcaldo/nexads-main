@@ -6,8 +6,15 @@ Worker session logic: WorkerContext, worker_session, run_worker, run_worker_asyn
 import random
 import asyncio
 import time
+import os
+import subprocess
 from dataclasses import dataclass
 from typing import Any
+
+# After this many consecutive session failures, force-kill all child browser
+# processes and take a longer cooldown before retrying.
+MAX_CONSECUTIVE_FAILURES = 5
+FAILURE_COOLDOWN_SECONDS = 120
 
 from app.browser.setup import configure_browser, cleanup_browser
 from app.browser.activities import perform_random_activity
@@ -50,6 +57,37 @@ class WorkerContext:
 from app.core.automation import SessionFailedException
 
 
+def _kill_child_browser_processes(worker_id: int):
+    """Kill orphaned browser processes (camoufox/chromium) that are children of this worker."""
+    my_pid = os.getpid()
+    killed = 0
+    try:
+        # Find all child PIDs of this worker process
+        result = subprocess.run(
+            ["pgrep", "-P", str(my_pid)],
+            capture_output=True, text=True, timeout=5,
+        )
+        child_pids = [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
+        for pid_str in child_pids:
+            try:
+                os.kill(int(pid_str), 9)
+                killed += 1
+            except (ProcessLookupError, ValueError):
+                pass
+    except Exception:
+        # Fallback: use pkill to kill browser processes by name for this process tree
+        for name in ("camoufox", "firefox", "chromium", "chrome"):
+            try:
+                subprocess.run(
+                    ["pkill", "-9", "-P", str(my_pid), "-f", name],
+                    capture_output=True, timeout=5,
+                )
+            except Exception:
+                pass
+    if killed:
+        print(f"Worker {worker_id}: Force-killed {killed} orphaned browser process(es)")
+
+
 async def worker_session(ctx: WorkerContext, worker_id: int):
     """Main worker loop: runs sessions until stopped or session limit reached."""
     session_count = 0
@@ -57,6 +95,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
     ads_session_count = 0
     successful_ads_sessions = 0
     redirect_recoveries = 0
+    consecutive_failures = 0
 
     # Build bound helpers that close over ctx
     def get_delay(min_t=None, max_t=None):
@@ -217,6 +256,19 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             context = None
             is_persistent_context = False
 
+            # Hard session deadline — nothing runs past this
+            session_max_seconds = ctx.config["session"]["max_time"] * 60 if ctx.config["session"]["max_time"] > 0 else 0
+            session_deadline = (session_start_time + session_max_seconds) if session_max_seconds > 0 else 0
+
+            def _session_remaining() -> float:
+                """Seconds left in this session, or float('inf') if no limit."""
+                if session_deadline <= 0:
+                    return float("inf")
+                return max(0.0, session_deadline - time.time())
+
+            def _session_expired() -> bool:
+                return session_deadline > 0 and time.time() >= session_deadline
+
             def _emit_step(
                 step_name: str,
                 status: str,
@@ -340,12 +392,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     if not ctx.running:
                         break
 
-                    if (
-                        ctx.config["session"]["max_time"] > 0
-                        and (time.time() - session_start_time)
-                        >= ctx.config["session"]["max_time"] * 60
-                    ):  # max_time in minutes → convert to seconds
-                        print(f"Worker {worker_id}: Max session time reached")
+                    if _session_expired():
+                        print(f"Worker {worker_id}: Max session time reached ({session_max_seconds}s)")
                         break
 
                     if url_data["random_page"]:
@@ -626,6 +674,11 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             "Could not recover target tab after vignette handling"
                         )
 
+                    # Check session deadline before committing to stay time
+                    if _session_expired():
+                        print(f"Worker {worker_id}: Session deadline reached before activity loop")
+                        break
+
                     min_stay = int(url_data["min_time"])
                     max_stay = int(url_data["max_time"])
                     if min_stay >= max_stay:
@@ -638,6 +691,12 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 )
                             )
                         )
+
+                    # Cap stay_time to session remaining time
+                    remaining_budget = _session_remaining()
+                    if remaining_budget < float("inf") and stay_time > remaining_budget:
+                        stay_time = max(1, int(remaining_budget))
+
                     print(
                         f"Worker {worker_id}: Staying on page for {stay_time} seconds"
                     )
@@ -651,7 +710,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
                     activity_start = time.time()
                     remaining_time = stay_time
-                    while remaining_time > 0 and ctx.running:
+                    while remaining_time > 0 and ctx.running and not _session_expired():
                         elapsed = time.time() - activity_start
                         remaining_time = stay_time - elapsed
 
@@ -679,7 +738,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         duration_ms=int((time.time() - activity_start) * 1000),
                     )
 
-                    if is_ads_session and not ad_click_success:
+                    if is_ads_session and not ad_click_success and not _session_expired():
                         print(
                             f"Worker {worker_id}: Checking for ads elements on URL {url_index + 1}"
                         )
@@ -859,10 +918,26 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
             if session_successful:
                 successful_sessions += 1
+                consecutive_failures = 0
                 delay = get_delay(10, 30)
                 print(f"Worker {worker_id}: Session successful, waiting {delay}s")
                 _emit_step("session", "ok", reason_code="session_completed")
             else:
+                consecutive_failures += 1
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                    print(
+                        f"Worker {worker_id}: {consecutive_failures} consecutive failures, "
+                        f"killing orphan browsers and cooling down {FAILURE_COOLDOWN_SECONDS}s"
+                    )
+                    _kill_child_browser_processes(worker_id)
+                    _emit_step(
+                        "session", "failed",
+                        reason_code="consecutive_failure_cooldown",
+                        meta={"consecutive_failures": consecutive_failures},
+                    )
+                    consecutive_failures = 0
+                    await asyncio.sleep(FAILURE_COOLDOWN_SECONDS)
+                    continue
                 delay = get_delay(30, 60)
                 print(f"Worker {worker_id}: Session failed, waiting {delay}s")
 
@@ -894,6 +969,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
     except Exception as e:
         print(f"Worker {worker_id}: FATAL ERROR: {str(e)}")
+        _kill_child_browser_processes(worker_id)
     finally:
         # Write stats back to shared Manager dicts
         ctx.session_counts[worker_id] = session_count

@@ -384,12 +384,16 @@ async def cleanup_mobile_context(context, worker_id: int):
         user_data_dir = manager_data[1] if len(manager_data) > 1 else None
 
     try:
-        await context.close()
+        await asyncio.wait_for(context.close(), timeout=10)
+    except asyncio.TimeoutError:
+        print(f"Worker {worker_id}: Mobile context close timed out")
     except Exception:
         pass
     if pw:
         try:
-            await pw.stop()
+            await asyncio.wait_for(pw.stop(), timeout=10)
+        except asyncio.TimeoutError:
+            print(f"Worker {worker_id}: Playwright stop timed out")
         except Exception:
             pass
     if user_data_dir:

@@ -24,6 +24,8 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
     target_domain = extract_domain(target_url)
     max_retries = 2
     retry_count = 0
+    # Cap link attempts per retry to avoid spending hours on broken pages
+    max_link_attempts_per_retry = 5
 
     while retry_count < max_retries:
         try:
@@ -59,7 +61,13 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
 
             matching_links.sort(key=lambda x: 0 if x[1] == 'exact' else 1)
 
+            link_attempts = 0
             for link, match_type in matching_links:
+                if link_attempts >= max_link_attempts_per_retry:
+                    print(f"Worker {worker_id}: Hit link attempt cap ({max_link_attempts_per_retry}), giving up on this retry")
+                    break
+                link_attempts += 1
+
                 try:
                     scroll_success = False
                     scroll_attempts = 0
@@ -94,10 +102,16 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                     print(f"Worker {worker_id}: Link click failed: {str(e)}")
                     continue
 
-            print(f"Worker {worker_id}: No matching links found, trying random navigation")
+            print(f"Worker {worker_id}: No clickable links worked, trying random navigation")
             random_nav_success = await random_navigation_fn(page, worker_id, target_domain)
             if random_nav_success:
                 return True
+
+            # All links failed AND random navigation failed — count as a retry
+            retry_count += 1
+            print(f"Worker {worker_id}: Navigation retry {retry_count}/{max_retries}")
+            if retry_count < max_retries:
+                await asyncio.sleep(2)
 
         except Exception as e:
             print(f"Worker {worker_id}: Error during URL click navigation: {str(e)}")
