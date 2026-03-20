@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T23:45:00+00:00
+- Short description: Fix ad attempt never firing due to arrival phase gate
+- What you do: Removed the phase != "arrival" condition from the priority ad attempt check. The arrival phase (progress < 15%) combined with activity overhead meant the ad check was never reached on the first iteration, and by the second iteration all the stay time was consumed. Priority ad attempt now fires on the very first iteration of the activity loop regardless of phase.
+- File path that changes: app/browser/activities.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T23:30:00+00:00
 - Short description: Priority ad attempt per page instead of random weighted selection
 - What you do: Removed ad_click from the weighted activity pool. On ads sessions, the first eligible iteration (after arrival phase) now forces an ad attempt. If it succeeds or fails, the rest of the stay time continues with normal activities (scroll/hover/click). Per-page flag ad_attempted_this_page is reset at each URL iteration in worker.py. For one_per_provider, only unsatisfied providers are tried; satisfied ones are skipped automatically by the dispatcher.

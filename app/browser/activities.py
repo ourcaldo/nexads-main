@@ -432,7 +432,6 @@ async def perform_random_activity(
                 and interact_with_ads_fn
                 and not interaction_state.get("ad_attempted_this_page")
                 and not interaction_state.get("ad_click_success")
-                and phase != "arrival"
             ):
                 interaction_state["ad_attempted_this_page"] = True
                 ad_time_budget = min(remaining_time, 30)
