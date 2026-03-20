@@ -29,6 +29,16 @@ ALL_HOSTS=(
     nexdev-bc
     nexdev-bs
     nexdev-swec
+    nexdev-cacen
+    nexdev-caes
+    nexdev-inso
+    nexdev-usea
+    nexdev-uswe2
+    nexdev-uscen
+    nexdev-usea2
+    nexdev-usso
+    nexdev-uswe3
+    nexdev-usno
 )
 
 ssh_cmd() {
