@@ -24,17 +24,26 @@ CONSENT_DIALOG_SELECTORS = [
 ]
 
 CONSENT_BUTTON_SELECTORS = [
+    # CSS-based selectors (language-independent, highest priority)
+    'button.fc-cta-consent',                       # Fundingchoices/Google CMP consent
+    'button.fc-primary-button',                    # Fundingchoices primary action
+    'button[class*="agree"], button[class*="accept"]',
+    'button[class*="consent"]',
+    'button[id*="accept"], button[id*="agree"]',
+    'button#L2AGLb',                               # Google cookie consent
+    'button#accept-cookies',
+    'button#consent-button',
+    'a.cc-btn.cc-dismiss',                         # CookieConsent banner
+    'button[data-cookiefirst-action="accept"]',    # CookieFirst
+    'button#onetrust-accept-btn-handler',          # OneTrust
+    'button#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',  # Cookiebot
+    # Text-based fallbacks (for CMPs without standard classes)
     'button:has-text("Accept all")',
     'button:has-text("Accept")',
     'button:has-text("I agree")',
     'button:has-text("Agree")',
     'button:has-text("Consent")',
-    'button:has-text("Continue")',
     'button:has-text("OK")',
-    'button#L2AGLb',
-    'button#accept-cookies',
-    'button#consent-button',
-    'p.fc-button-label:has-text("Consent")',
 ]
 
 

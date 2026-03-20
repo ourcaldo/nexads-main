@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T21:45:00+00:00
+- Short description: Use CSS-based consent button selectors instead of text matching
+- What you do: Rewrote CONSENT_BUTTON_SELECTORS in consent.py to prioritize CSS class/ID selectors that are language-independent. Added button.fc-cta-consent (Fundingchoices/Google CMP), button.fc-primary-button, OneTrust, Cookiebot, CookieFirst, CookieConsent selectors. Text-based selectors (Accept, Agree, OK) kept as fallbacks. Fixes issue where consent button had non-English text (e.g. "Einwilligen") but fc-cta-consent class was universal.
+- File path that changes: app/navigation/consent.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T21:30:00+00:00
 - Short description: Fix navigation click timeouts and scroll-into-view failures
 - What you do: (1) Changed post-click wait from networkidle/45s to domcontentloaded/15s — networkidle never resolves on pages with persistent ad/analytics connections. (2) Don't throw away successful clicks if load state times out — check URL to confirm navigation happened. (3) Scroll to top before scanning for links so header/nav links are visible. (4) Reduced scroll_into_view_if_needed timeout from 22.5s to 5s and retries from 3 to 2 in both navigate_to_url_by_click and random_navigation. Total worst-case waste reduced from 67.5s+45s per link to 10.5s per link.
