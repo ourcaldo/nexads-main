@@ -752,6 +752,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         duration_ms=stay_time * 1000,
                     )
 
+                    # Let the page fully render before activities (not counted in stay time)
+                    await asyncio.sleep(random.uniform(2.0, 4.0))
+
                     activity_start = time.time()
                     remaining_time = stay_time
                     while remaining_time > 0 and ctx.running and not _session_expired():

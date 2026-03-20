@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T01:10:00+00:00
+- Short description: Add page render delay right before activity loop starts
+- What you do: Added 2-4s delay between "Staying on page" log and activity_start. Previous delay at line 605 was before health check/cookies/consent — too early, already consumed by the time activities start. New delay is right before activity_start so it's not counted in stay time and gives the page time to fully render ads/scripts.
+- File path that changes: app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T01:00:00+00:00
 - Short description: Rewrite ad click scoring with clear success logic
 - What you do: Replaced the broken weighted scoring system in outcomes.py. Old system penalized "parent page didn't change" even when a new tab opened, making iframe ad clicks always score 0.00. New logic: new tab opened = 0.80 (success), same-tab navigation to external domain = 0.80 (success), same-tab same domain = 0.20 (internal link), no navigation = 0.00 (failed). Both new tab and same-tab external navigation are equally valid since different providers use different mechanisms.
