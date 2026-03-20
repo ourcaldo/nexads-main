@@ -29,11 +29,20 @@ def _extract_domain(url: str) -> str:
 
 
 def _append_jsonl(path: pathlib.Path, event: dict) -> bool:
-    """Append one event line to a JSONL file."""
+    """Append one event line to a JSONL file (process-safe via file lock)."""
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(event, ensure_ascii=False) + "\n"
         with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+            try:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                handle.write(line)
+                handle.flush()
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            except ImportError:
+                # fcntl not available on Windows — write without lock
+                handle.write(line)
         return True
     except Exception:
         return False

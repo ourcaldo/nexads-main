@@ -202,7 +202,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
         return await smart_click(page, wid, domain, element, is_ad, interaction_state)
 
     async def _perform_activity(
-        page, browser, wid, stay_time, is_ads=False, interaction_state=None
+        page, browser, wid, stay_time, is_ads=False, interaction_state=None,
+        target_url=None,
     ):
         ensure_tab_fn = _ensure_tab_ad if is_ads else _ensure_tab_target
         return await perform_random_activity(
@@ -218,7 +219,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             _check_vignette,
             is_ads,
             interaction_state,
-            url if not is_ads else None,
+            target_url if not is_ads else None,
         )
 
     try:
@@ -237,11 +238,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 print(f"Worker {worker_id}: Session count limit reached")
                 break
 
-            # Determine if this is an ads session (single shared counter)
-            is_ads_session = False
-            if ctx.pending_ads_sessions.value > 0:
-                ctx.pending_ads_sessions.value -= 1
-                is_ads_session = True
+            # Determine if this is an ads session (per-session probability)
+            ads_ctr = ctx.config.get("ads", {}).get("ctr", 0)
+            is_ads_session = random.random() * 100 < ads_ctr
 
             if is_ads_session:
                 print(f"Worker {worker_id}: Starting AD INTERACTION session")
@@ -255,6 +254,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             browser = None
             context = None
             is_persistent_context = False
+            ad_click_success = False
+            interaction_state = {"cursor_position": None}
 
             # Hard session deadline — nothing runs past this
             session_max_seconds = ctx.config["session"]["max_time"] * 60 if ctx.config["session"]["max_time"] > 0 else 0
@@ -371,8 +372,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     context_kwargs = dict(browser_setup.get("context_options") or {})
                     context = await browser.new_context(**context_kwargs)
                     page = await context.new_page()
-                ad_click_success = False
-                interaction_state = {"cursor_position": None}
 
                 # Hoist random_navigation lambda outside URL loop — built once per session
                 def _random_nav(p, wid, td):
@@ -721,6 +720,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             remaining_time,
                             is_ads_session,
                             interaction_state,
+                            target_url=url,
                         )
 
                         if remaining_time > 0:
