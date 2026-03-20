@@ -67,11 +67,14 @@ async def _has_rendered_content(element) -> bool:
         return await element.evaluate("""(el) => {
             const tag = el.tagName.toUpperCase();
 
-            // If the element itself is an iframe, verify it has a Google ad src
+            // If the element itself is an iframe, verify Google ad src AND real ad dimensions
             if (tag === 'IFRAME') {
                 const src = el.src || '';
-                return src.includes('googleads') || src.includes('doubleclick') ||
-                       src.includes('googlesyndication') || src.includes('adservice.google');
+                const hasAdSrc = src.includes('googleads') || src.includes('doubleclick') ||
+                                 src.includes('googlesyndication') || src.includes('adservice.google');
+                if (!hasAdSrc) return false;
+                const rect = el.getBoundingClientRect();
+                return rect.width >= 50 && rect.height >= 30;
             }
 
             // For INS elements, check data-ad-status (most reliable signal)
@@ -112,7 +115,7 @@ async def detect_adsense_ads(page):
                     try:
                         if await element.is_visible():
                             box = await element.bounding_box()
-                            if box and box['width'] > 0 and box['height'] > 0:
+                            if box and box['width'] >= 50 and box['height'] >= 30:
                                 candidates += 1
                                 if await _has_rendered_content(element):
                                     visible_ads.append(element)

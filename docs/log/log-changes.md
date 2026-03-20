@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T19:45:00+00:00
+- Short description: Enforce minimum ad dimensions to filter tracking/pixel iframes
+- What you do: Raised bounding box threshold in detect_adsense_ads from >0 to >=50 width and >=30 height (smallest standard ad is 320x50). Added dimension check to _has_rendered_content IFRAME path — Google tracking/reporting iframes have ad URLs but tiny/zero dimensions. Previously 6 "rendered" ads passed on a page where most were tracking iframes at positions like (0,-4233).
+- File path that changes: app/ads/adsense.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T19:30:00+00:00
 - Short description: Stricter ad rendered-content detection using data-ad-status and Google iframe verification
 - What you do: Rewrote _has_rendered_content() in adsense.py. Now checks data-ad-status attribute on INS elements (rejects unfilled/unprocessed), requires iframe child with Google ad URL pattern (googleads/doubleclick/googlesyndication/adservice.google), and enforces minimum 30x30px iframe dimensions. Removed loose "any visible child" fallback that was letting empty containers through.
