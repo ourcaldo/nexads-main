@@ -116,7 +116,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
         while retry_count < max_retries:
             try:
                 print(f"Worker {worker_id}: Performing organic search - visiting Google")
-                await page.goto("https://www.google.com/", timeout=90000, wait_until="networkidle")
+                await page.goto("https://www.google.com/", timeout=30000, wait_until="domcontentloaded")
 
                 if config['browser']['auto_accept_cookies']:
                     await accept_google_cookies(page)

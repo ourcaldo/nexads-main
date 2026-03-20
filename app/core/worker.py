@@ -431,7 +431,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             print(f"Worker {worker_id}: Loading initial URL directly")
                             try:
                                 await page.goto(
-                                    url, timeout=90000, wait_until="networkidle"
+                                    url, timeout=30000, wait_until="domcontentloaded"
                                 )
                             except Exception as e:
                                 print(
@@ -486,7 +486,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             print(f"Worker {worker_id}: Loading initial URL directly")
                             try:
                                 await page.goto(
-                                    url, timeout=90000, wait_until="networkidle"
+                                    url, timeout=30000, wait_until="domcontentloaded"
                                 )
                             except Exception as e:
                                 print(
@@ -528,7 +528,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             )
                             try:
                                 await page.goto(
-                                    url, timeout=90000, wait_until="networkidle"
+                                    url, timeout=30000, wait_until="domcontentloaded"
                                 )
                             except Exception as e:
                                 print(
@@ -812,7 +812,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                         intent_type="recovery_intent",
                                     )
                                     await page.goto(
-                                        url, timeout=90000, wait_until="networkidle"
+                                        url, timeout=30000, wait_until="domcontentloaded"
                                     )
                                     page, recovered = await _ensure_tab(
                                         browser,

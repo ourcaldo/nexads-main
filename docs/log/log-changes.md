@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:55:00+00:00
+- Short description: Reduce page navigation timeout from 90s to 30s and use domcontentloaded (E-6)
+- What you do: Changed all page.goto() calls from timeout=90000/networkidle to timeout=30000/domcontentloaded. Many sites never reach networkidle due to tracking scripts, wasting 90s per failed navigation. domcontentloaded fires when the page is interactive, which is sufficient for automation. Applied to worker.py (4 locations), tabs.py (1 location), referrer.py (1 location).
+- File path that changes: app/core/worker.py; app/navigation/tabs.py; app/navigation/referrer.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:50:00+00:00
 - Short description: Add JSONL telemetry log rotation at startup (E-5)
 - What you do: Added _rotate_telemetry_logs() to automation.py start(). At each startup, truncates JSONL files larger than 10MB to prevent unbounded growth on long-running servers. Affects worker_events, worker_errors, telemetry_mobile, ad_click_events.

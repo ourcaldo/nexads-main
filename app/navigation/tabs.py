@@ -141,7 +141,7 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
         last_error = None
         for wait_state in ("domcontentloaded", "load", "networkidle"):
             try:
-                await candidate_page.goto(target_url, timeout=90000, wait_until=wait_state)
+                await candidate_page.goto(target_url, timeout=30000, wait_until=wait_state)
             except Exception as e:
                 last_error = e
 
