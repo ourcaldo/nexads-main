@@ -9,7 +9,6 @@ import time
 import os
 import subprocess
 from dataclasses import dataclass
-from typing import Any
 
 # After this many consecutive session failures, force-kill all child browser
 # processes and take a longer cooldown before retrying.
