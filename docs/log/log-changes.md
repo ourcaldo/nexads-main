@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T00:30:00+00:00
+- Short description: Add 1-3s settle delay after navigation before activities start
+- What you do: Added random 1-3 second delay in worker.py after page navigation completes and before the activity loop begins. Gives the page time to fully render and settle (ads loading, scripts executing) before activities interact with the DOM.
+- File path that changes: app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T00:15:00+00:00
 - Short description: Rewrite Adsterra detection with iframe and external URL fallback
 - What you do: Complete rewrite of adsterra.py with 3-layer detection: (1) Direct DOM — atContainer/atLink selectors on top-level page. (2) Known iframe hosts — alco.camarjaya.co.id and elco.camarjaya.co.id, uses content_frame() to access cross-origin iframe DOM and find ad links inside. (3) External URL fallback — scans ALL page iframes for links pointing to external domains (not matching site domain), treats them as potential ads. Click handling updated to work with both top-level and iframe contexts. Outcomes track ad_source for telemetry.

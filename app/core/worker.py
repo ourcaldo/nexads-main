@@ -749,6 +749,9 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         duration_ms=stay_time * 1000,
                     )
 
+                    # Let the page settle after navigation before starting activities
+                    await asyncio.sleep(random.uniform(1.0, 3.0))
+
                     activity_start = time.time()
                     remaining_time = stay_time
                     while remaining_time > 0 and ctx.running and not _session_expired():
