@@ -1,7 +1,7 @@
 """
 app/browser/setup.py
 Browser initialization orchestrator.
-Delegates to desktop.py (Camoufox) or mobile.py (Patchright) based on device type.
+Delegates to desktop.py (Camoufox) or mobile.py (CloakBrowser) based on device type.
 """
 
 import random
@@ -34,7 +34,7 @@ async def configure_browser(config: dict, worker_id: int, get_random_delay_fn):
                 config, headless, proxy_cfg, worker_id, get_random_delay_fn,
             )
 
-        # Mobile path: Patchright + BrowserForge fingerprint.
+        # Mobile path: CloakBrowser (stealth Chromium).
         result = await configure_mobile_browser(
             config, headless, proxy_cfg, worker_id, get_random_delay_fn,
         )

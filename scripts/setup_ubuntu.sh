@@ -55,9 +55,9 @@ python3 -m pip install --break-system-packages -r requirements.txt
 echo "[6/8] Fetching Camoufox browser binaries..."
 python3 -m camoufox fetch
 
-echo "[7/8] Installing Patchright + Chrome (mobile sessions)..."
-python3 -m pip install --break-system-packages -q patchright
-python3 -m patchright install chrome 2>&1 | tail -3
+echo "[7/8] Installing CloakBrowser + stealth Chromium binary (mobile sessions)..."
+python3 -m pip install --break-system-packages -q "cloakbrowser[geoip]"
+python3 -m cloakbrowser install
 
 echo "[8/8] Installing Playwright Firefox (for Camoufox)..."
 python3 -m playwright install firefox

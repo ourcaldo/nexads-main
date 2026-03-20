@@ -37,7 +37,7 @@ app/
 ```bash
 pip install -r requirements.txt
 python -m camoufox fetch
-patchright install chrome
+python3 -m cloakbrowser install
 ```
 
 ### Running
@@ -171,218 +171,56 @@ Follow this pattern when adding new functionality that needs access to shared st
 - **Click fallback chain:** mouse click -> native `.click()` -> JS `evaluate("el.click()")`
 - **Random human-like delays** injected everywhere via `random.randint()` / `random.uniform()`
 
-### Mobile BrowserForge Fingerprint Reference (Required)
-- Use BrowserForge `FingerprintGenerator` for mobile fingerprint requests when full payload is needed.
-- Canonical generation command (Python):
-```python
-from browserforge.fingerprints import FingerprintGenerator
-fp = FingerprintGenerator().generate(browser='chrome', os='android', device='mobile')
-```
-- For mobile fingerprint injection flows: **use the full payload**, not only user agent or a subset.
-  - Required top-level sections to preserve and carry through: `headers`, `navigator`, `screen`, `battery`, `audioCodecs`, `videoCodecs`, `videoCard`, `pluginsData`, `multimediaDevices`, `fonts`.
-  - Preserve full `navigator.userAgentData` and `navigator.extraProperties` if present.
-  - Keep original header key casing and values from BrowserForge response.
-  - Use the following full example payload structure for reference:
-```json
-{
-  "audioCodecs": {
-    "aac": "probably",
-    "m4a": "maybe",
-    "mp3": "probably",
-    "ogg": "probably",
-    "wav": "probably"
-  },
-  "battery": {
-    "charging": false,
-    "chargingTime": null,
-    "dischargingTime": null,
-    "level": 0.87
-  },
-  "fonts": [
-    "sans-serif-thin"
-  ],
-  "headers": {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Accept-Language": "en-US;q=1.0",
-    "Sec-Fetch-Dest": "navigate",
-    "Sec-Fetch-Mode": "same-site",
-    "Sec-Fetch-Site": "?1",
-    "Sec-Fetch-User": "document",
-    "Upgrade-Insecure-Requests": "1",
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
-    "sec-ch-ua": "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
-    "sec-ch-ua-mobile": "?1",
-    "sec-ch-ua-platform": "\"Android\""
-  },
-  "mockWebRTC": false,
-  "multimediaDevices": {
-    "micros": [],
-    "speakers": [],
-    "webcams": [
-      {
-        "deviceId": "",
-        "groupId": "",
-        "kind": "videoinput",
-        "label": ""
-      }
-    ]
-  },
-  "navigator": {
-    "appCodeName": "Mozilla",
-    "appName": "Netscape",
-    "appVersion": "5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
-    "deviceMemory": 8,
-    "doNotTrack": null,
-    "extraProperties": {
-      "globalPrivacyControl": null,
-      "installedApps": [],
-      "pdfViewerEnabled": null,
-      "vendorFlavors": [
-        "chrome"
-      ]
-    },
-    "hardwareConcurrency": 8,
-    "language": "en-US",
-    "languages": [
-      "en-US"
-    ],
-    "maxTouchPoints": 5,
-    "oscpu": null,
-    "platform": "Linux armv81",
-    "product": "Gecko",
-    "productSub": "20030107",
-    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36",
-    "userAgentData": {
-      "architecture": "",
-      "bitness": "",
-      "brands": [
-        {
-          "brand": "Not)A;Brand",
-          "version": "8"
-        },
-        {
-          "brand": "Chromium",
-          "version": "138"
-        },
-        {
-          "brand": "Google Chrome",
-          "version": "138"
-        }
-      ],
-      "fullVersionList": [
-        {
-          "brand": "Not)A;Brand",
-          "version": "8.0.0.0"
-        },
-        {
-          "brand": "Chromium",
-          "version": "138.0.7204.179"
-        },
-        {
-          "brand": "Google Chrome",
-          "version": "138.0.7204.179"
-        }
-      ],
-      "mobile": true,
-      "model": "V1818CA",
-      "platform": "Android",
-      "platformVersion": "8.1.0",
-      "uaFullVersion": "138.0.7204.179"
-    },
-    "vendor": "Google Inc.",
-    "vendorSub": null,
-    "webdriver": false
-  },
-  "pluginsData": {
-    "mimeTypes": [],
-    "plugins": []
-  },
-  "screen": {
-    "availHeight": 910,
-    "availLeft": 0,
-    "availTop": 0,
-    "availWidth": 360,
-    "clientHeight": 18,
-    "clientWidth": 0,
-    "colorDepth": 24,
-    "devicePixelRatio": 1,
-    "hasHDR": false,
-    "height": 910,
-    "innerHeight": 0,
-    "innerWidth": 0,
-    "outerHeight": 780,
-    "outerWidth": 360,
-    "pageXOffset": 0,
-    "pageYOffset": 0,
-    "pixelDepth": 24,
-    "screenX": 0,
-    "width": 360
-  },
-  "slim": false,
-  "videoCard": {
-    "renderer": "ANGLE (ARM, Mali-G51, OpenGL ES 3.2)",
-    "vendor": "Google Inc. (ARM)"
-  },
-  "videoCodecs": {
-    "h264": "probably",
-    "ogg": "",
-    "webm": "probably"
-  }
-}
-```
-
 ### Dual-Browser Architecture (Critical)
 
 Camoufox does NOT support mobile device emulation. The project uses two separate browser engines:
 
 - **Desktop sessions**: Camoufox (anti-detect Firefox) — handles fingerprinting, geoip, humanization at engine level
-- **Mobile sessions**: Patchright (undetected Chromium) — patched Playwright fork that avoids CDP detection leaks
+- **Mobile sessions**: CloakBrowser (stealth Chromium) — custom Chromium binary with 33 source-level C++ fingerprint patches
 
-#### Patchright (Mobile Engine)
-- **What it is**: Drop-in replacement for Playwright that patches `Runtime.enable` CDP leaks, removes automation flags, and executes JS in isolated contexts to avoid bot detection.
-- **Import**: `from patchright.async_api import async_playwright` (same API as Playwright)
-- **Chromium only**: Firefox and WebKit are NOT supported by Patchright. This is fine since mobile sessions target Chrome/Android.
-- **Best practice for maximum stealth**:
-  - Use `launch_persistent_context()` with `channel="chrome"` and `headless=False` (use virtual display on servers)
-  - Do NOT inject custom User-Agent or browser headers — let the real Chrome identity through
-  - Patchright automatically handles: `navigator.webdriver=false`, automation flag removal, extension enablement
-- **playwright-stealth is NOT used**: Patchright replaces both `playwright` and `playwright-stealth`. The stealth is built into the driver itself at a deeper level than JS-based patches.
-- **Install**: `pip install patchright` then `patchright install chrome`
-- **Passes**: Cloudflare, Datadome, Kasada, Akamai, CreepJS, Fingerprint.com, Sannysoft, Browserscan (97%), Pixelscan, IPHey
+#### CloakBrowser (Mobile Engine)
+- **What it is**: Custom-compiled Chromium binary with fingerprints modified at the C++ source level. Not JS injection or CDP config — real source patches. Drop-in Playwright replacement.
+- **Import**: `from cloakbrowser import launch_persistent_context_async`
+- **Install**: `pip install cloakbrowser[geoip]` then `python3 -m cloakbrowser install` (downloads ~200MB binary)
+- **Key advantage over Patchright**: Source-level patches affect ALL contexts including Web Workers. No `hasInconsistentWorkerValues` mismatch. Bot detection: **No Detection** on BrowserScan.
+- **Fingerprint management**: Binary auto-generates coherent fingerprint from a seed (`--fingerprint=<int>`). Canvas, WebGL, audio, fonts, GPU, screen all derived from same seed.
+- **GeoIP**: Built-in `geoip=True` parameter auto-detects timezone/locale from proxy IP.
+- **Persistent context**: `launch_persistent_context_async()` avoids incognito detection.
 
-#### Patchright Stealth Rules (PROVEN — do not violate)
-These rules were tested and validated on 2026-03-19. Violating them causes detection regressions.
+#### CloakBrowser Mobile Flags
+```
+--fingerprint=<random seed>                     # Unique identity per session
+--fingerprint-platform=android                  # Navigator.platform, UA OS
+--fingerprint-gpu-vendor=Qualcomm               # WebGL vendor (mobile GPU)
+--fingerprint-gpu-renderer=ANGLE (Qualcomm, Adreno (TM) 730, OpenGL ES 3.2)
+--fingerprint-screen-width=412                  # Mobile screen
+--fingerprint-screen-height=915
+--fingerprint-storage-quota=5000                # Bypass incognito detection
+--fingerprint-hardware-concurrency=8
+--fingerprint-device-memory=8
+```
 
-1. **Do NOT inject custom User-Agent via CDP or context options** — `Emulation.setUserAgentOverride` does not propagate to Web Workers. Detection scripts compare main page vs Worker UA and flag the mismatch (`hasInconsistentWorkerValues`). This applies to ALL CDP-based UA/platform/userAgentData overrides.
-2. **Do NOT use `add_init_script` for navigator prototype overrides** — Patchright runs init scripts in an isolated context. Overrides to `Navigator.prototype` (platform, maxTouchPoints, plugins, pdfViewerEnabled) do NOT affect the main world. Only instance-level properties on shared objects (window, navigator instance) work.
-3. **Do NOT use `Page.addScriptToEvaluateOnNewDocument` via CDP** — Also runs in isolated context in patchright, same limitation as add_init_script.
-4. **Do NOT intercept HTML responses to inject scripts** — Route-based `<script>` injection into HTML causes WebGL exceptions and request failures. Also detectable via CSP and response integrity checks.
-5. **ONLY set these context options for mobile**: `viewport`, `locale`, `timezone_id`, `is_mobile`, `has_touch`, `device_scale_factor`, `extra_http_headers` (Accept-Language only).
-6. **WebRTC prevention works**: `--webrtc-ip-handling-policy=disable_non_proxied_udp` successfully prevents real IP leak via WebRTC when proxy is configured.
-7. **DNS-over-HTTPS via Chrome flags**: `--dns-over-https-mode=secure` with Cloudflare template is set but browserscan still flags DNS leak with HTTP proxy. SOCKS5 without auth would fix it but Chromium doesn't support SOCKS5 with auth.
-
-#### Known Limitations (cannot be fixed with patchright)
-- **Platform shows real OS** (Windows/Linux) — cannot spoof `navigator.platform` without triggering Worker inconsistency detection. Camoufox handles this at engine level but doesn't support mobile.
-- **WebGL shows real GPU** — cannot override `WebGLRenderingContext.getParameter` in main world from patchright's isolated context. Route injection works but causes WebGL exceptions.
-- **`hasInconsistentWorkerValues`** — `navigator.maxTouchPoints` is `undefined` in Web Workers but `0`/`1` in main page. This is standard Chromium behavior, affects even manual Chrome usage. Browserscan false positive.
-- **DNS leak (-3%)** — HTTP proxies don't tunnel DNS. Only SOCKS5 (without auth) fixes this.
-- **Best achievable score**: 97% on browserscan.net with HTTP proxy.
+#### CloakBrowser Known Limitations
+- **Audio exception (-5%)**: Binary-level audio patch flagged by BrowserScan. Cannot fix from our side.
+- **DNS leak (-3%)**: HTTP proxies don't tunnel DNS. Only SOCKS5 fixes this.
+- **Incognito detection (-10%)**: `--fingerprint-storage-quota=5000` mitigates but may not fully resolve on all Xvfb configurations.
+- **`navigator.platform` on Linux**: `--fingerprint-platform=android` may show `Linux x86_64` instead of `Linux armv8l` on x86 servers. Does not affect bot detection.
+- **Best achievable score**: ~67-77% on BrowserScan with HTTP proxy. Bot Detection: **No Detection** (the metric that matters).
 
 #### Key Architectural Rule
-- Never use raw `playwright` or `playwright-stealth` for any browser session. Desktop uses Camoufox. Mobile uses Patchright.
-- BrowserForge fingerprints are used for mobile context metadata (viewport, locale, touch, DPR) but NOT for identity spoofing (UA, platform, WebGL). Patchright's stealth works best with clean, real Chrome identity.
+- Never use raw `playwright` or `playwright-stealth` for any browser session. Desktop uses Camoufox. Mobile uses CloakBrowser.
+- BrowserForge is only used by Camoufox for `Screen` constraints. CloakBrowser handles its own fingerprinting at binary level.
 
 #### Browser Module Structure
 ```
 app/browser/
-  setup.py          # Thin orchestrator (~69 lines): picks desktop or mobile, delegates
+  setup.py          # Thin orchestrator: picks desktop or mobile, delegates
   proxy.py          # Proxy string parsing and config resolution (shared)
   desktop.py        # Camoufox launch + cleanup
-  mobile.py         # Patchright launch/cleanup + BrowserForge fingerprint + mapping + validation
+  mobile.py         # CloakBrowser launch + cleanup (Android fingerprint via binary flags)
   activities.py     # Human-like scroll, hover, click
   humanization.py   # Mouse movement, timing helpers
-  geoip.py          # Proxy IP geolocation lookup
+  geoip.py          # Proxy IP geolocation lookup (used by proxy.py for URL building)
 ```
 
 ### Known Issues / Tech Debt

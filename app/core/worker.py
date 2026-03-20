@@ -356,7 +356,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 )
 
                 if is_persistent_context:
-                    # Patchright mobile: persistent context already created.
+                    # CloakBrowser mobile: persistent context already created.
                     # Set browser = context so downstream code (ensure_correct_tab,
                     # activities, urls) can use it as the top-level object.
                     context = browser_setup.get("context")
@@ -364,7 +364,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                     pages = context.pages
                     page = pages[0] if pages else await context.new_page()
                     print(
-                        f"Worker {worker_id}: Using patchright persistent context"
+                        f"Worker {worker_id}: Using CloakBrowser persistent context"
                     )
                 else:
                     # Camoufox desktop: create context from browser.

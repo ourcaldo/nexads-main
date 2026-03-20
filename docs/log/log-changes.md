@@ -1,6 +1,18 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T12:00:00+00:00
+- Short description: Migrate mobile browser engine from Patchright to CloakBrowser
+- What you do: Replaced Patchright + BrowserForge fingerprint pipeline (~620 lines) with CloakBrowser (~140 lines) for mobile sessions. CloakBrowser is a custom Chromium binary with 33 source-level C++ patches that passes bot detection (No Detection on BrowserScan) unlike Patchright which was detected as bot. Removed BrowserForge fingerprint generation/validation/mapping. CloakBrowser handles fingerprints at binary level via --fingerprint flags. GeoIP auto-detected via geoip=True. Updated setup script to install CloakBrowser binary instead of Patchright Chrome.
+- File path that changes: app/browser/mobile.py; app/browser/setup.py; AGENTS.md; requirements.txt; scripts/setup_ubuntu.sh; docs/log/log-changes.md; docs/plans/2026-03-20-patchright-to-cloakbrowser-migration.md
+
+## Entry
+- Date time: 2026-03-20T06:00:00+00:00
+- Short description: Fix worker stalling: infinite nav loop, session deadline enforcement, browser cleanup
+- What you do: Fixed infinite loop in navigate_to_url_by_click where retry_count was never incremented (workers stuck 6+ hours). Added session.max_time enforcement as hard deadline throughout session lifecycle. Added cleanup timeouts + force-kill to browser close. Added consecutive failure circuit breaker.
+- File path that changes: app/navigation/urls.py; app/core/worker.py; app/browser/desktop.py; app/browser/mobile.py; docs/issues/worker-stalling-7h-hang.md
+
+## Entry
 - Date time: 2026-03-19T16:30:00-07:00
 - Short description: Update fleet script to use existing setup/stop scripts, add patchright to setup
 - What you do: Rewrote nexads-remote.sh deploy action to use existing setup_ubuntu.sh and stop_nexads.sh instead of duplicating logic. Added patchright + Chrome installation to setup_ubuntu.sh. Handles nexads-main -> nexads rename for old directory layouts. Added nexdev-ausso to host list.

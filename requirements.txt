@@ -5,7 +5,7 @@ requests==2.31.0
 psutil
 setuptools
 playwright
-patchright
+cloakbrowser[geoip]
 urllib3<3
 chardet<5
 oxymouse
