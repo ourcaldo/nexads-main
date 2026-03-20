@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T19:05:00+00:00
+- Short description: Integrate ad clicking into activity loop with rendered-content detection
+- What you do: (1) Added _has_rendered_content() check to detect_adsense_ads so phantom/unloaded ad containers are filtered out — only ads with actual iframe or visible child content pass detection. (2) Moved ad interaction from post-stay-time block into the weighted activity loop in perform_random_activity as an "ad_click" activity, so ads respect the per-page stay time budget. (3) Added max_duration parameter to interact_with_ads to cap time spent trying ads. (4) Removed the post-activity-loop ad click block from worker.py; ad success is now tracked via interaction_state and summarized after the URL loop.
+- File path that changes: app/ads/adsense.py; app/browser/activities.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T16:15:00+00:00
 - Short description: Update config for production deployment
 - What you do: Updated config.json with production settings: headless_mode=virtual, threads=20, session min_time=5/max_time=10, desktop only (mobile=0), all target URLs.

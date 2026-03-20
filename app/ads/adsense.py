@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+import time
 
 from app.ads.outcomes import evaluate_ad_click_outcome, persist_ad_click_event
 from app.ads.signals import load_adsense_cosmetic_selectors
@@ -60,11 +61,45 @@ def _get_runtime_ad_selectors() -> list[str]:
     return _RUNTIME_AD_SELECTORS
 
 
+async def _has_rendered_content(element) -> bool:
+    """Check if an ad container has actually rendered content, not just an empty placeholder."""
+    try:
+        return await element.evaluate("""(el) => {
+            const tag = el.tagName.toUpperCase();
+            // If the element itself is an iframe, it's already rendered content
+            if (tag === 'IFRAME') return true;
+
+            // For container elements, check for loaded iframe children
+            const iframes = el.querySelectorAll('iframe');
+            for (const iframe of iframes) {
+                const src = iframe.src || iframe.getAttribute('data-src') || '';
+                if (src.length > 0) {
+                    const rect = iframe.getBoundingClientRect();
+                    if (rect.width > 1 && rect.height > 1) return true;
+                }
+            }
+
+            // Check for any non-script visible children with real dimensions
+            for (const child of el.children) {
+                if (child.tagName === 'SCRIPT' || child.tagName === 'INS') continue;
+                const style = window.getComputedStyle(child);
+                if (style.display === 'none' || style.visibility === 'hidden') continue;
+                const rect = child.getBoundingClientRect();
+                if (rect.width > 5 && rect.height > 5) return true;
+            }
+
+            return false;
+        }""")
+    except Exception:
+        return False
+
+
 async def detect_adsense_ads(page):
     """Detect and return all visible AdSense ad elements on the current page."""
     try:
         ad_selectors = _get_runtime_ad_selectors()
         visible_ads = []
+        candidates = 0
 
         for selector in ad_selectors:
             try:
@@ -74,13 +109,19 @@ async def detect_adsense_ads(page):
                         if await element.is_visible():
                             box = await element.bounding_box()
                             if box and box['width'] > 0 and box['height'] > 0:
-                                visible_ads.append(element)
+                                candidates += 1
+                                if await _has_rendered_content(element):
+                                    visible_ads.append(element)
                     except Exception:
                         continue
             except Exception:
                 continue
 
-        print(f"Found {len(visible_ads)} visible AdSense ads from {len(ad_selectors)} selectors")
+        filtered = candidates - len(visible_ads)
+        msg = f"Found {len(visible_ads)} rendered AdSense ads"
+        if filtered > 0:
+            msg += f" ({filtered} unrendered containers filtered)"
+        print(msg)
         return visible_ads
 
     except Exception as e:
@@ -200,8 +241,10 @@ async def check_and_handle_vignette(page, worker_id: int, extract_domain_fn) -> 
         return False
 
 
-async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn) -> bool:
+async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn,
+                            max_duration: float = 0) -> bool:
     """Click visible AdSense ads and prefer natural left-click behavior."""
+    interact_start = time.time()
     visible_ads = await detect_adsense_ads(page)
     if not visible_ads:
         print(f"Worker {worker_id}: No visible AdSense ads found on page")
@@ -217,6 +260,9 @@ async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn) ->
     random.shuffle(visible_ads)
 
     for ad in visible_ads:
+        if max_duration > 0 and (time.time() - interact_start) >= max_duration:
+            print(f"Worker {worker_id}: Ad interaction time budget exhausted")
+            break
         try:
             source_url = page.url
             current_domain = extract_domain_fn(source_url)

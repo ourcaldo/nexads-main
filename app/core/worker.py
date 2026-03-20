@@ -219,6 +219,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             is_ads,
             interaction_state,
             target_url if not is_ads else None,
+            interact_with_ads_fn=interact_with_ads if is_ads else None,
         )
 
     try:
@@ -254,7 +255,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             browser = None
             context = None
             is_persistent_context = False
-            ad_click_success = False
             interaction_state = {"cursor_position": None}
             fingerprint_mode = "desktop"
             fallback_reason = ""
@@ -740,142 +740,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         duration_ms=int((time.time() - activity_start) * 1000),
                     )
 
-                    if is_ads_session and not ad_click_success and not _session_expired():
-                        print(
-                            f"Worker {worker_id}: Checking for ads elements on URL {url_index + 1}"
-                        )
-                        _emit_step(
-                            "ad_click", "started", url_value=url, url_idx=url_index + 1
-                        )
-                        tabs_before = len(context.pages)
-                        pre_click_url = page.url
-                        ad_click_success = await interact_with_ads(
-                            page, browser, worker_id, extract_domain
-                        )
-
-                        if ad_click_success:
-                            tabs_after = len(context.pages)
-                            if tabs_after > tabs_before:
-                                print(
-                                    f"Worker {worker_id}: Ad click successful (new tab opened)"
-                                )
-                                successful_ads_sessions += 1
-                                _emit_step(
-                                    "ad_click",
-                                    "ok",
-                                    url_value=url,
-                                    url_idx=url_index + 1,
-                                    reason_code="new_tab_navigation",
-                                )
-                            else:
-                                post_click_url = page.url
-                                print(
-                                    f"Worker {worker_id}: Ad click successful (same-tab navigation): "
-                                    f"{pre_click_url} -> {post_click_url}"
-                                )
-                                successful_ads_sessions += 1
-                                _emit_step(
-                                    "ad_click",
-                                    "ok",
-                                    url_value=url,
-                                    url_idx=url_index + 1,
-                                    reason_code="same_tab_navigation",
-                                )
-
-                                min_ads = int(ctx.config["ads"]["min_time"])
-                                max_ads = int(ctx.config["ads"]["max_time"])
-                                if min_ads >= max_ads:
-                                    ad_stay = min_ads
-                                else:
-                                    ad_stay = int(
-                                        round(
-                                            lognormal_seconds(
-                                                (min_ads + max_ads) / 2,
-                                                0.5,
-                                                min_ads,
-                                                max_ads,
-                                            )
-                                        )
-                                    )
-                                print(
-                                    f"Worker {worker_id}: Staying on same-tab ad landing for {ad_stay}s"
-                                )
-                                await asyncio.sleep(ad_stay)
-
-                                try:
-                                    same_tab_return_started = time.time()
-                                    _emit_step(
-                                        "same_tab_return",
-                                        "started",
-                                        url_value=url,
-                                        url_idx=url_index + 1,
-                                        intent_type="recovery_intent",
-                                    )
-                                    await page.goto(
-                                        url, timeout=30000, wait_until="domcontentloaded"
-                                    )
-                                    page, recovered = await _ensure_tab(
-                                        browser,
-                                        page,
-                                        url,
-                                        worker_id,
-                                        timeout=25,
-                                        intent_type="recovery_intent",
-                                    )
-                                    if recovered and page:
-                                        print(
-                                            f"Worker {worker_id}: Returned to target URL after same-tab ad"
-                                        )
-                                        _emit_step(
-                                            "same_tab_return",
-                                            "ok",
-                                            url_value=url,
-                                            url_idx=url_index + 1,
-                                            intent_type="recovery_intent",
-                                            duration_ms=int(
-                                                (time.time() - same_tab_return_started)
-                                                * 1000
-                                            ),
-                                        )
-                                    else:
-                                        print(
-                                            f"Worker {worker_id}: Could not fully recover target URL after same-tab ad"
-                                        )
-                                        _emit_step(
-                                            "same_tab_return",
-                                            "failed",
-                                            url_value=url,
-                                            url_idx=url_index + 1,
-                                            intent_type="recovery_intent",
-                                            reason_code="same_tab_return_not_recovered",
-                                            duration_ms=int(
-                                                (time.time() - same_tab_return_started)
-                                                * 1000
-                                            ),
-                                        )
-                                except Exception as recover_err:
-                                    print(
-                                        f"Worker {worker_id}: Error returning to target URL after same-tab ad: "
-                                        f"{recover_err}"
-                                    )
-                                    _emit_step(
-                                        "same_tab_return",
-                                        "failed",
-                                        url_value=url,
-                                        url_idx=url_index + 1,
-                                        intent_type="recovery_intent",
-                                        reason_code="same_tab_return_exception",
-                                        error=recover_err,
-                                    )
-                        else:
-                            _emit_step(
-                                "ad_click",
-                                "failed",
-                                url_value=url,
-                                url_idx=url_index + 1,
-                                reason_code="ad_click_not_accepted",
-                            )
-
                     _emit_step(
                         "url_navigation",
                         "ok",
@@ -883,6 +747,13 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         url_idx=url_index + 1,
                         duration_ms=int((time.time() - url_step_started) * 1000),
                     )
+
+                if is_ads_session:
+                    if interaction_state.get("ad_click_success"):
+                        successful_ads_sessions += 1
+                        _emit_step("ad_click", "ok", reason_code="ad_clicked_during_activity")
+                    else:
+                        _emit_step("ad_click", "failed", reason_code="no_ad_click_during_session")
 
                 session_successful = True
 
