@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:07:00+00:00
+- Short description: Replace fragile locals() checks with default variable initialization (L-6)
+- What you do: Initialized fingerprint_mode="desktop" and fallback_reason="" at session start alongside other session variables. Replaced all `if "fingerprint_mode" in locals()` and `if "fallback_reason" in locals()` checks with direct variable references. Simpler and won't break on scope changes.
+- File path that changes: app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:06:00+00:00
 - Short description: Remove debug print statement from get_random_keyword (L-4)
 - What you do: Removed `print(f"DEBUG - Raw keyword data: {repr(keywords)}")` left in production code.

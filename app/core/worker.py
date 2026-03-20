@@ -256,6 +256,8 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             is_persistent_context = False
             ad_click_success = False
             interaction_state = {"cursor_position": None}
+            fingerprint_mode = "desktop"
+            fallback_reason = ""
 
             # Hard session deadline — nothing runs past this
             session_max_seconds = ctx.config["session"]["max_time"] * 60 if ctx.config["session"]["max_time"] > 0 else 0
@@ -946,23 +948,15 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 event_type="session_outcome",
                 session_id=session_id,
                 strategy_mode="active"
-                if (fingerprint_mode if "fingerprint_mode" in locals() else "desktop")
-                == "mobile"
+                if fingerprint_mode == "mobile"
                 else (
                     "dry_run"
-                    if (
-                        fingerprint_mode
-                        if "fingerprint_mode" in locals()
-                        else "desktop"
-                    )
-                    == "dry_run"
+                    if fingerprint_mode == "dry_run"
                     else "disabled"
                 ),
-                final_mode=fingerprint_mode
-                if "fingerprint_mode" in locals()
-                else "desktop",
+                final_mode=fingerprint_mode,
                 success=session_successful,
-                reason=fallback_reason if "fallback_reason" in locals() else "",
+                reason=fallback_reason,
             )
 
             await asyncio.sleep(delay)
