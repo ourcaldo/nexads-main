@@ -29,7 +29,7 @@ from app.navigation.referrer import (
     accept_google_cookies,
     get_social_referrer,
 )
-from app.navigation.consent import handle_consent_dialog
+from app.navigation.consent import handle_consent_dialog, try_dismiss_consent
 from app.navigation.tabs import (
     NavigationIntent,
     ensure_correct_tab,
@@ -194,6 +194,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
         return await _ensure_tab(browser, page, url, wid, timeout, "ad_landing_intent")
 
     async def _check_vignette(page, wid):
+        await try_dismiss_consent(page, wid)
         return await check_and_handle_vignette(page, wid, extract_domain)
 
     async def _smart_click(

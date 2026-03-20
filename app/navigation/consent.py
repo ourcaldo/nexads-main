@@ -130,6 +130,43 @@ async def _click_with_fallbacks(page, element, box: dict) -> tuple[bool, str]:
     return False, "none"
 
 
+async def try_dismiss_consent(page, worker_id: int) -> bool:
+    """Quick one-shot consent dialog check and dismiss. Non-blocking."""
+    try:
+        dialog, dialog_selector = await _find_visible_element(page, CONSENT_DIALOG_SELECTORS)
+        if not dialog:
+            return False
+
+        print(f"Worker {worker_id}: Consent dialog detected (background) via {dialog_selector}")
+
+        button, button_selector = await _find_visible_element(page, CONSENT_BUTTON_SELECTORS, root=dialog)
+        if not button:
+            button, button_selector = await _find_visible_element(page, CONSENT_BUTTON_SELECTORS)
+
+        if not button:
+            print(f"Worker {worker_id}: Consent dialog visible but no accept button found")
+            return False
+
+        try:
+            await button.scroll_into_view_if_needed(timeout=3000)
+        except Exception:
+            pass
+
+        box = await button.bounding_box()
+        if not box:
+            return False
+
+        clicked, strategy = await _click_with_fallbacks(page, button, box)
+        if clicked:
+            print(f"Worker {worker_id}: Consent dismissed (background) using {strategy} ({button_selector})")
+            await page.wait_for_timeout(gaussian_ms(350, 100, 150, 700))
+            return True
+
+        return False
+    except Exception:
+        return False
+
+
 async def handle_consent_dialog(page, worker_id: int, max_wait_seconds: int = 12) -> dict:
     """Resolve consent dialogs in a universal way.
 

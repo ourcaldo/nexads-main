@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T20:50:00+00:00
+- Short description: Background GDPR/consent detection throughout session lifecycle
+- What you do: Added try_dismiss_consent() to consent.py — a quick one-shot consent dialog check and dismiss. Integrated it into the _check_vignette closure in worker.py so it runs at the start and end of every activity iteration (via perform_random_activity's check_vignette_fn calls). Consent dialogs that appear at any time (after scroll, navigation, ad load) are now detected and dismissed automatically.
+- File path that changes: app/navigation/consent.py; app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T20:30:00+00:00
 - Short description: Multi-provider ad system with Adsterra support, dispatcher, and GUI
 - What you do: (1) Created app/ads/adsterra.py with Adsterra ad detection using cosmetic domains (sourshaped.com, skinnycrawlinglax.com, wayfarerorthodox.com, realizationnewestfangs.com) and interaction logic mirroring adsense.py. (2) Created app/ads/dispatcher.py with two strategies: first_success (try providers in order, stop on first click) and one_per_provider (1 success needed per enabled provider). (3) Updated worker.py to use dispatcher instead of direct adsense import. (4) Updated activities.py to let dispatcher manage ad_click_success state. (5) Updated config_window.py GUI with provider checkboxes, strategy dropdown, and drag-and-drop provider priority reordering via QListWidget. (6) Added providers and strategy fields to config.json.
