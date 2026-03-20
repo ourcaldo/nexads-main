@@ -195,6 +195,10 @@ async def random_navigation(page, worker_id: int, target_domain: str,
                     print(f"Worker {worker_id}: Random navigation did not change URL")
                     retry_count += 1
                     continue
+            else:
+                print(f"Worker {worker_id}: Random click did not succeed")
+                retry_count += 1
+                continue
 
         except Exception as e:
             print(f"Worker {worker_id}: Error during random navigation: {str(e)}")

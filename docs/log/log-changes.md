@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:01:00+00:00
+- Short description: Fix random_navigation retry_count not incremented when click fails (M-3)
+- What you do: Added retry_count increment when smart_click_fn returns False in random_navigation. Previously execution fell through without incrementing, causing unnecessary extra iterations.
+- File path that changes: app/navigation/urls.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T15:00:00+00:00
 - Short description: Clear redirect_budget_states between sessions (M-1)
 - What you do: Added redirect_budget_states.clear() at the start of each session loop iteration. Previously the dict accumulated entries across all sessions, growing indefinitely in unlimited mode.
