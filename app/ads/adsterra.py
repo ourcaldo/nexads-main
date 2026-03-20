@@ -11,7 +11,7 @@ from app.ads.outcomes import evaluate_ad_click_outcome, persist_ad_click_event
 from app.ads.adsense import smart_click
 from app.browser.humanization import lognormal_seconds
 
-# Known Adsterra ad-serving domains (cosmetic/banner)
+# Known Adsterra tracking/serving domains
 _ADSTERRA_DOMAINS = [
     "sourshaped.com",
     "skinnycrawlinglax.com",
@@ -19,43 +19,51 @@ _ADSTERRA_DOMAINS = [
     "realizationnewestfangs.com",
 ]
 
+# Adsterra ads use atContainer-{hash} / atLink-{hash} DOM pattern
 _ADSTERRA_SELECTORS = [
-    *[f'iframe[src*="{d}"]' for d in _ADSTERRA_DOMAINS],
-    'div[id^="ad-banner"]',
-    'div[class*="adsterra"]',
-    'div[id*="adsterra"]',
+    'div[id^="atContainer-"]',                     # Primary: Adsterra ad container
+    'a[id^="atLink-"]',                            # Direct link element
+    *[f'iframe[src*="{d}"]' for d in _ADSTERRA_DOMAINS],  # Fallback: iframe format
 ]
 
-# Pre-build JS domain check expression for use in evaluate()
-_DOMAIN_JS_OR = " || ".join(f'src.includes("{d}")' for d in _ADSTERRA_DOMAINS)
+# Known Adsterra image CDN and redirect domains
+_ADSTERRA_CONTENT_DOMAINS = [
+    "storageimagedisplay.com",
+    *_ADSTERRA_DOMAINS,
+]
 
 
 async def _has_adsterra_content(element) -> bool:
     """Check if an Adsterra ad element has actually rendered content."""
     try:
-        js = """(el) => {
+        return await element.evaluate("""(el) => {
             const tag = el.tagName.toUpperCase();
 
+            // Direct iframe format (fallback)
             if (tag === 'IFRAME') {
-                const src = el.src || '';
-                const hasAdSrc = """ + _DOMAIN_JS_OR + """;
-                if (!hasAdSrc) return false;
                 const rect = el.getBoundingClientRect();
                 return rect.width >= 50 && rect.height >= 30;
             }
 
-            const iframes = el.querySelectorAll('iframe');
-            for (const iframe of iframes) {
-                const src = iframe.src || '';
-                if (""" + _DOMAIN_JS_OR + """) {
-                    const rect = iframe.getBoundingClientRect();
-                    if (rect.width >= 50 && rect.height >= 30) return true;
+            // atContainer or atLink format: look for <a> with <img> inside
+            const link = (tag === 'A') ? el : el.querySelector('a[id^="atLink-"]');
+            if (link) {
+                const img = link.querySelector('img');
+                if (img) {
+                    const rect = img.getBoundingClientRect();
+                    return rect.width >= 30 && rect.height >= 30;
                 }
             }
 
+            // Generic: any visible image child with real dimensions
+            const imgs = el.querySelectorAll('img');
+            for (const img of imgs) {
+                const rect = img.getBoundingClientRect();
+                if (rect.width >= 30 && rect.height >= 30) return true;
+            }
+
             return false;
-        }"""
-        return await element.evaluate(js)
+        }""")
     except Exception:
         return False
 
@@ -119,12 +127,23 @@ async def interact_with_adsterra_ads(page, browser, worker_id: int, extract_doma
         try:
             source_url = page.url
             current_domain = extract_domain_fn(source_url)
-            box = await ad.bounding_box()
+
+            # Resolve clickable element: prefer <a> link inside container
+            click_target = ad
+            tag = await ad.evaluate("el => el.tagName.toUpperCase()")
+            if tag != "A":
+                link = await ad.query_selector('a[id^="atLink-"]')
+                if not link:
+                    link = await ad.query_selector("a[href]")
+                if link:
+                    click_target = link
+
+            box = await click_target.bounding_box()
             ad_position = f"({box['x']:.0f},{box['y']:.0f})" if box else "(unknown position)"
             print(f"Worker {worker_id}: Attempting to click Adsterra ad at {ad_position}")
 
             if await smart_click(
-                page, worker_id, current_domain, ad,
+                page, worker_id, current_domain, click_target,
                 is_ad_activity=True, interaction_state=interaction_state,
             ):
                 outcome = await evaluate_ad_click_outcome(

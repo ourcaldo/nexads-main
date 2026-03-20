@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T23:00:00+00:00
+- Short description: Fix Adsterra detection to match actual DOM structure
+- What you do: Adsterra ads use div[id^="atContainer-"] + a[id^="atLink-"] + img pattern, NOT iframes from cosmetic domains. Updated _ADSTERRA_SELECTORS to use atContainer/atLink prefixes as primary selectors, kept iframe format as fallback. Rewrote _has_adsterra_content to look for anchor+image children instead of iframes. Updated interact_with_adsterra_ads to resolve the clickable <a> link inside the container rather than clicking the div.
+- File path that changes: app/ads/adsterra.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T22:30:00+00:00
 - Short description: Fix double humanization, batch link scanning, pre-scan next URL
 - What you do: (1) Fixed double cursor humanization on desktop: Camoufox humanize=True handles movement at C++ level, so move_mouse_humanly now passes through to page.mouse.move() for desktop and only uses custom bezier paths for mobile (CloakBrowser). Added is_mobile flag to interaction_state set from fingerprint_mode. (2) Replaced per-element async href scanning (N+1 calls) with batch JS evaluation (2 calls) in _batch_scan_links(). (3) Added pre-scan: during activity loop (progress>50%), scans for next URL's link and caches raw href in interaction_state. navigate_to_url_by_click checks cache first, skipping full scan+scroll. (4) Added next_url parameter through _perform_activity → perform_random_activity chain.
