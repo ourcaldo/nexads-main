@@ -232,8 +232,18 @@ def generate_mouse_path(start: tuple[float, float],
 
 
 async def move_mouse_humanly(page, start: tuple[float, float],
-                             target: tuple[float, float]) -> None:
-    """Move mouse along generated path with bounded per-step delays."""
+                             target: tuple[float, float],
+                             is_mobile: bool = True) -> None:
+    """Move mouse along generated path with bounded per-step delays.
+
+    Desktop (Camoufox): humanize=True at C++ level handles trajectory.
+    Mobile (CloakBrowser): uses custom bezier path generation.
+    """
+    if not is_mobile:
+        # Camoufox handles humanization at C++ engine level
+        await page.mouse.move(target[0], target[1])
+        return
+
     path = generate_mouse_path(start, target)
     distance = math.hypot(target[0] - start[0], target[1] - start[1])
     total_ms = gaussian_ms(320 + distance * 0.65, 120, 180, 1600)

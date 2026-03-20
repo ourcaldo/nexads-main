@@ -390,7 +390,8 @@ async def smart_click(page, worker_id: int, current_domain: str,
         click_x, click_y = choose_click_point(box, tag)
         start_x, start_y = get_cursor_start(page, interaction_state)
 
-        await move_mouse_humanly(page, (start_x, start_y), (click_x, click_y))
+        is_mobile = (interaction_state or {}).get("is_mobile", False)
+        await move_mouse_humanly(page, (start_x, start_y), (click_x, click_y), is_mobile=is_mobile)
         set_cursor_position(interaction_state, click_x, click_y)
         await page.wait_for_timeout(gaussian_ms(360, 100, 160, 820))
 

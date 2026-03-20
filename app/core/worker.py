@@ -205,7 +205,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
     async def _perform_activity(
         page, browser, wid, stay_time, is_ads=False, interaction_state=None,
-        target_url=None,
+        target_url=None, next_url=None,
     ):
         ensure_tab_fn = _ensure_tab_ad if is_ads else _ensure_tab_target
 
@@ -232,6 +232,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
             interaction_state,
             target_url if not is_ads else None,
             interact_with_ads_fn=ads_fn,
+            next_url=next_url,
         )
 
     try:
@@ -357,6 +358,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                 )
 
                 fingerprint_mode = str(browser_setup.get("fingerprint_mode", "desktop"))
+                interaction_state["is_mobile"] = (fingerprint_mode == "mobile")
                 fallback_reason = str(browser_setup.get("fallback_reason", "") or "")
                 emit_mobile_fingerprint_event(
                     worker_id=worker_id,
@@ -416,6 +418,16 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                         url = random.choice(urls) if urls else url_data["url"].strip()
                     else:
                         url = url_data["url"].strip()
+
+                    # Compute next URL for pre-scanning (skip random_page)
+                    next_url = None
+                    if url_index + 1 < len(ctx.config["urls"]):
+                        next_data = ctx.config["urls"][url_index + 1]
+                        if not next_data["random_page"]:
+                            next_url = next_data["url"].strip()
+
+                    # Clear pre-scan cache from previous URL
+                    interaction_state.pop("pre_scanned_nav", None)
 
                     print(
                         f"Worker {worker_id}: [URL {url_index + 1}/{len(ctx.config['urls'])}] Visiting: {url}"
@@ -533,6 +545,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                                 _check_vignette,
                                 _random_nav,
                                 ctx.config,
+                                interaction_state=interaction_state,
                             )
                         except SessionFailedException:
                             print(
@@ -749,6 +762,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
                             is_ads_session,
                             interaction_state,
                             target_url=url,
+                            next_url=next_url,
                         )
 
                         # Recalculate after activity so delay uses fresh time

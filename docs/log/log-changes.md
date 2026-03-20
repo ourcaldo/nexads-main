@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T22:30:00+00:00
+- Short description: Fix double humanization, batch link scanning, pre-scan next URL
+- What you do: (1) Fixed double cursor humanization on desktop: Camoufox humanize=True handles movement at C++ level, so move_mouse_humanly now passes through to page.mouse.move() for desktop and only uses custom bezier paths for mobile (CloakBrowser). Added is_mobile flag to interaction_state set from fingerprint_mode. (2) Replaced per-element async href scanning (N+1 calls) with batch JS evaluation (2 calls) in _batch_scan_links(). (3) Added pre-scan: during activity loop (progress>50%), scans for next URL's link and caches raw href in interaction_state. navigate_to_url_by_click checks cache first, skipping full scan+scroll. (4) Added next_url parameter through _perform_activity → perform_random_activity chain.
+- File path that changes: app/browser/humanization.py; app/ads/adsense.py; app/browser/activities.py; app/core/worker.py; app/navigation/urls.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T21:45:00+00:00
 - Short description: Use CSS-based consent button selectors instead of text matching
 - What you do: Rewrote CONSENT_BUTTON_SELECTORS in consent.py to prioritize CSS class/ID selectors that are language-independent. Added button.fc-cta-consent (Fundingchoices/Google CMP), button.fc-primary-button, OneTrust, Cookiebot, CookieFirst, CookieConsent selectors. Text-based selectors (Accept, Agree, OK) kept as fallbacks. Fixes issue where consent button had non-English text (e.g. "Einwilligen") but fc-cta-consent class was universal.

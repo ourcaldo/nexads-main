@@ -59,7 +59,8 @@ async def _idle_mouse_jitter(
             start_y + random.gauss(0, random.uniform(2, 8)), 1, viewport["height"] - 1
         )
 
-        await move_mouse_humanly(page, (start_x, start_y), (target_x, target_y))
+        is_mobile = (interaction_state or {}).get("is_mobile", False)
+        await move_mouse_humanly(page, (start_x, start_y), (target_x, target_y), is_mobile=is_mobile)
         set_cursor_position(interaction_state, target_x, target_y)
 
 
@@ -265,7 +266,8 @@ async def random_hover(
         start_x, start_y = get_cursor_start(page, interaction_state)
 
         if running:
-            await move_mouse_humanly(page, (start_x, start_y), (target_x, target_y))
+            is_mobile = (interaction_state or {}).get("is_mobile", False)
+            await move_mouse_humanly(page, (start_x, start_y), (target_x, target_y), is_mobile=is_mobile)
             set_cursor_position(interaction_state, target_x, target_y)
 
         hover_time = lognormal_seconds(1.0, 0.45, 0.35, 3.4)
@@ -356,6 +358,7 @@ async def perform_random_activity(
     interaction_state: dict | None = None,
     strict_target_url: str | None = None,
     interact_with_ads_fn=None,
+    next_url: str | None = None,
 ):
     """Perform randomized activities for the provided stay duration."""
     random_activity_enabled = config["browser"].get("random_activity", False)
@@ -597,6 +600,32 @@ async def perform_random_activity(
                     remaining_time = stay_time - elapsed
 
             await check_vignette_fn(page, worker_id)
+
+            # Pre-scan next URL link once during later phase of stay time
+            if (
+                next_url
+                and not interaction_state.get("pre_scanned_nav")
+                and progress > 0.5
+            ):
+                try:
+                    next_domain = extract_domain_fn(next_url)
+                    all_hrefs = await page.evaluate(
+                        "() => Array.from(document.querySelectorAll('a[href]'), "
+                        "a => ({href: a.href, raw: a.getAttribute('href')}))"
+                    )
+                    for h in all_hrefs:
+                        resolved = h.get("href", "")
+                        if extract_domain_fn(resolved) == next_domain:
+                            is_exact = next_url in resolved
+                            interaction_state["pre_scanned_nav"] = {
+                                "target_url": next_url,
+                                "raw_href": h.get("raw", ""),
+                                "match_type": "exact" if is_exact else "domain",
+                            }
+                            if is_exact:
+                                break
+                except Exception:
+                    pass
 
         return True
 

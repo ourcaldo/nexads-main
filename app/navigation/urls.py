@@ -58,10 +58,42 @@ async def check_page_health(page) -> dict:
         return {"healthy": False, "reason": "evaluate_failed"}
 
 
+async def _batch_scan_links(page, target_url: str, target_domain: str):
+    """Scan all page links in a single JS call and return matching (element, type) pairs."""
+    # Single JS call: get all resolved hrefs at once
+    all_hrefs = await page.evaluate(
+        "() => Array.from(document.querySelectorAll('a[href]'), a => a.href)"
+    )
+
+    # Filter in Python (instant, no async round-trips)
+    matching_indices = []
+    for i, href in enumerate(all_hrefs):
+        if not href:
+            continue
+        if extract_domain(href) == target_domain:
+            is_exact = target_url in href
+            matching_indices.append((i, 'exact' if is_exact else 'domain'))
+
+    # Sort: exact matches first
+    matching_indices.sort(key=lambda x: 0 if x[1] == 'exact' else 1)
+
+    if not matching_indices:
+        return []
+
+    # Single call to get element handles
+    all_links = await page.query_selector_all('a[href]')
+    return [
+        (all_links[i], match_type)
+        for i, match_type in matching_indices
+        if i < len(all_links)
+    ]
+
+
 async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                                    ensure_correct_tab_fn, smart_click_fn,
                                    accept_cookies_fn, check_vignette_fn,
-                                   random_navigation_fn, config: dict):
+                                   random_navigation_fn, config: dict,
+                                   interaction_state: dict | None = None):
     """Navigate to target URL by finding and clicking a matching link on the current page."""
     from app.core.automation import SessionFailedException
 
@@ -70,6 +102,48 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
     retry_count = 0
     # Cap link attempts per retry to avoid spending hours on broken pages
     max_link_attempts_per_retry = 5
+
+    # --- Try pre-scanned link from activity loop ---
+    pre_scan = (interaction_state or {}).get("pre_scanned_nav")
+    if pre_scan and pre_scan.get("target_url") == target_url:
+        raw_href = pre_scan.get("raw_href", "")
+        if raw_href:
+            try:
+                link = await page.evaluate_handle(
+                    """(rawHref) => {
+                        for (const a of document.querySelectorAll('a[href]')) {
+                            if (a.getAttribute('href') === rawHref) return a;
+                        }
+                        return null;
+                    }""", raw_href
+                )
+                element = link.as_element()
+                if element:
+                    attached = await page.evaluate("(el) => el && el.isConnected", element)
+                    if attached:
+                        print(f"Worker {worker_id}: Using pre-scanned link for navigation")
+                        try:
+                            await element.scroll_into_view_if_needed(timeout=5000)
+                        except Exception:
+                            pass
+                        await page.wait_for_timeout(random.randint(300, 800))
+                        current_domain = extract_domain(page.url)
+                        if await smart_click_fn(page, worker_id, current_domain, element):
+                            try:
+                                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                            except Exception:
+                                pass
+                            if extract_domain(page.url) == target_domain:
+                                print(f"Worker {worker_id}: Successfully navigated via pre-scanned link")
+                                if config['browser']['auto_accept_cookies']:
+                                    await accept_cookies_fn(page)
+                                await check_vignette_fn(page, worker_id)
+                                return True
+            except Exception:
+                pass
+        # Pre-scan didn't work, fall through to normal scanning
+        if interaction_state:
+            interaction_state.pop("pre_scanned_nav", None)
 
     while retry_count < max_retries:
         try:
@@ -93,29 +167,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
 
             print(f"Worker {worker_id}: Scanning page for links to {target_domain}")
 
-            all_links = await page.query_selector_all('a[href]')
-            if not all_links:
-                print(f"Worker {worker_id}: No visible links found on page")
-                retry_count += 1
-                continue
-
-            matching_links = []
-            for link in all_links:
-                try:
-                    href = await link.get_attribute('href')
-                    if not href:
-                        continue
-                    href_domain = extract_domain(href)
-                    if href_domain and href_domain == extract_domain(target_url):
-                        # Exact domain match — prefer exact URL match within that
-                        if target_url in href:
-                            matching_links.append((link, 'exact'))
-                        else:
-                            matching_links.append((link, 'domain'))
-                except:
-                    continue
-
-            matching_links.sort(key=lambda x: 0 if x[1] == 'exact' else 1)
+            matching_links = await _batch_scan_links(page, target_url, target_domain)
 
             link_attempts = 0
             for link, match_type in matching_links:
