@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-20T15:00:00+00:00
+- Short description: Clear redirect_budget_states between sessions (M-1)
+- What you do: Added redirect_budget_states.clear() at the start of each session loop iteration. Previously the dict accumulated entries across all sessions, growing indefinitely in unlimited mode.
+- File path that changes: app/core/worker.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-20T14:30:00+00:00
 - Short description: Add mandatory git workflow rules to .claude/rules/
 - What you do: Created .claude/rules/git-workflow.md with enforced rules for one-commit-per-change, log-before-commit, and immediate push. These rules are loaded automatically by Claude Code on every conversation.

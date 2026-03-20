@@ -229,6 +229,7 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 
         while ctx.running:
             session_start_time = time.time()
+            redirect_budget_states.clear()
 
             if (
                 ctx.config["session"]["enabled"]
