@@ -129,7 +129,7 @@ async def configure_mobile_browser(
         f"--fingerprint-hardware-concurrency={profile['hw_concurrency']}",
         f"--fingerprint-device-memory={profile['device_memory']}",
         "--fingerprint-storage-quota=5000",
-        "--disable-features=SubresourceFilter",
+        "--disable-features=SubresourceFilter,AdsInterventions,HeavyAdIntervention,HeavyAdPrivacyMitigations",
     ]
 
     # Temp profile dir for persistent context (avoids incognito detection)
