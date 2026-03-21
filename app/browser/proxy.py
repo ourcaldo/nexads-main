@@ -6,6 +6,10 @@ Proxy string parsing and config resolution.
 import random
 from typing import Optional, Dict
 
+# Per-process cache: proxy file path -> list of proxy strings.
+# Avoids re-reading the file on every session start.
+_proxy_file_cache: Dict[str, list] = {}
+
 
 def _looks_like_host(value: str) -> bool:
     """Return True when value resembles a host or IP."""
@@ -106,8 +110,11 @@ def resolve_proxy_config(config: dict) -> Optional[Dict[str, str]]:
     if config["proxy"]["credentials"]:
         proxy_value = config["proxy"]["credentials"]
     elif config["proxy"]["file"]:
-        with open(config["proxy"]["file"], "r") as f:
-            proxies = [line.strip() for line in f if line.strip()]
+        proxy_file = config["proxy"]["file"]
+        if proxy_file not in _proxy_file_cache:
+            with open(proxy_file, "r") as f:
+                _proxy_file_cache[proxy_file] = [line.strip() for line in f if line.strip()]
+        proxies = _proxy_file_cache[proxy_file]
         if proxies:
             proxy_value = random.choice(proxies)
 

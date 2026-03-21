@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:40:00+00:00
+- Short description: Cache proxy file reads and ad host lookups (P3-19)
+- What you do: Added per-process module-level cache for proxy file reads in proxy.py (was re-reading on every session start) and ad host lookups in outcomes.py (was re-parsing adsense_signals.json on every ad click).
+- File path that changes: app/browser/proxy.py; app/ads/outcomes.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:35:00+00:00
 - Short description: Fix running:bool concurrency bug in idle_mouse_jitter (P0-2.7)
 - What you do: Removed broken `running` parameter from _idle_mouse_jitter. Python bool is passed by value so caller changes were never visible. Loop is already bounded by duration_seconds.

@@ -30,12 +30,20 @@ def _dedupe_preserve_order(items: list[str]) -> list[str]:
     return out
 
 
+_known_ad_hosts_cache: set[str] | None = None
+
+
 def _load_known_ad_hosts(limit: int = 500) -> set[str]:
+    global _known_ad_hosts_cache
+    if _known_ad_hosts_cache is not None:
+        return _known_ad_hosts_cache
     payload = load_adsense_signals_payload()
     hosts = payload.get("signals", {}).get("network_hosts", [])
     if not isinstance(hosts, list):
-        return set()
-    return {str(h).strip().lower() for h in hosts[:max(0, int(limit))] if str(h).strip()}
+        _known_ad_hosts_cache = set()
+    else:
+        _known_ad_hosts_cache = {str(h).strip().lower() for h in hosts[:max(0, int(limit))] if str(h).strip()}
+    return _known_ad_hosts_cache
 
 
 def persist_ad_click_event(event: dict,
