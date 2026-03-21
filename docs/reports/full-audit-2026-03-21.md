@@ -80,7 +80,7 @@
 - **Impact:** Premature budget exhaustion causes unnecessary session failures.
 - **Fixed:** Moved increment to only fire on actual recovery actions (current-tab reload and new-tab open).
 
-### 2.7 `running: bool` concurrency bug in idle_mouse_jitter
+### ~~2.7 `running: bool` concurrency bug in idle_mouse_jitter~~ DONE
 - **File:** `app/browser/activities.py:34`
 - **Issue:** `running` is passed by value (Python bool). If the caller sets `running = False`, the jitter loop doesn't see the update and continues running past shutdown.
 - **Impact:** Mouse jitter continues after session should have stopped.

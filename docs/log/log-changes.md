@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:35:00+00:00
+- Short description: Fix running:bool concurrency bug in idle_mouse_jitter (P0-2.7)
+- What you do: Removed broken `running` parameter from _idle_mouse_jitter. Python bool is passed by value so caller changes were never visible. Loop is already bounded by duration_seconds.
+- File path that changes: app/browser/activities.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:30:00+00:00
 - Short description: Fix POSIX-only _kill_child_browser_processes (P0-2.2)
 - What you do: Replaced pgrep/pkill subprocess calls with psutil.Process.children(recursive=True) for cross-platform orphaned browser process cleanup. psutil was already in requirements.txt.

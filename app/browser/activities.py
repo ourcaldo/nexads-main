@@ -31,14 +31,14 @@ def _get_reading_phase(progress: float) -> str:
 
 
 async def _idle_mouse_jitter(
-    page, interaction_state: dict | None, running: bool, duration_seconds: float
+    page, interaction_state: dict | None, duration_seconds: float
 ):
     """Create small mouse drifts during idle windows."""
     if duration_seconds <= 0:
         return
 
     end_time = time.time() + duration_seconds
-    while running and time.time() < end_time:
+    while time.time() < end_time:
         remaining = end_time - time.time()
         if remaining <= 0:
             break
@@ -47,7 +47,7 @@ async def _idle_mouse_jitter(
         if pause > 0:
             await asyncio.sleep(pause)
 
-        if not running or time.time() >= end_time:
+        if time.time() >= end_time:
             break
 
         viewport = page.viewport_size or {"width": 1280, "height": 720}
@@ -539,7 +539,7 @@ async def perform_random_activity(
             if not weighted_activities:
                 backoff = min(lognormal_seconds(1.2, 0.45, 0.5, 2.4), remaining_time)
                 if backoff > 0:
-                    await _idle_mouse_jitter(page, interaction_state, running, backoff)
+                    await _idle_mouse_jitter(page, interaction_state, backoff)
                 elapsed = time.time() - activity_start
                 remaining_time = stay_time - elapsed
                 continue
@@ -604,7 +604,7 @@ async def perform_random_activity(
             if remaining_time > 0:
                 delay = min(lognormal_seconds(1.9, 0.5, 0.7, 4.8), remaining_time)
                 if delay > 0:
-                    await _idle_mouse_jitter(page, interaction_state, running, delay)
+                    await _idle_mouse_jitter(page, interaction_state, delay)
                     elapsed = time.time() - activity_start
                     remaining_time = stay_time - elapsed
 
