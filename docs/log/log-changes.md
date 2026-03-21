@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T08:40:00+00:00
+- Short description: Fix recoveries counter inflation in ensure_correct_tab (P0-3)
+- What you do: Moved budget_state recoveries increment from unconditional loop top to only fire on actual recovery actions (current-tab reload and new-tab open). Prevents premature budget exhaustion.
+- File path that changes: app/navigation/tabs.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T08:35:00+00:00
 - Short description: Fix page=None crash in navigate_to_url_by_click (P0-2)
 - What you do: Added guard to raise SessionFailedException when ensure_correct_tab_fn returns None page, preventing AttributeError crash on next loop iteration.

@@ -72,10 +72,11 @@
 - **Issue:** `emit_heartbeat` does read-modify-write on a shared JSON file. The read lock (`LOCK_SH`) is released before the write lock (`LOCK_EX`) is acquired. Two workers can read the same stale data and overwrite each other's entry.
 - **Impact:** Workers silently lose heartbeat data.
 
-### 2.6 `recoveries` counter inflated in `ensure_correct_tab`
+### ~~2.6 `recoveries` counter inflated in `ensure_correct_tab`~~ DONE
 - **File:** `app/navigation/tabs.py:187`
 - **Issue:** `budget_state["recoveries"]` increments on every while-loop iteration, not only on actual recovery actions. Normal "focus existing tab" cases inflate the counter until budget exhaustion is triggered.
 - **Impact:** Premature budget exhaustion causes unnecessary session failures.
+- **Fixed:** Moved increment to only fire on actual recovery actions (current-tab reload and new-tab open).
 
 ### 2.7 `running: bool` concurrency bug in idle_mouse_jitter
 - **File:** `app/browser/activities.py:34`
@@ -351,7 +352,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 ### P0 — Fix Now (Bugs affecting runtime)
 1. ~~Unify domain extraction across codebase (4 divergent implementations)~~ DONE
 2. ~~Fix `page = None` crash in `navigate_to_url_by_click`~~ DONE
-3. Fix `recoveries` counter inflation in `ensure_correct_tab`
+3. ~~Fix `recoveries` counter inflation in `ensure_correct_tab`~~ DONE
 4. Fix `signal.SIGKILL` crash on Windows in `desktop.py`
 5. Fix heartbeat race condition in `telemetry.py`
 

@@ -179,9 +179,6 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
             )
             return None, False
 
-        if isinstance(budget_state, dict):
-            budget_state["recoveries"] = int(budget_state.get("recoveries", 0)) + 1
-
         try:
             contexts = browser.contexts if hasattr(browser, 'contexts') else [browser]
             pages = []
@@ -206,6 +203,8 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
                 # Target tab not found — reuse or open new
                 if len(pages) <= 1:
                     if current_tab:
+                        if isinstance(budget_state, dict):
+                            budget_state["recoveries"] = int(budget_state.get("recoveries", 0)) + 1
                         recovered = await _try_open_target(current_tab, "current tab")
                         if recovered:
                             return current_tab, True
@@ -224,6 +223,7 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
                             continue
                     new_page = await context.new_page()
                     if isinstance(budget_state, dict):
+                        budget_state["recoveries"] = int(budget_state.get("recoveries", 0)) + 1
                         budget_state["new_tab_openings"] = int(budget_state.get("new_tab_openings", 0)) + 1
                 except Exception as e:
                     _set_reason("new_tab_create_failed")
