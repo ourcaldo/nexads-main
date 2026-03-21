@@ -343,6 +343,100 @@ async def random_click(
         return False
 
 
+async def _attempt_ad_interaction(
+    page, browser, worker_id, config, interaction_state,
+    interact_with_ads_fn, extract_domain_fn, expected_url,
+    activity_start, stay_time,
+):
+    """Try ad interaction once per page on ads sessions. Return remaining time."""
+    interaction_state["ad_attempted_this_page"] = True
+    remaining_time = stay_time - (time.time() - activity_start)
+    ad_time_budget = min(remaining_time, 30)
+    context_obj = page.context
+    tabs_before = len(context_obj.pages)
+
+    ad_success = await interact_with_ads_fn(
+        page, browser, worker_id, extract_domain_fn,
+        max_duration=ad_time_budget,
+    )
+
+    if ad_success:
+        tabs_after = len(context_obj.pages)
+
+        if tabs_after <= tabs_before:
+            min_ads = int(config.get("ads", {}).get("min_time", 5))
+            max_ads = int(config.get("ads", {}).get("max_time", 15))
+            if min_ads >= max_ads:
+                ad_stay = min_ads
+            else:
+                ad_stay = int(round(lognormal_seconds(
+                    (min_ads + max_ads) / 2, 0.5, min_ads, max_ads
+                )))
+
+            elapsed_now = time.time() - activity_start
+            time_left = stay_time - elapsed_now
+            ad_stay = max(0, min(ad_stay, time_left - 3))
+
+            if ad_stay > 0:
+                print(f"Worker {worker_id}: Staying on same-tab ad landing for {ad_stay}s")
+                await asyncio.sleep(ad_stay)
+
+            try:
+                await page.goto(expected_url, timeout=30000, wait_until="domcontentloaded")
+                print(f"Worker {worker_id}: Returned to target after same-tab ad")
+            except Exception as e:
+                print(f"Worker {worker_id}: Error returning after ad: {e}")
+        else:
+            print(f"Worker {worker_id}: Ad opened new tab")
+
+
+def _build_weighted_activities(config, capabilities, blocked_activities, phase):
+    """Build weighted activity list based on capabilities, config, and reading phase."""
+    phase_weights = {
+        "scroll": {"arrival": 0.65, "reading": 0.60, "exploration": 0.35, "done": 0.55},
+        "click":  {"arrival": 0.10, "reading": 0.10, "exploration": 0.30, "done": 0.25},
+        "hover":  {"arrival": 0.25, "reading": 0.30, "exploration": 0.35, "done": 0.20},
+    }
+    capability_map = {
+        "scroll": "can_scroll",
+        "click": "can_click",
+        "hover": "can_hover",
+    }
+
+    weighted: list[tuple[str, float]] = []
+    for activity in ("scroll", "click", "hover"):
+        if (
+            activity in config["browser"]["activities"]
+            and capabilities.get(capability_map[activity], True)
+            and activity not in blocked_activities
+        ):
+            weighted.append((activity, phase_weights[activity][phase]))
+    return weighted
+
+
+async def _pre_scan_next_url(page, next_url, extract_domain_fn, interaction_state):
+    """Pre-scan the current page for a link to the next URL."""
+    try:
+        next_domain = extract_domain_fn(next_url)
+        all_hrefs = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('a[href]'), "
+            "a => ({href: a.href, raw: a.getAttribute('href')}))"
+        )
+        for h in all_hrefs:
+            resolved = h.get("href", "")
+            if extract_domain_fn(resolved) == next_domain:
+                is_exact = next_url in resolved
+                interaction_state["pre_scanned_nav"] = {
+                    "target_url": next_url,
+                    "raw_href": h.get("raw", ""),
+                    "match_type": "exact" if is_exact else "domain",
+                }
+                if is_exact:
+                    break
+    except Exception:
+        pass
+
+
 async def perform_random_activity(
     page,
     browser,
@@ -433,51 +527,15 @@ async def perform_random_activity(
                 and not interaction_state.get("ad_attempted_this_page")
                 and not interaction_state.get("ad_click_success")
             ):
-                interaction_state["ad_attempted_this_page"] = True
-                ad_time_budget = min(remaining_time, 30)
-                context_obj = page.context
-                tabs_before = len(context_obj.pages)
-
-                ad_success = await interact_with_ads_fn(
-                    page, browser, worker_id, extract_domain_fn,
-                    max_duration=ad_time_budget,
+                await _attempt_ad_interaction(
+                    page, browser, worker_id, config, interaction_state,
+                    interact_with_ads_fn, extract_domain_fn, expected_url,
+                    activity_start, stay_time,
                 )
-
-                if ad_success:
-                    tabs_after = len(context_obj.pages)
-
-                    if tabs_after <= tabs_before:
-                        min_ads = int(config.get("ads", {}).get("min_time", 5))
-                        max_ads = int(config.get("ads", {}).get("max_time", 15))
-                        if min_ads >= max_ads:
-                            ad_stay = min_ads
-                        else:
-                            ad_stay = int(round(lognormal_seconds(
-                                (min_ads + max_ads) / 2, 0.5, min_ads, max_ads
-                            )))
-
-                        elapsed_now = time.time() - activity_start
-                        time_left = stay_time - elapsed_now
-                        ad_stay = max(0, min(ad_stay, time_left - 3))
-
-                        if ad_stay > 0:
-                            print(f"Worker {worker_id}: Staying on same-tab ad landing for {ad_stay}s")
-                            await asyncio.sleep(ad_stay)
-
-                        try:
-                            await page.goto(expected_url, timeout=30000, wait_until="domcontentloaded")
-                            print(f"Worker {worker_id}: Returned to target after same-tab ad")
-                        except Exception as e:
-                            print(f"Worker {worker_id}: Error returning after ad: {e}")
-                    else:
-                        print(f"Worker {worker_id}: Ad opened new tab")
-
-                # Recalculate time and continue with normal activities
                 elapsed = time.time() - activity_start
                 remaining_time = stay_time - elapsed
                 if remaining_time <= 0:
                     break
-                # Re-anchor after ad attempt
                 page, success = await ensure_correct_tab_fn(
                     browser, page, expected_url, worker_id
                 )
@@ -486,55 +544,9 @@ async def perform_random_activity(
                 continue
 
             # --- Normal weighted activities (scroll, hover, click) ---
-            weighted_activities: list[tuple[str, float]] = []
-            if (
-                "scroll" in config["browser"]["activities"]
-                and capabilities.get("can_scroll", True)
-                and "scroll" not in blocked_activities
-            ):
-                weighted_activities.append(
-                    (
-                        "scroll",
-                        {
-                            "arrival": 0.65,
-                            "reading": 0.60,
-                            "exploration": 0.35,
-                            "done": 0.55,
-                        }[phase],
-                    )
-                )
-            if (
-                "click" in config["browser"]["activities"]
-                and capabilities.get("can_click", True)
-                and "click" not in blocked_activities
-            ):
-                weighted_activities.append(
-                    (
-                        "click",
-                        {
-                            "arrival": 0.10,
-                            "reading": 0.10,
-                            "exploration": 0.30,
-                            "done": 0.25,
-                        }[phase],
-                    )
-                )
-            if (
-                "hover" in config["browser"]["activities"]
-                and capabilities.get("can_hover", True)
-                and "hover" not in blocked_activities
-            ):
-                weighted_activities.append(
-                    (
-                        "hover",
-                        {
-                            "arrival": 0.25,
-                            "reading": 0.30,
-                            "exploration": 0.35,
-                            "done": 0.20,
-                        }[phase],
-                    )
-                )
+            weighted_activities = _build_weighted_activities(
+                config, capabilities, blocked_activities, phase
+            )
 
             if not weighted_activities:
                 backoff = min(lognormal_seconds(1.2, 0.45, 0.5, 2.4), remaining_time)
@@ -550,13 +562,8 @@ async def perform_random_activity(
 
             if selected == "scroll":
                 scroll_ok = await random_scroll(
-                    page,
-                    browser,
-                    worker_id,
-                    ensure_correct_tab_fn,
-                    running,
-                    phase,
-                    expected_url,
+                    page, browser, worker_id, ensure_correct_tab_fn,
+                    running, phase, expected_url,
                 )
                 if not scroll_ok:
                     blocked_activities.add("scroll")
@@ -566,36 +573,22 @@ async def perform_random_activity(
                     )
             elif selected == "click":
                 await random_click(
-                    page,
-                    browser,
-                    worker_id,
-                    current_domain,
-                    is_ads_session,
-                    ensure_correct_tab_fn,
-                    smart_click_fn,
-                    extract_domain_fn,
-                    interaction_state,
-                    expected_url,
+                    page, browser, worker_id, current_domain, is_ads_session,
+                    ensure_correct_tab_fn, smart_click_fn, extract_domain_fn,
+                    interaction_state, expected_url,
                 )
             elif selected == "hover":
                 await random_hover(
-                    page,
-                    browser,
-                    worker_id,
-                    ensure_correct_tab_fn,
-                    running,
-                    interaction_state,
-                    expected_url,
+                    page, browser, worker_id, ensure_correct_tab_fn,
+                    running, interaction_state, expected_url,
                 )
 
-            # Hard re-anchor after each activity in case a redirect happened mid-action.
+            # Hard re-anchor after each activity
             page, success = await ensure_correct_tab_fn(
                 browser, page, expected_url, worker_id
             )
             if not success:
-                print(
-                    f"Worker {worker_id}: Could not recover target tab after activity"
-                )
+                print(f"Worker {worker_id}: Could not recover target tab after activity")
                 return False
 
             elapsed = time.time() - activity_start
@@ -610,31 +603,13 @@ async def perform_random_activity(
 
             await check_vignette_fn(page, worker_id)
 
-            # Pre-scan next URL link once during later phase of stay time
+            # Pre-scan next URL link once during later phase
             if (
                 next_url
                 and not interaction_state.get("pre_scanned_nav")
                 and progress > 0.5
             ):
-                try:
-                    next_domain = extract_domain_fn(next_url)
-                    all_hrefs = await page.evaluate(
-                        "() => Array.from(document.querySelectorAll('a[href]'), "
-                        "a => ({href: a.href, raw: a.getAttribute('href')}))"
-                    )
-                    for h in all_hrefs:
-                        resolved = h.get("href", "")
-                        if extract_domain_fn(resolved) == next_domain:
-                            is_exact = next_url in resolved
-                            interaction_state["pre_scanned_nav"] = {
-                                "target_url": next_url,
-                                "raw_href": h.get("raw", ""),
-                                "match_type": "exact" if is_exact else "domain",
-                            }
-                            if is_exact:
-                                break
-                except Exception:
-                    pass
+                await _pre_scan_next_url(page, next_url, extract_domain_fn, interaction_state)
 
         return True
 

@@ -369,7 +369,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 11. Extract `SessionRunner` from `worker_session()` (820 lines)
 12. ~~Move `smart_click` from `adsense.py` to `browser/click.py`~~ DONE
 13. Split `config_window.py` into I/O, validation, theming, UI
-14. Decompose `perform_random_activity` (295 lines, 15 params)
+14. ~~Decompose `perform_random_activity` (295 lines, 15 params)~~ DONE
 
 ### P3 — Clean Up (Dead code & quality)
 15. ~~Delete `geoip.py` (300+ lines dead code)~~ DONE

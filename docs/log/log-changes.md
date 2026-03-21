@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T10:05:00+00:00
+- Short description: Decompose perform_random_activity into helpers (P2-14)
+- What you do: Extracted 3 helper functions from the 295-line perform_random_activity: _attempt_ad_interaction (ad click + same-tab dwell logic), _build_weighted_activities (phase-based activity weighting), _pre_scan_next_url (link pre-scanning). Main function now orchestrates these helpers.
+- File path that changes: app/browser/activities.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:55:00+00:00
 - Short description: Move smart_click from adsense.py to browser/click.py (P2-12)
 - What you do: Extracted smart_click function (~145 lines) from app/ads/adsense.py into new app/browser/click.py. Updated imports in adsense.py, adsterra.py, and worker.py. smart_click is a generic click primitive used across the entire codebase, not an ad-specific function.
