@@ -140,6 +140,8 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                                 pass
                             if extract_domain(page.url) == target_domain:
                                 print(f"Worker {worker_id}: Successfully navigated via pre-scanned link")
+                                if interaction_state:
+                                    interaction_state.pop("pre_scanned_nav", None)
                                 await asyncio.sleep(3)
                                 if config['browser']['auto_accept_cookies']:
                                     await accept_cookies_fn(page)

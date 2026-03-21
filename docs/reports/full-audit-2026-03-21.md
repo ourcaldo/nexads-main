@@ -121,7 +121,7 @@
 - **File:** `app/ads/signals.py:128`
 - **Detail:** `#@#` is an exception/whitelist rule in EasyList (un-hide). Merging with `##` cosmetics is incorrect.
 
-### 3.9 Pre-scanned nav not cleared on success
+### ~~3.9 Pre-scanned nav not cleared on success~~ DONE
 - **File:** `app/navigation/urls.py:146`
 - **Detail:** After a successful pre-scanned click, `pre_scanned_nav` stays in `interaction_state`. Next call with same `target_url` retries with a stale DOM element reference.
 
@@ -363,7 +363,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 7. ~~Add browser launch timeouts (both engines)~~ DONE
 8. ~~Fix `.replace('www.', '')` -> `.removeprefix('www.')` in `referrer.py`~~ DONE (part of P0-1)
 9. ~~Fix `random_navigation` substring match -> domain equality in `urls.py`~~ DONE (part of P0-1)
-10. Fix pre-scanned nav not cleared on success in `urls.py`
+10. ~~Fix pre-scanned nav not cleared on success in `urls.py`~~ DONE
 
 ### P2 — Refactor (Structure)
 11. Extract `SessionRunner` from `worker_session()` (820 lines)

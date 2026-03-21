@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:10:00+00:00
+- Short description: Fix pre-scanned nav not cleared on success (P1-10)
+- What you do: Added interaction_state.pop("pre_scanned_nav", None) on the success path in navigate_to_url_by_click. Previously it was only cleared on failure, causing stale DOM element references on subsequent calls.
+- File path that changes: app/navigation/urls.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:05:00+00:00
 - Short description: Add browser launch timeouts (P1-7)
 - What you do: Wrapped AsyncCamoufox().start() and launch_persistent_context_async() in asyncio.wait_for(timeout=90) so a hung browser launch fails cleanly instead of blocking the worker forever.
