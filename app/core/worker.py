@@ -7,7 +7,7 @@ import random
 import asyncio
 import time
 import os
-import subprocess
+import psutil
 from dataclasses import dataclass
 
 # After this many consecutive session failures, force-kill all child browser
@@ -59,31 +59,17 @@ from app.core.automation import SessionFailedException
 
 def _kill_child_browser_processes(worker_id: int):
     """Kill orphaned browser processes (camoufox/chromium) that are children of this worker."""
-    my_pid = os.getpid()
     killed = 0
     try:
-        # Find all child PIDs of this worker process
-        result = subprocess.run(
-            ["pgrep", "-P", str(my_pid)],
-            capture_output=True, text=True, timeout=5,
-        )
-        child_pids = [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
-        for pid_str in child_pids:
+        parent = psutil.Process(os.getpid())
+        for child in parent.children(recursive=True):
             try:
-                os.kill(int(pid_str), 9)
+                child.kill()
                 killed += 1
-            except (ProcessLookupError, ValueError):
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
     except Exception:
-        # Fallback: use pkill to kill browser processes by name for this process tree
-        for name in ("camoufox", "firefox", "chromium", "chrome"):
-            try:
-                subprocess.run(
-                    ["pkill", "-9", "-P", str(my_pid), "-f", name],
-                    capture_output=True, timeout=5,
-                )
-            except Exception:
-                pass
+        pass
     if killed:
         print(f"Worker {worker_id}: Force-killed {killed} orphaned browser process(es)")
 

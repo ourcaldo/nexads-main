@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:30:00+00:00
+- Short description: Fix POSIX-only _kill_child_browser_processes (P0-2.2)
+- What you do: Replaced pgrep/pkill subprocess calls with psutil.Process.children(recursive=True) for cross-platform orphaned browser process cleanup. psutil was already in requirements.txt.
+- File path that changes: app/core/worker.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:25:00+00:00
 - Short description: Remove dead pending_ads_sessions infrastructure (P3-17)
 - What you do: Removed pending_ads_sessions from WorkerContext dataclass, run_worker/run_worker_async signatures, and automation.py shared state. CTR budget was calculated but never read or decremented by workers.

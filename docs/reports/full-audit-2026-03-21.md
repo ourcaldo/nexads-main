@@ -51,7 +51,7 @@
 - **Impact:** Domain comparisons silently fail when ports are present. `random_navigation` in `urls.py:276` uses substring `in` check instead of domain equality, allowing false matches (e.g. `at.com` matches `data-attribute-storage.com`).
 - **Fixed:** Unified `extract_domain()` in `urls.py` to use `hostname` (strips port) + `removeprefix('www.')`. Deleted private copies in `telemetry.py` and `outcomes.py`. `tabs.py` now delegates to `extract_domain`. Fixed substring match in `random_navigation`. Fixed `.replace('www.', '')` in `referrer.py`.
 
-### 2.2 `_kill_child_browser_processes` POSIX-only
+### ~~2.2 `_kill_child_browser_processes` POSIX-only~~ DONE
 - **File:** `app/core/worker.py:61-89`
 - **Issue:** Uses `pgrep` and `pkill` which don't exist on Windows. The entire function silently does nothing on the deployment platform.
 - **Impact:** Orphaned browser processes are never cleaned up on Windows.
