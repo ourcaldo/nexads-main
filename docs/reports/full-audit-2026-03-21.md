@@ -101,7 +101,7 @@
 - **File:** `app/navigation/tabs.py:318-319`
 - **Detail:** `config['ads']['min_time']` uses direct indexing without `.get()` fallback. Missing key crashes silently.
 
-### 3.4 `one_per_provider` strategy is broken
+### ~~3.4 `one_per_provider` strategy is broken~~ DONE
 - **File:** `app/ads/dispatcher.py:75-78`
 - **Detail:** Returns `True` on first provider success, causing the caller to stop. Second provider never gets tried. `all_ad_goals_met` (which would fix this) is never called.
 
@@ -145,7 +145,7 @@
 |---|---|---|---|
 | `pending_ads_sessions` | `automation.py`, `worker.py` | 78-81, 107-113 | CTR budget calculated, passed to workers, but never read or decremented. Worker uses independent probability roll. |
 | `geoip.py` (entire file) | `app/browser/geoip.py` | all | Never imported anywhere. Both engines use built-in `geoip=True`. 300+ lines of dead code. |
-| `all_ad_goals_met` | `app/ads/dispatcher.py` | func def | Defined but never called anywhere in the codebase. |
+| ~~`all_ad_goals_met`~~ | `app/ads/dispatcher.py` | func def | ~~Defined but never called anywhere in the codebase.~~ DELETED |
 | `_ADSTERRA_DOMAINS` | `app/ads/adsterra.py` | 19-27 | Module-level list, never referenced. |
 | `url_prefix_hosts` | `app/ads/signals.py` | extracted | Built, serialized, but never consumed at runtime. |
 | `browser` param | `adsense.py:251`, `adsterra.py:241` | param | Accepted but never used in either ad interaction function. |
@@ -359,7 +359,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 5. ~~Fix heartbeat race condition in `telemetry.py`~~ DONE
 
 ### P1 — Fix Soon (Logic errors affecting correctness)
-6. Fix `one_per_provider` strategy in `dispatcher.py`
+6. ~~Fix `one_per_provider` strategy in `dispatcher.py`~~ DONE
 7. Add browser launch timeouts (both engines)
 8. ~~Fix `.replace('www.', '')` -> `.removeprefix('www.')` in `referrer.py`~~ DONE (part of P0-1)
 9. ~~Fix `random_navigation` substring match -> domain equality in `urls.py`~~ DONE (part of P0-1)
@@ -375,7 +375,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 15. Delete `geoip.py` (300+ lines dead code)
 16. Delete `ui.py` (unused shim)
 17. Remove `pending_ads_sessions` infrastructure (dead CTR budget)
-18. Remove `all_ad_goals_met`, `_ADSTERRA_DOMAINS`, dead params
+18. Remove ~~`all_ad_goals_met`~~ (DELETED), `_ADSTERRA_DOMAINS`, dead params
 19. Cache proxy file reads and ad host lookups
 20. Standardize log prefixes with `worker_id` everywhere
 

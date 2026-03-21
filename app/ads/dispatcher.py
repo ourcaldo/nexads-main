@@ -14,24 +14,6 @@ _PROVIDER_HANDLERS = {
 }
 
 
-def all_ad_goals_met(config: dict, interaction_state: dict) -> bool:
-    """Check if the session's ad goals are fully satisfied."""
-    providers = config.get("ads", {}).get("providers", ["adsense"])
-    strategy = config.get("ads", {}).get("strategy", "first_success")
-
-    if not providers:
-        return True
-
-    if strategy == "one_per_provider":
-        return all(
-            interaction_state.get(f"ad_click_success_{p}")
-            for p in providers
-        )
-
-    # first_success
-    return interaction_state.get("ad_click_success", False)
-
-
 async def dispatch_ad_interaction(page, browser, worker_id: int, extract_domain_fn,
                                   config: dict, interaction_state: dict,
                                   max_duration: float = 0) -> bool:
@@ -49,6 +31,7 @@ async def dispatch_ad_interaction(page, browser, worker_id: int, extract_domain_
 
     if strategy == "one_per_provider":
         # Try each unsatisfied provider, sharing the time budget
+        any_success = False
         for provider in providers:
             if interaction_state.get(f"ad_click_success_{provider}"):
                 continue
@@ -72,12 +55,12 @@ async def dispatch_ad_interaction(page, browser, worker_id: int, extract_domain_
             )
             if success:
                 interaction_state[f"ad_click_success_{provider}"] = True
+                any_success = True
                 # Mark session goal met only when ALL providers satisfied
                 if all(interaction_state.get(f"ad_click_success_{p}") for p in providers):
                     interaction_state["ad_click_success"] = True
-                return True
 
-        return False
+        return any_success
 
     # first_success: try providers in config order, share time budget
     for provider in providers:

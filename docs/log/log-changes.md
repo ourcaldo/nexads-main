@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:00:00+00:00
+- Short description: Fix one_per_provider strategy in dispatcher.py (P1-6)
+- What you do: Removed early `return True` inside one_per_provider loop so all unsatisfied providers get attempted in a single dispatch call. Replaced with `any_success` accumulator. Deleted dead `all_ad_goals_met()` function that was never called.
+- File path that changes: app/ads/dispatcher.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T08:50:00+00:00
 - Short description: Fix heartbeat race condition in telemetry.py (P0-5)
 - What you do: Rewrote emit_heartbeat to hold LOCK_EX across entire read-modify-write cycle using r+ mode with seek/truncate. Eliminates window where two workers could overwrite each other's entries.
