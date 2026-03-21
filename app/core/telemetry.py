@@ -210,38 +210,41 @@ def emit_heartbeat(
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Read existing heartbeats
-        heartbeats = {}
-        if output_path.exists():
-            try:
-                with output_path.open("r", encoding="utf-8") as f:
-                    try:
-                        import fcntl
-                        fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                    except ImportError:
-                        pass
-                    heartbeats = json.load(f)
-            except (json.JSONDecodeError, Exception):
-                heartbeats = {}
+        # Create file if it doesn't exist
+        if not output_path.exists():
+            output_path.write_text("{}", encoding="utf-8")
 
-        # Update this worker's entry
-        heartbeats[str(worker_id)] = {
-            "last_active": datetime.now(timezone.utc).isoformat(),
-            "status": status,
-            "session_count": session_count,
-            "successful_sessions": successful_sessions,
-        }
-
-        # Write back atomically
-        with output_path.open("w", encoding="utf-8") as f:
+        # Hold exclusive lock across entire read-modify-write
+        with output_path.open("r+", encoding="utf-8") as f:
             try:
                 import fcntl
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                json.dump(heartbeats, f, indent=2)
-                f.flush()
+            except ImportError:
+                pass
+
+            try:
+                heartbeats = json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                heartbeats = {}
+
+            heartbeats[str(worker_id)] = {
+                "last_active": datetime.now(timezone.utc).isoformat(),
+                "status": status,
+                "session_count": session_count,
+                "successful_sessions": successful_sessions,
+            }
+
+            f.seek(0)
+            json.dump(heartbeats, f, indent=2)
+            f.truncate()
+            f.flush()
+
+            try:
+                import fcntl
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             except ImportError:
-                json.dump(heartbeats, f, indent=2)
+                pass
+
         return True
     except Exception:
         return False

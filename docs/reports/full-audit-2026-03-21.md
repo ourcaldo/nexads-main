@@ -68,10 +68,11 @@
 - **Impact:** Uncaught crash during navigation retry loop.
 - **Fixed:** Added `if page is None: raise SessionFailedException` guard after failed tab check.
 
-### 2.5 Heartbeat race condition
+### ~~2.5 Heartbeat race condition~~ DONE
 - **File:** `app/core/telemetry.py:222-254`
 - **Issue:** `emit_heartbeat` does read-modify-write on a shared JSON file. The read lock (`LOCK_SH`) is released before the write lock (`LOCK_EX`) is acquired. Two workers can read the same stale data and overwrite each other's entry.
 - **Impact:** Workers silently lose heartbeat data.
+- **Fixed:** Now holds `LOCK_EX` across entire read-modify-write cycle using `r+` mode with seek/truncate.
 
 ### ~~2.6 `recoveries` counter inflated in `ensure_correct_tab`~~ DONE
 - **File:** `app/navigation/tabs.py:187`
@@ -355,7 +356,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 2. ~~Fix `page = None` crash in `navigate_to_url_by_click`~~ DONE
 3. ~~Fix `recoveries` counter inflation in `ensure_correct_tab`~~ DONE
 4. ~~Fix `signal.SIGKILL` crash on Windows in `desktop.py`~~ DONE
-5. Fix heartbeat race condition in `telemetry.py`
+5. ~~Fix heartbeat race condition in `telemetry.py`~~ DONE
 
 ### P1 — Fix Soon (Logic errors affecting correctness)
 6. Fix `one_per_provider` strategy in `dispatcher.py`

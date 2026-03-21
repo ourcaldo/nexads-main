@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T08:50:00+00:00
+- Short description: Fix heartbeat race condition in telemetry.py (P0-5)
+- What you do: Rewrote emit_heartbeat to hold LOCK_EX across entire read-modify-write cycle using r+ mode with seek/truncate. Eliminates window where two workers could overwrite each other's entries.
+- File path that changes: app/core/telemetry.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T08:45:00+00:00
 - Short description: Fix signal.SIGKILL crash on Windows in desktop.py (P0-4)
 - What you do: Replaced os.kill(pid, signal.SIGKILL) with process.kill() which is cross-platform. Removed deferred signal and os imports.
