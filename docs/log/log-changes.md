@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:20:00+00:00
+- Short description: Delete dead _ADSTERRA_DOMAINS list (P3-18)
+- What you do: Removed _ADSTERRA_DOMAINS list from adsterra.py — defined but never referenced anywhere. Kept dead browser param in adsense/adsterra signatures (harmless positional arg used by dispatcher).
+- File path that changes: app/ads/adsterra.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:17:00+00:00
 - Short description: Delete dead ui.py shim (P3-16)
 - What you do: Deleted root ui.py (2-line re-export shim). Nothing imports from it — main.py imports ConfigWindow directly from app.ui.config_window.

@@ -12,14 +12,6 @@ from app.ads.outcomes import evaluate_ad_click_outcome, persist_ad_click_event
 from app.ads.adsense import smart_click
 from app.browser.humanization import lognormal_seconds
 
-# Known Adsterra tracking/serving domains
-_ADSTERRA_DOMAINS = [
-    "sourshaped.com",
-    "skinnycrawlinglax.com",
-    "wayfarerorthodox.com",
-    "realizationnewestfangs.com",
-]
-
 # Known Adsterra ad iframe host domains (publisher-managed)
 _ADSTERRA_IFRAME_HOSTS = [
     "alco.camarjaya.co.id",
