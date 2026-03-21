@@ -143,7 +143,7 @@
 
 | Item | File | Lines | Description |
 |---|---|---|---|
-| `pending_ads_sessions` | `automation.py`, `worker.py` | 78-81, 107-113 | CTR budget calculated, passed to workers, but never read or decremented. Worker uses independent probability roll. |
+| ~~`pending_ads_sessions`~~ | `automation.py`, `worker.py` | 78-81, 107-113 | ~~CTR budget calculated, passed to workers, but never read or decremented.~~ DELETED |
 | ~~`geoip.py` (entire file)~~ | `app/browser/geoip.py` | all | ~~Never imported anywhere. Both engines use built-in `geoip=True`. 300+ lines of dead code.~~ DELETED |
 | ~~`all_ad_goals_met`~~ | `app/ads/dispatcher.py` | func def | ~~Defined but never called anywhere in the codebase.~~ DELETED |
 | ~~`_ADSTERRA_DOMAINS`~~ | `app/ads/adsterra.py` | 19-27 | ~~Module-level list, never referenced.~~ DELETED |
@@ -374,7 +374,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 ### P3 — Clean Up (Dead code & quality)
 15. ~~Delete `geoip.py` (300+ lines dead code)~~ DONE
 16. ~~Delete `ui.py` (unused shim)~~ DONE
-17. Remove `pending_ads_sessions` infrastructure (dead CTR budget)
+17. ~~Remove `pending_ads_sessions` infrastructure (dead CTR budget)~~ DONE
 18. Remove ~~`all_ad_goals_met`~~ (DELETED), ~~`_ADSTERRA_DOMAINS`~~ (DELETED), dead params (kept — harmless positional args)
 19. Cache proxy file reads and ad host lookups
 20. Standardize log prefixes with `worker_id` everywhere

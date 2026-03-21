@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:25:00+00:00
+- Short description: Remove dead pending_ads_sessions infrastructure (P3-17)
+- What you do: Removed pending_ads_sessions from WorkerContext dataclass, run_worker/run_worker_async signatures, and automation.py shared state. CTR budget was calculated but never read or decremented by workers.
+- File path that changes: app/core/worker.py; app/core/automation.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:20:00+00:00
 - Short description: Delete dead _ADSTERRA_DOMAINS list (P3-18)
 - What you do: Removed _ADSTERRA_DOMAINS list from adsterra.py — defined but never referenced anywhere. Kept dead browser param in adsense/adsterra signatures (harmless positional arg used by dispatcher).

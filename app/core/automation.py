@@ -105,7 +105,6 @@ class nexAds:
         # Create shared state via Manager so workers can write back stats
         self.manager = multiprocessing.Manager()
         shared = {
-            'pending_ads_sessions': self.manager.Value('i', self.ads_sessions),
             'session_counts': self.manager.dict(),
             'successful_sessions': self.manager.dict(),
             'ads_session_counts': self.manager.dict(),
@@ -128,7 +127,6 @@ class nexAds:
             p = multiprocessing.Process(
                 target=run_worker,
                 args=(self.config_path, worker_id,
-                      shared['pending_ads_sessions'],
                       shared['session_counts'],
                       shared['successful_sessions'],
                       shared['ads_session_counts'],

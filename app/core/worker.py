@@ -48,7 +48,6 @@ class WorkerContext:
 
     config: dict
     running: bool
-    pending_ads_sessions: object  # multiprocessing.Value proxy
     session_counts: object  # multiprocessing.Manager dict proxy
     successful_sessions: object  # multiprocessing.Manager dict proxy
     ads_session_counts: object  # multiprocessing.Manager dict proxy
@@ -916,7 +915,6 @@ async def worker_session(ctx: WorkerContext, worker_id: int):
 async def run_worker_async(
     config_path: str,
     worker_id: int,
-    pending_ads_sessions,
     session_counts,
     successful_sessions,
     ads_session_counts,
@@ -932,7 +930,6 @@ async def run_worker_async(
         ctx = WorkerContext(
             config=config,
             running=True,
-            pending_ads_sessions=pending_ads_sessions,
             session_counts=session_counts,
             successful_sessions=successful_sessions,
             ads_session_counts=ads_session_counts,
@@ -946,7 +943,6 @@ async def run_worker_async(
 def run_worker(
     config_path: str,
     worker_id: int,
-    pending_ads_sessions,
     session_counts,
     successful_sessions,
     ads_session_counts,
@@ -959,7 +955,6 @@ def run_worker(
         run_worker_async(
             config_path,
             worker_id,
-            pending_ads_sessions,
             session_counts,
             successful_sessions,
             ads_session_counts,
