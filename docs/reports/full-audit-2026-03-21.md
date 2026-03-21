@@ -377,7 +377,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 17. ~~Remove `pending_ads_sessions` infrastructure (dead CTR budget)~~ DONE
 18. Remove ~~`all_ad_goals_met`~~ (DELETED), ~~`_ADSTERRA_DOMAINS`~~ (DELETED), dead params (kept — harmless positional args)
 19. ~~Cache proxy file reads and ad host lookups~~ DONE
-20. Standardize log prefixes with `worker_id` everywhere
+20. ~~Standardize log prefixes with `worker_id` everywhere~~ DONE
 
 ---
 

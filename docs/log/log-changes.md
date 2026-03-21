@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:45:00+00:00
+- Short description: Standardize log prefixes with worker_id (P3-20)
+- What you do: Fixed one inconsistent log line in worker.py (run_worker_async) from "Worker {id} failed:" to "Worker {id}: Fatal error:" matching the standard prefix pattern.
+- File path that changes: app/core/worker.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:40:00+00:00
 - Short description: Cache proxy file reads and ad host lookups (P3-19)
 - What you do: Added per-process module-level cache for proxy file reads in proxy.py (was re-reading on every session start) and ad host lookups in outcomes.py (was re-parsing adsense_signals.json on every ad click).

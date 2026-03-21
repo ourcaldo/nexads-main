@@ -923,7 +923,7 @@ async def run_worker_async(
         )
         await worker_session(ctx, worker_id)
     except Exception as e:
-        print(f"Worker {worker_id} failed: {str(e)}")
+        print(f"Worker {worker_id}: Fatal error: {str(e)}")
 
 
 def run_worker(
