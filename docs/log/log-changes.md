@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T08:00:00+00:00
+- Short description: Increase threads to 10 for public runner specs (4 vCPU, 16GB RAM)
+- What you do: Changed threads from 5 to 10 in config.json. Public repos get 4 vCPU and 16GB RAM (double private repo specs).
+- File path that changes: config.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T07:45:00+00:00
 - Short description: Reduce threads to 5 for GitHub runner compatibility
 - What you do: Changed threads from 20 to 5 in config.json to prevent OOM on GitHub-hosted runners (2 vCPU, 7GB RAM).
