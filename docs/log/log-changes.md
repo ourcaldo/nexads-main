@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T07:15:00+00:00
+- Short description: Fix CloakBrowser install segfault on GitHub runners
+- What you do: Added || true fallback to `python3 -m cloakbrowser install` in setup_ubuntu.sh so the script continues even if the binary verification segfaults (binary is already extracted and usable).
+- File path that changes: scripts/setup_ubuntu.sh; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T01:30:00+00:00
 - Short description: Add 3s delay at every navigation point
 - What you do: Added asyncio.sleep(3) at every navigation completion point: (1) after first URL page.goto (social referrer path), (2) after first URL page.goto (direct/other path), (3) after fallback direct navigation page.goto, (4) after successful link click in navigate_to_url_by_click, (5) after successful pre-scanned link click. All delays happen right after the page loads, before cookies/consent/activities. Kept existing 3s delay before activity_start in worker.py.

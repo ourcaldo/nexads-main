@@ -57,7 +57,7 @@ python3 -m camoufox fetch
 
 echo "[7/8] Installing CloakBrowser + stealth Chromium binary (mobile sessions)..."
 python3 -m pip install --break-system-packages -q "cloakbrowser[geoip]"
-python3 -m cloakbrowser install
+python3 -m cloakbrowser install || echo "CloakBrowser install verification failed (binary may still be usable)"
 
 echo "[8/8] Installing Playwright Firefox (for Camoufox)..."
 python3 -m playwright install firefox
