@@ -73,15 +73,12 @@ async def cleanup_desktop_browser(browser, worker_id: int):
 
 def _force_kill_browser(browser):
     """Force-kill the underlying browser process if graceful close failed."""
-    import signal
     try:
-        # Playwright/Camoufox exposes the underlying process via ._impl_obj
         proc = getattr(browser, '_impl_obj', None)
         if proc and hasattr(proc, '_process'):
-            pid = proc._process.pid
-            if pid:
-                import os
-                os.kill(pid, signal.SIGKILL)
+            process = proc._process
+            if process and process.pid:
+                process.kill()
                 return
     except Exception:
         pass

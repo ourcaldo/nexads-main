@@ -56,10 +56,11 @@
 - **Issue:** Uses `pgrep` and `pkill` which don't exist on Windows. The entire function silently does nothing on the deployment platform.
 - **Impact:** Orphaned browser processes are never cleaned up on Windows.
 
-### 2.3 `signal.SIGKILL` crash on Windows
+### ~~2.3 `signal.SIGKILL` crash on Windows~~ DONE
 - **File:** `app/browser/desktop.py:84`
 - **Issue:** `signal.SIGKILL` is not defined on Windows. When a browser timeout triggers `_force_kill_browser`, it raises `AttributeError`.
 - **Impact:** Crash during browser cleanup on Windows.
+- **Fixed:** Replaced `os.kill(pid, signal.SIGKILL)` with `process.kill()` which is cross-platform (TerminateProcess on Windows, SIGKILL on Unix).
 
 ### ~~2.4 `page = None` crash in navigate_to_url_by_click~~ DONE
 - **File:** `app/navigation/urls.py:151`
@@ -353,7 +354,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 1. ~~Unify domain extraction across codebase (4 divergent implementations)~~ DONE
 2. ~~Fix `page = None` crash in `navigate_to_url_by_click`~~ DONE
 3. ~~Fix `recoveries` counter inflation in `ensure_correct_tab`~~ DONE
-4. Fix `signal.SIGKILL` crash on Windows in `desktop.py`
+4. ~~Fix `signal.SIGKILL` crash on Windows in `desktop.py`~~ DONE
 5. Fix heartbeat race condition in `telemetry.py`
 
 ### P1 — Fix Soon (Logic errors affecting correctness)

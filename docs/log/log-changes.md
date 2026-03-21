@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T08:45:00+00:00
+- Short description: Fix signal.SIGKILL crash on Windows in desktop.py (P0-4)
+- What you do: Replaced os.kill(pid, signal.SIGKILL) with process.kill() which is cross-platform. Removed deferred signal and os imports.
+- File path that changes: app/browser/desktop.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T08:40:00+00:00
 - Short description: Fix recoveries counter inflation in ensure_correct_tab (P0-3)
 - What you do: Moved budget_state recoveries increment from unconditional loop top to only fire on actual recovery actions (current-tab reload and new-tab open). Prevents premature budget exhaustion.
