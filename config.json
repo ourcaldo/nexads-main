@@ -76,7 +76,7 @@
         }
     ],
     "ads": {
-        "ctr": 40.0,
+        "ctr": 100.0,
         "providers": [
             "adsterra",
             "adsense"
