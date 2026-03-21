@@ -8,25 +8,14 @@ from __future__ import annotations
 import json
 import pathlib
 from datetime import datetime, timezone
-from urllib.parse import urlparse
 from uuid import uuid4
 
 from app.ads.signals import load_adsense_signals_payload
+from app.navigation.urls import extract_domain
 
 
 _PKG_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 DEFAULT_EVENTS_OUTPUT = _PKG_ROOT / "data" / "ad_click_events.jsonl"
-
-
-def _extract_domain(url: str) -> str:
-    """Extract normalized domain from URL."""
-    try:
-        netloc = urlparse(url or "").netloc.lower().strip()
-        if netloc.startswith("www."):
-            netloc = netloc[4:]
-        return netloc
-    except Exception:
-        return ""
 
 
 def _dedupe_preserve_order(items: list[str]) -> list[str]:
@@ -75,7 +64,7 @@ def classify_destination(source_domain: str,
     if final_domain == source_domain:
         reasons.append("same_domain_final")
 
-    chain_domains = [_extract_domain(url) for url in redirect_chain]
+    chain_domains = [extract_domain(url) for url in redirect_chain]
     chain_domains = [d for d in chain_domains if d]
 
     ad_host_hit = any(
@@ -115,8 +104,8 @@ def score_click_outcome(outcome_type: str,
 
     # Same-tab navigation to an external domain — success
     if outcome_type == "same_tab_navigation":
-        source_domain = _extract_domain(source_url)
-        final_domain = _extract_domain(final_url)
+        source_domain = extract_domain(source_url)
+        final_domain = extract_domain(final_url)
         if final_domain and final_domain != source_domain:
             return 0.80
         # Navigated but stayed on same domain — internal link, not an ad click
@@ -178,7 +167,7 @@ async def evaluate_ad_click_outcome(page, context,
     else:
         outcome_type = "no_navigation"
 
-    final_domain = _extract_domain(final_url)
+    final_domain = extract_domain(final_url)
     known_hosts = _load_known_ad_hosts()
     classification, reason_codes = classify_destination(
         source_domain=source_domain,

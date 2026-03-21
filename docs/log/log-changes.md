@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T08:30:00+00:00
+- Short description: Unify domain extraction across codebase (P0-1)
+- What you do: Fixed extract_domain() in urls.py to use hostname (strips port) + removeprefix('www.'). Deleted private _extract_domain copies in telemetry.py and outcomes.py, now import from urls.py. Fixed substring domain match in random_navigation. Fixed .replace('www.', '') in referrer.py. Delegated tabs.py _domain_from_url to extract_domain.
+- File path that changes: app/navigation/urls.py; app/core/telemetry.py; app/ads/outcomes.py; app/navigation/tabs.py; app/navigation/referrer.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T08:00:00+00:00
 - Short description: Increase threads to 10 for public runner specs (4 vCPU, 16GB RAM)
 - What you do: Changed threads from 5 to 10 in config.json. Public repos get 4 vCPU and 16GB RAM (double private repo specs).

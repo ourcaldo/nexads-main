@@ -167,7 +167,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
 
                 await page.wait_for_load_state("networkidle", timeout=45000)
 
-                current_main_domain = extract_domain_fn(page.url).replace('www.', '')
+                current_main_domain = extract_domain_fn(page.url)
                 if main_domain not in current_main_domain:
                     print(f"Worker {worker_id}: Navigation failed. Current: {current_main_domain}, Expected: {main_domain}")
                     await page.go_back(timeout=45000)

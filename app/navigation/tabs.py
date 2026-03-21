@@ -37,11 +37,7 @@ def _normalize_domain(domain: str) -> str:
 
 def _domain_from_url(url: str) -> str:
     """Extract and normalize hostname from a URL string."""
-    try:
-        host = urlparse(url).hostname or ""
-    except Exception:
-        host = ""
-    return _normalize_domain(host)
+    return extract_domain(url)
 
 
 def _domain_matches(candidate_url: str, target_domain: str) -> bool:

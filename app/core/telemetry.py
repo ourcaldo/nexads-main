@@ -8,25 +8,15 @@ from __future__ import annotations
 import json
 import pathlib
 from datetime import datetime, timezone
-from urllib.parse import urlparse
 from uuid import uuid4
+
+from app.navigation.urls import extract_domain
 
 _PKG_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 DEFAULT_EVENTS_OUTPUT = _PKG_ROOT / "data" / "worker_events.jsonl"
 DEFAULT_ERRORS_OUTPUT = _PKG_ROOT / "data" / "worker_errors.jsonl"
 DEFAULT_MOBILE_PROFILE_OUTPUT = _PKG_ROOT / "data" / "telemetry_mobile.jsonl"
 DEFAULT_HEARTBEAT_OUTPUT = _PKG_ROOT / "data" / "worker_heartbeats.json"
-
-
-def _extract_domain(url: str) -> str:
-    """Extract normalized domain from URL."""
-    try:
-        host = (urlparse(url or "").hostname or "").strip().lower()
-        if host.startswith("www."):
-            host = host[4:]
-        return host
-    except Exception:
-        return ""
 
 
 def _append_jsonl(path: pathlib.Path, event: dict) -> bool:
@@ -74,7 +64,7 @@ def emit_worker_event(*,
         "step_name": str(step_name),
         "status": str(status),
         "url": str(url or ""),
-        "domain": _extract_domain(url),
+        "domain": extract_domain(url),
         "intent_type": str(intent_type or ""),
         "reason_code": str(reason_code or ""),
         "error_type": str(error_type or ""),

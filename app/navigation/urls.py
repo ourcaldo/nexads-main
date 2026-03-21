@@ -9,9 +9,14 @@ from urllib.parse import urlparse
 
 
 def extract_domain(url: str) -> str:
-    """Extract the netloc domain from a URL."""
-    parsed = urlparse(url)
-    return parsed.netloc
+    """Extract normalized domain from a URL (no port, no www.)."""
+    try:
+        host = (urlparse(url).hostname or "").strip().lower()
+        if host.startswith("www."):
+            host = host[4:]
+        return host
+    except Exception:
+        return ""
 
 
 async def check_page_health(page) -> dict:
@@ -273,7 +278,7 @@ async def random_navigation(page, worker_id: int, target_domain: str,
                 for link in all_links:
                     try:
                         href = await link.get_attribute('href')
-                        if href and target_domain in href:
+                        if href and extract_domain(href) == target_domain:
                             domain_links.append(link)
                     except:
                         continue
