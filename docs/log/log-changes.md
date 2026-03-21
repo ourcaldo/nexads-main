@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T07:45:00+00:00
+- Short description: Reduce threads to 5 for GitHub runner compatibility
+- What you do: Changed threads from 20 to 5 in config.json to prevent OOM on GitHub-hosted runners (2 vCPU, 7GB RAM).
+- File path that changes: config.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T07:15:00+00:00
 - Short description: Fix CloakBrowser install segfault on GitHub runners
 - What you do: Added || true fallback to `python3 -m cloakbrowser install` in setup_ubuntu.sh so the script continues even if the binary verification segfaults (binary is already extracted and usable).
