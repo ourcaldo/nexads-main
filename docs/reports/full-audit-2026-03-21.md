@@ -366,7 +366,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 10. ~~Fix pre-scanned nav not cleared on success in `urls.py`~~ DONE
 
 ### P2 — Refactor (Structure)
-11. Extract `SessionRunner` from `worker_session()` (820 lines)
+11. ~~Extract `SessionRunner` from `worker_session()` (820 lines)~~ DONE
 12. ~~Move `smart_click` from `adsense.py` to `browser/click.py`~~ DONE
 13. Split `config_window.py` into I/O, validation, theming, UI
 14. ~~Decompose `perform_random_activity` (295 lines, 15 params)~~ DONE

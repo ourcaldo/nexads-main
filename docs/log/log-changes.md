@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T10:20:00+00:00
+- Short description: Extract SessionRunner from worker.py into session.py (P2-11)
+- What you do: Moved the 820-line worker_session() function and its 15+ closures into a SessionRunner class in app/core/session.py. Closures became methods on the class. worker.py now contains only WorkerContext dataclass, _kill_child_browser_processes, and run_worker/run_worker_async entry points (~90 lines).
+- File path that changes: app/core/session.py (new); app/core/worker.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T10:05:00+00:00
 - Short description: Decompose perform_random_activity into helpers (P2-14)
 - What you do: Extracted 3 helper functions from the 295-line perform_random_activity: _attempt_ad_interaction (ad click + same-tab dwell logic), _build_weighted_activities (phase-based activity weighting), _pre_scan_next_url (link pre-scanning). Main function now orchestrates these helpers.
