@@ -155,6 +155,8 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
         try:
             page, success = await ensure_correct_tab_fn(page.context, page, target_url, worker_id)
             if not success:
+                if page is None:
+                    raise SessionFailedException("Lost page during navigation")
                 print(f"Worker {worker_id}: Could not ensure correct tab for navigation")
                 retry_count += 1
                 continue

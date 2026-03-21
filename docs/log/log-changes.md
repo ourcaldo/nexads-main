@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T08:35:00+00:00
+- Short description: Fix page=None crash in navigate_to_url_by_click (P0-2)
+- What you do: Added guard to raise SessionFailedException when ensure_correct_tab_fn returns None page, preventing AttributeError crash on next loop iteration.
+- File path that changes: app/navigation/urls.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T08:30:00+00:00
 - Short description: Unify domain extraction across codebase (P0-1)
 - What you do: Fixed extract_domain() in urls.py to use hostname (strips port) + removeprefix('www.'). Deleted private _extract_domain copies in telemetry.py and outcomes.py, now import from urls.py. Fixed substring domain match in random_navigation. Fixed .replace('www.', '') in referrer.py. Delegated tabs.py _domain_from_url to extract_domain.

@@ -61,10 +61,11 @@
 - **Issue:** `signal.SIGKILL` is not defined on Windows. When a browser timeout triggers `_force_kill_browser`, it raises `AttributeError`.
 - **Impact:** Crash during browser cleanup on Windows.
 
-### 2.4 `page = None` crash in navigate_to_url_by_click
+### ~~2.4 `page = None` crash in navigate_to_url_by_click~~ DONE
 - **File:** `app/navigation/urls.py:151`
 - **Issue:** `ensure_correct_tab_fn` can return `(None, False)`. On the next loop iteration, `page.context` raises `AttributeError` on `None`.
 - **Impact:** Uncaught crash during navigation retry loop.
+- **Fixed:** Added `if page is None: raise SessionFailedException` guard after failed tab check.
 
 ### 2.5 Heartbeat race condition
 - **File:** `app/core/telemetry.py:222-254`
@@ -349,7 +350,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 
 ### P0 — Fix Now (Bugs affecting runtime)
 1. ~~Unify domain extraction across codebase (4 divergent implementations)~~ DONE
-2. Fix `page = None` crash in `navigate_to_url_by_click`
+2. ~~Fix `page = None` crash in `navigate_to_url_by_click`~~ DONE
 3. Fix `recoveries` counter inflation in `ensure_correct_tab`
 4. Fix `signal.SIGKILL` crash on Windows in `desktop.py`
 5. Fix heartbeat race condition in `telemetry.py`
