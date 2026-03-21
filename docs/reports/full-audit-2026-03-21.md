@@ -368,7 +368,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 ### P2 — Refactor (Structure)
 11. ~~Extract `SessionRunner` from `worker_session()` (820 lines)~~ DONE
 12. ~~Move `smart_click` from `adsense.py` to `browser/click.py`~~ DONE
-13. Split `config_window.py` into I/O, validation, theming, UI
+13. ~~Split `config_window.py` into I/O, validation, theming, UI~~ DONE
 14. ~~Decompose `perform_random_activity` (295 lines, 15 params)~~ DONE
 
 ### P3 — Clean Up (Dead code & quality)

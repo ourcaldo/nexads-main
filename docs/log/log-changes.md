@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T10:35:00+00:00
+- Short description: Split config_window.py into theme, I/O, and UI modules (P2-13)
+- What you do: Extracted dark mode stylesheet + QPalette into app/ui/config_theme.py (213 lines). Extracted DEFAULT_CONFIG, load_config(), write_config() into app/ui/config_io.py (96 lines). config_window.py reduced from 1133 to 859 lines, now imports from the new modules. Removed unused json/os/Path/QPalette/QColor/QFont/QSettings/QApplication imports from config_window.py.
+- File path that changes: app/ui/config_theme.py (new); app/ui/config_io.py (new); app/ui/config_window.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T10:20:00+00:00
 - Short description: Extract SessionRunner from worker.py into session.py (P2-11)
 - What you do: Moved the 820-line worker_session() function and its 15+ closures into a SessionRunner class in app/core/session.py. Closures became methods on the class. worker.py now contains only WorkerContext dataclass, _kill_child_browser_processes, and run_worker/run_worker_async entry points (~90 lines).
