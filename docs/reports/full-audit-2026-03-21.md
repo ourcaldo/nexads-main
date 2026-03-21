@@ -149,7 +149,7 @@
 | `_ADSTERRA_DOMAINS` | `app/ads/adsterra.py` | 19-27 | Module-level list, never referenced. |
 | `url_prefix_hosts` | `app/ads/signals.py` | extracted | Built, serialized, but never consumed at runtime. |
 | `browser` param | `adsense.py:251`, `adsterra.py:241` | param | Accepted but never used in either ad interaction function. |
-| `ui.py` | root | 2 lines | Re-export shim; nothing imports from it anymore. |
+| ~~`ui.py`~~ | root | 2 lines | ~~Re-export shim; nothing imports from it anymore.~~ DELETED |
 | `RateLimiter` | `automation.py` | noted | `wait_if_needed()` defined but never called (documented in CLAUDE.md). |
 | Radio button path | `adsense.py:155-176` | vignette | Real Google vignettes don't contain `input[type="radio"]`. Never triggers. |
 | `smart_click` no-element path | `adsense.py:342-343` | fallback | `if not element:` path selects random page element. No caller ever passes `None`. |
@@ -373,7 +373,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 
 ### P3 — Clean Up (Dead code & quality)
 15. ~~Delete `geoip.py` (300+ lines dead code)~~ DONE
-16. Delete `ui.py` (unused shim)
+16. ~~Delete `ui.py` (unused shim)~~ DONE
 17. Remove `pending_ads_sessions` infrastructure (dead CTR budget)
 18. Remove ~~`all_ad_goals_met`~~ (DELETED), `_ADSTERRA_DOMAINS`, dead params
 19. Cache proxy file reads and ad host lookups
