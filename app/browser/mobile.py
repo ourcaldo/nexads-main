@@ -149,9 +149,9 @@ async def configure_mobile_browser(
         if proxy_url:
             launch_kwargs["proxy"] = proxy_url
 
-        context = await launch_persistent_context_async(
-            user_data_dir,
-            **launch_kwargs,
+        context = await asyncio.wait_for(
+            launch_persistent_context_async(user_data_dir, **launch_kwargs),
+            timeout=90,
         )
 
         _CLOAKBROWSER_DIRS[id(context)] = user_data_dir

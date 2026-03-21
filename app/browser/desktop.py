@@ -36,7 +36,7 @@ async def launch_desktop_browser(
     if proxy_cfg:
         options["proxy"] = proxy_cfg
 
-    browser = await AsyncCamoufox(**options).start()
+    browser = await asyncio.wait_for(AsyncCamoufox(**options).start(), timeout=90)
     delay = get_random_delay_fn()
     await asyncio.sleep(delay)
 

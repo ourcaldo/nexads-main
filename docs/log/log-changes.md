@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:05:00+00:00
+- Short description: Add browser launch timeouts (P1-7)
+- What you do: Wrapped AsyncCamoufox().start() and launch_persistent_context_async() in asyncio.wait_for(timeout=90) so a hung browser launch fails cleanly instead of blocking the worker forever.
+- File path that changes: app/browser/desktop.py; app/browser/mobile.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:00:00+00:00
 - Short description: Fix one_per_provider strategy in dispatcher.py (P1-6)
 - What you do: Removed early `return True` inside one_per_provider loop so all unsatisfied providers get attempted in a single dispatch call. Replaced with `any_success` accumulator. Deleted dead `all_ad_goals_met()` function that was never called.

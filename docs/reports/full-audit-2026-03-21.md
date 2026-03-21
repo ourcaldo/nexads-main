@@ -113,7 +113,7 @@
 - **File:** `app/navigation/urls.py:73-74`
 - **Detail:** Two separate calls (`page.evaluate` for hrefs, then `query_selector_all` for elements). DOM can mutate between calls, causing href[i] and element[i] to mismatch.
 
-### 3.7 No timeout on browser launch (both engines)
+### ~~3.7 No timeout on browser launch (both engines)~~ DONE
 - **Files:** `app/browser/desktop.py:39`, `app/browser/mobile.py:152`
 - **Detail:** `AsyncCamoufox().start()` and `launch_persistent_context_async()` have no `asyncio.wait_for` timeout. Hung launch blocks worker forever.
 
@@ -360,7 +360,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 
 ### P1 — Fix Soon (Logic errors affecting correctness)
 6. ~~Fix `one_per_provider` strategy in `dispatcher.py`~~ DONE
-7. Add browser launch timeouts (both engines)
+7. ~~Add browser launch timeouts (both engines)~~ DONE
 8. ~~Fix `.replace('www.', '')` -> `.removeprefix('www.')` in `referrer.py`~~ DONE (part of P0-1)
 9. ~~Fix `random_navigation` substring match -> domain equality in `urls.py`~~ DONE (part of P0-1)
 10. Fix pre-scanned nav not cleared on success in `urls.py`
