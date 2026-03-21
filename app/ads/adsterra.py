@@ -9,7 +9,7 @@ import random
 import time
 
 from app.ads.outcomes import evaluate_ad_click_outcome, persist_ad_click_event
-from app.ads.adsense import smart_click
+from app.browser.click import smart_click
 from app.browser.humanization import lognormal_seconds
 
 # Known Adsterra ad iframe host domains (publisher-managed)

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:55:00+00:00
+- Short description: Move smart_click from adsense.py to browser/click.py (P2-12)
+- What you do: Extracted smart_click function (~145 lines) from app/ads/adsense.py into new app/browser/click.py. Updated imports in adsense.py, adsterra.py, and worker.py. smart_click is a generic click primitive used across the entire codebase, not an ad-specific function.
+- File path that changes: app/browser/click.py (new); app/ads/adsense.py; app/ads/adsterra.py; app/core/worker.py; docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:45:00+00:00
 - Short description: Standardize log prefixes with worker_id (P3-20)
 - What you do: Fixed one inconsistent log line in worker.py (run_worker_async) from "Worker {id} failed:" to "Worker {id}: Fatal error:" matching the standard prefix pattern.

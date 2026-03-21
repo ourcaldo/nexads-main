@@ -38,7 +38,8 @@ from app.navigation.tabs import (
     natural_exit,
 )
 from app.core.telemetry import emit_worker_event, emit_mobile_fingerprint_event, emit_heartbeat
-from app.ads.adsense import check_and_handle_vignette, smart_click
+from app.ads.adsense import check_and_handle_vignette
+from app.browser.click import smart_click
 from app.ads.dispatcher import dispatch_ad_interaction
 
 
