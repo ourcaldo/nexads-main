@@ -144,7 +144,7 @@
 | Item | File | Lines | Description |
 |---|---|---|---|
 | `pending_ads_sessions` | `automation.py`, `worker.py` | 78-81, 107-113 | CTR budget calculated, passed to workers, but never read or decremented. Worker uses independent probability roll. |
-| `geoip.py` (entire file) | `app/browser/geoip.py` | all | Never imported anywhere. Both engines use built-in `geoip=True`. 300+ lines of dead code. |
+| ~~`geoip.py` (entire file)~~ | `app/browser/geoip.py` | all | ~~Never imported anywhere. Both engines use built-in `geoip=True`. 300+ lines of dead code.~~ DELETED |
 | ~~`all_ad_goals_met`~~ | `app/ads/dispatcher.py` | func def | ~~Defined but never called anywhere in the codebase.~~ DELETED |
 | `_ADSTERRA_DOMAINS` | `app/ads/adsterra.py` | 19-27 | Module-level list, never referenced. |
 | `url_prefix_hosts` | `app/ads/signals.py` | extracted | Built, serialized, but never consumed at runtime. |
@@ -372,7 +372,7 @@ Handles scroll, hover, click, ad orchestration, vignette polling, capability ass
 14. Decompose `perform_random_activity` (295 lines, 15 params)
 
 ### P3 — Clean Up (Dead code & quality)
-15. Delete `geoip.py` (300+ lines dead code)
+15. ~~Delete `geoip.py` (300+ lines dead code)~~ DONE
 16. Delete `ui.py` (unused shim)
 17. Remove `pending_ads_sessions` infrastructure (dead CTR budget)
 18. Remove ~~`all_ad_goals_met`~~ (DELETED), `_ADSTERRA_DOMAINS`, dead params

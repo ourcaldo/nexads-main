@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-21T09:15:00+00:00
+- Short description: Delete dead geoip.py (P3-15)
+- What you do: Deleted app/browser/geoip.py (300+ lines) which was never imported anywhere. Both engines use built-in geoip=True parameter.
+- File path that changes: app/browser/geoip.py (deleted); docs/reports/full-audit-2026-03-21.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T09:10:00+00:00
 - Short description: Fix pre-scanned nav not cleared on success (P1-10)
 - What you do: Added interaction_state.pop("pre_scanned_nav", None) on the success path in navigate_to_url_by_click. Previously it was only cleared on failure, causing stale DOM element references on subsequent calls.
