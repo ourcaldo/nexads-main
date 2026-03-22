@@ -1,36 +1,10 @@
 {
   "social": {
-    "Facebook": [
-      "https://l.facebook.com/",
-      "https://lm.facebook.com/"
-    ],
-    "Instagram": [
-      "https://www.instagram.com/",
-      "https://l.instagram.com/"
-    ],
-    "Linkedin": [
-      "https://www.linkedin.com/feed/",
-      "https://lnkd.in/",
-      "https://www.linkedin.com/"
-    ],
-    "Snapchat": [
-      "https://www.snapchat.com/"
-    ],
-    "Telegram": [
-      "https://web.telegram.org/",
-      "https://t.me/"
-    ],
-    "Threads": [
-      "https://www.threads.net/",
-      "https://l.threads.net/"
-    ],
-    "Tiktok": [
-      "https://www.tiktok.com/"
-    ],
-    "Twitter": [
-      "https://x.com/",
-      "https://twitter.com/",
-      "https://t.co/"
-    ]
+    "Facebook": {
+      "h_tokens": [
+        "AT5NYUfbT_4LsYDyRxXVOrtWcsj1RVpdUtUBlnUHiw81kDoGoYgA67htidZ9o414XTX7TI7wvxwLlp4EmDMHfyk75RI7H5xRoAargo2669grf26d2kcDx5SQCPgTUXCdbSuKY2aJoRlqeFNMQ1srkMM-OXxvx01q",
+        "AT6l9_eg5tpFxXNlHxkQk7pMJxGRfxgFvYcLxJnN7k8mFqA4nZgXJ3ZKjKf0lmOzE4wQlJphQnZ6dRxB3pDfTt5M8vRnKqQ2jxnR4Z7KoFN9Kd8p"
+      ]
+    }
   }
 }

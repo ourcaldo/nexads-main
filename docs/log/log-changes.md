@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T06:40:00+00:00
+- Short description: Implement Facebook referrer via l.facebook.com natural redirect (Option 1)
+- What you do: Added build_facebook_redirect_url() that constructs l.facebook.com/l.php?u=<target_with_fbclid>&h=<real_h> using harvested h tokens from referrers.json. Added async navigate_facebook_referrer() that navigates through the redirect chain and handles the "Leaving Facebook" interstitial by detecting and clicking through it, with fallback to header-based approach. Updated get_social_referrer() to return navigate_fn flag for Facebook. Updated session.py to use navigate_facebook_referrer() for Facebook, header approach for other platforms. Updated referrers.json to store h_tokens pool instead of static URLs.
+- File path that changes: app/navigation/referrer.py; app/core/session.py; referrers.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T06:20:00+00:00
 - Short description: Use actual session device type for social referrer selection
 - What you do: Changed social referrer is_mobile flag to read from interaction_state["is_mobile"] (set by actual browser fingerprint_mode) instead of config device_type percentage. Mobile sessions now correctly use lm.facebook.com, desktop sessions use l.facebook.com.
