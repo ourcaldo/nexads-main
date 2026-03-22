@@ -21,9 +21,6 @@ _DEFAULT_AD_SELECTORS = [
     'div[id*="google_ads"]',
     'div[data-ad-client]',
     'div[data-ad-slot]',
-    'iframe[src*="googleads"]',
-    'iframe[src*="doubleclick.net"]',
-    'iframe[src*="adservice.google.com"]',
     'div[class*="adsense"]',
 ]
 
@@ -61,32 +58,50 @@ async def _has_rendered_content(element) -> bool:
         return await element.evaluate("""(el) => {
             const tag = el.tagName.toUpperCase();
 
-            // If the element itself is an iframe, verify Google ad src AND real ad dimensions
-            if (tag === 'IFRAME') {
-                const src = el.src || '';
+            // Helper: check if an iframe is a real ad creative (not a tracking pixel)
+            const isAdCreativeIframe = (iframe) => {
+                const src = iframe.src || '';
+                const id = iframe.id || '';
+
+                // Must have a Google ad-related src
                 const hasAdSrc = src.includes('googleads') || src.includes('doubleclick') ||
                                  src.includes('googlesyndication') || src.includes('adservice.google');
                 if (!hasAdSrc) return false;
-                const rect = el.getBoundingClientRect();
-                return rect.width >= 50 && rect.height >= 30;
+
+                // Must have real ad dimensions (tracking iframes can be large but usually thin)
+                const rect = iframe.getBoundingClientRect();
+                if (rect.width < 50 || rect.height < 30) return false;
+
+                // Known ad creative iframe ID patterns
+                if (id.startsWith('aswift_') || id.startsWith('google_ads_iframe_')) return true;
+
+                // Check if iframe has an ancestor ins[data-ad-status="filled"]
+                let parent = iframe.parentElement;
+                while (parent) {
+                    if (parent.tagName === 'INS' && parent.getAttribute('data-ad-status') === 'filled') {
+                        return true;
+                    }
+                    parent = parent.parentElement;
+                }
+
+                return false;
+            };
+
+            // Reject raw iframe elements — we only trust container-level detection
+            if (tag === 'IFRAME') {
+                return false;
             }
 
-            // For INS elements, check data-ad-status (most reliable signal)
+            // For INS elements, require data-ad-status === 'filled'
             if (tag === 'INS') {
                 const status = el.getAttribute('data-ad-status');
-                if (status === 'unfilled' || !status) return false;
-                // status === 'filled' — continue to iframe verification below
+                if (status !== 'filled') return false;
             }
 
-            // Require an iframe child with a Google ad URL and real dimensions
+            // Require a verified ad creative iframe child
             const iframes = el.querySelectorAll('iframe');
             for (const iframe of iframes) {
-                const src = iframe.src || '';
-                if (src.includes('googleads') || src.includes('doubleclick') ||
-                    src.includes('googlesyndication') || src.includes('adservice.google')) {
-                    const rect = iframe.getBoundingClientRect();
-                    if (rect.width > 30 && rect.height > 30) return true;
-                }
+                if (isAdCreativeIframe(iframe)) return true;
             }
 
             return false;

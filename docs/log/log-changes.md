@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T20:00:00+00:00
+- Short description: Fix 4 runtime bugs from explorer mode testing
+- What you do: (1) AdSense false positive detection: removed raw iframe selectors (iframe[src*="doubleclick.net"] etc.) from _DEFAULT_AD_SELECTORS — these matched tracking/measurement iframes, not real ads. Rewrote _has_rendered_content() to reject raw iframe elements, require data-ad-status="filled" on INS elements, and verify ad creative iframes by ID pattern (aswift_*, google_ads_iframe_*) or ancestor INS[data-ad-status="filled"]. (2) URL count display: changed len(ctx.config['urls']) to len(_explorer_urls) in print statement. (3) random_click navigating away during explorer: added explorer_mode flag to interaction_state, blocked "click" activity in perform_random_activity when flag is set. (4) hover_time not defined: already fixed in prior session.
+- File path that changes: app/ads/adsense.py; app/core/session.py; app/browser/activities.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T19:00:00+00:00
 - Short description: Fix 3 bugs found during explorer mode deep review
 - What you do: (1) Fixed _is_same_domain() using lstrip("www.") which strips individual characters, not a prefix — replaced with proper _strip_www() helper using startswith check. (2) Fixed run() early return checking only config["urls"] — now also checks explorer mode so empty URL list doesn't abort when explorer is enabled. (3) Fixed next_url lookup referencing ctx.config["urls"] instead of _explorer_urls. (4) Removed unnecessary f-string on query_selector_all call.
