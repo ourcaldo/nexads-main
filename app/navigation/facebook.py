@@ -66,14 +66,27 @@ def _ensure_fbclid(url: str) -> str:
     return f"{url}{separator}fbclid={generate_fbclid()}"
 
 
+async def _goto_with_referer(page, url: str, referer: str, worker_id: int):
+    """Navigate to URL with referer set via extra HTTP headers.
+
+    page.goto(referer=...) doesn't work in Camoufox (Firefox-based) — the
+    browser's Referrer-Policy from the current page overrides it.
+    set_extra_http_headers injects at the network protocol level instead.
+    """
+    await page.set_extra_http_headers({"referer": referer})
+    await page.goto(url, timeout=30000, wait_until="domcontentloaded")
+    await asyncio.sleep(random.uniform(1.5, 3.0))
+    await page.set_extra_http_headers({})
+
+
 async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
                                      is_mobile: bool = False) -> bool:
     """Navigate through Facebook's l.facebook.com link shim to reach target URL.
 
     Visits l.facebook.com first (realistic browser history), then navigates to
-    the target with an explicit referer header. Facebook's interstitial strips
-    the Referer via rel="noreferrer", so we extract the destination and navigate
-    with Playwright's referer param to preserve it.
+    the target with referer set via extra HTTP headers. Facebook's interstitial
+    strips both the Referer (rel="noreferrer") and the fbclid from the destination
+    for non-logged-in browsers, so we handle both explicitly.
     """
     redirect_url = build_facebook_redirect_url(target_url, is_mobile)
     domain = "lm.facebook.com" if is_mobile else "l.facebook.com"
@@ -89,20 +102,13 @@ async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
         current_url = page.url
 
         # --- Check if we landed on the target already (302 redirect worked) ---
-        # Facebook strips fbclid for non-logged-in browsers, so re-append if missing.
         if target_domain in current_url:
-            if "fbclid=" not in current_url:
-                final_url = _ensure_fbclid(current_url)
-                print(f"Worker {worker_id}: Direct redirect landed without fbclid, re-navigating")
-                await page.goto(final_url, timeout=30000,
-                                wait_until="domcontentloaded", referer=referer)
-                await asyncio.sleep(random.uniform(1.0, 2.0))
-            print(f"Worker {worker_id}: Facebook redirect succeeded: {page.url}")
+            print(f"Worker {worker_id}: Facebook redirect succeeded directly: {current_url}")
             return True
 
         # --- Handle "Leaving Facebook" interstitial ---
-        # Instead of clicking (which strips referer via rel="noreferrer"),
-        # extract the destination URL and navigate with explicit referer.
+        # Don't click the link (strips referer + fbclid). Extract destination,
+        # then navigate with referer header injected at protocol level.
         if "facebook.com" in current_url:
             print(f"Worker {worker_id}: Hit Facebook interstitial, extracting destination")
 
@@ -146,25 +152,16 @@ async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
                     pass
 
             if destination_url:
-                destination_url = _ensure_fbclid(destination_url)
-                print(f"Worker {worker_id}: Navigating to target with Facebook referer")
-                await page.goto(destination_url, timeout=30000,
-                                wait_until="domcontentloaded", referer=referer)
-                await asyncio.sleep(random.uniform(1.5, 3.0))
+                print(f"Worker {worker_id}: Navigating to target with Facebook referer header")
+                await _goto_with_referer(page, destination_url, referer, worker_id)
                 if target_domain in page.url:
-                    print(f"Worker {worker_id}: Successfully reached target via interstitial: {page.url}")
+                    print(f"Worker {worker_id}: Successfully reached target: {page.url}")
                     return True
 
         # --- Fallback: direct navigation with referer ---
         print(f"Worker {worker_id}: Using direct navigation with Facebook referer")
-        fbclid = generate_fbclid()
-        separator = "&" if "?" in target_url else "?"
-        fallback_url = f"{target_url}{separator}fbclid={fbclid}"
-
-        await page.goto(fallback_url, timeout=30000,
-                        wait_until="domcontentloaded", referer=referer)
-        await asyncio.sleep(random.uniform(1.5, 3.0))
-        print(f"Worker {worker_id}: Fallback with referer used: {page.url}")
+        await _goto_with_referer(page, target_url, referer, worker_id)
+        print(f"Worker {worker_id}: Fallback navigation used: {page.url}")
         return True
 
     except Exception as e:

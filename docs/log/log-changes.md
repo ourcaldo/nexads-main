@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T07:50:00+00:00
+- Short description: Fix Facebook referer not detected — use set_extra_http_headers instead of goto referer param
+- What you do: page.goto(referer=...) does not work in Camoufox (Firefox-based) — the browser Referrer-Policy from the Facebook page overrides it. Replaced with _goto_with_referer() helper that uses page.set_extra_http_headers({"referer": ...}) before navigation (protocol-level injection), then clears after. Removed _ensure_fbclid() from interstitial path since real non-login Facebook traffic has no fbclid.
+- File path that changes: app/navigation/facebook.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T07:30:00+00:00
 - Short description: Ensure fbclid is always appended for Facebook referrer
 - What you do: Facebook strips fbclid from destination URL for non-logged-in browsers. Added _ensure_fbclid() helper that appends a generated fbclid if missing. Applied at all 3 exit points: direct 302 redirect (re-navigates with fbclid+referer), interstitial extraction (appends before navigating), and fallback (already had it).
