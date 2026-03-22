@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T11:30:00+00:00
+- Short description: Gap 2 DONE — Add pre-hover on ads before clicking
+- What you do: Added pre-hover phase in smart_click() for ad clicks (is_ad_activity=True). Before clicking an ad, the mouse now: (1) moves near the ad edge — simulates noticing it, (2) moves into the ad bounding box — simulates reading it with 300-1400ms dwell, (3) optionally moves to a second hover point (40% chance) — simulates scanning, (4) moves to final click point. Normal non-ad clicks are unchanged. All hover points clamped to viewport and ad bounds.
+- File path that changes: app/browser/click.py; docs/plans/2026-03-22-anti-detection-gaps.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T11:20:00+00:00
 - Short description: Gap 1 DONE — Replace all JS scroll injection with page.mouse.wheel
 - What you do: Replaced all window.scrollBy/scrollTo JS evaluate calls with page.mouse.wheel() to generate real WheelEvents. Fixed 4 locations: random_scroll() main step and micro-correction (activities.py), natural_exit linger scroll (tabs.py), scroll-to-top before link scanning (urls.py — now scrolls up in steps). Verified zero remaining JS scroll calls in app/.

@@ -8,6 +8,7 @@ from __future__ import annotations
 import random
 
 from app.browser.humanization import (
+    clamp,
     choose_click_point,
     gaussian_ms,
     get_cursor_start,
@@ -81,13 +82,68 @@ async def smart_click(page, worker_id: int, current_domain: str,
             print(f"Worker {worker_id}: Could not get element position")
             return False
 
-        click_x, click_y = choose_click_point(box, tag)
-        start_x, start_y = get_cursor_start(page, interaction_state)
-
         is_mobile = (interaction_state or {}).get("is_mobile", False)
-        await move_mouse_humanly(page, (start_x, start_y), (click_x, click_y), is_mobile=is_mobile)
-        set_cursor_position(interaction_state, click_x, click_y)
-        await page.wait_for_timeout(gaussian_ms(360, 100, 160, 820))
+        start_x, start_y = get_cursor_start(page, interaction_state)
+        viewport = page.viewport_size or {"width": 1280, "height": 720}
+
+        if is_ad_activity:
+            # --- Pre-hover: simulate noticing and reading the ad ---
+
+            # 1. Move near the ad (50-150px from edge) — "noticing" it
+            near_x = clamp(
+                box["x"] + random.uniform(-150, box["width"] + 150),
+                1, viewport["width"] - 1,
+            )
+            near_y = clamp(
+                box["y"] + random.uniform(-80, -20),
+                1, viewport["height"] - 1,
+            )
+            await move_mouse_humanly(page, (start_x, start_y), (near_x, near_y), is_mobile=is_mobile)
+            set_cursor_position(interaction_state, near_x, near_y)
+            await page.wait_for_timeout(gaussian_ms(400, 120, 200, 800))
+
+            # 2. Move into the ad — first hover point (reading the ad)
+            hover1_x = clamp(
+                box["x"] + random.uniform(box["width"] * 0.15, box["width"] * 0.85),
+                box["x"] + 1, box["x"] + box["width"] - 1,
+            )
+            hover1_y = clamp(
+                box["y"] + random.uniform(box["height"] * 0.2, box["height"] * 0.8),
+                box["y"] + 1, box["y"] + box["height"] - 1,
+            )
+            await move_mouse_humanly(page, (near_x, near_y), (hover1_x, hover1_y), is_mobile=is_mobile)
+            set_cursor_position(interaction_state, hover1_x, hover1_y)
+            await page.wait_for_timeout(gaussian_ms(600, 200, 300, 1400))
+
+            # 3. Optional second hover point within the ad (40% chance — scanning)
+            if random.random() < 0.40:
+                hover2_x = clamp(
+                    box["x"] + random.uniform(box["width"] * 0.1, box["width"] * 0.9),
+                    box["x"] + 1, box["x"] + box["width"] - 1,
+                )
+                hover2_y = clamp(
+                    box["y"] + random.uniform(box["height"] * 0.1, box["height"] * 0.9),
+                    box["y"] + 1, box["y"] + box["height"] - 1,
+                )
+                await move_mouse_humanly(
+                    page, (hover1_x, hover1_y), (hover2_x, hover2_y), is_mobile=is_mobile
+                )
+                set_cursor_position(interaction_state, hover2_x, hover2_y)
+                await page.wait_for_timeout(gaussian_ms(300, 100, 150, 600))
+
+            # 4. Move to final click point
+            click_x, click_y = choose_click_point(box, tag)
+            prev_x, prev_y = get_cursor_start(page, interaction_state)
+            await move_mouse_humanly(page, (prev_x, prev_y), (click_x, click_y), is_mobile=is_mobile)
+            set_cursor_position(interaction_state, click_x, click_y)
+            await page.wait_for_timeout(gaussian_ms(360, 100, 160, 820))
+
+        else:
+            # --- Normal click: direct move to click point ---
+            click_x, click_y = choose_click_point(box, tag)
+            await move_mouse_humanly(page, (start_x, start_y), (click_x, click_y), is_mobile=is_mobile)
+            set_cursor_position(interaction_state, click_x, click_y)
+            await page.wait_for_timeout(gaussian_ms(360, 100, 160, 820))
 
         click_delay = gaussian_ms(110, 35, 45, 240)
 

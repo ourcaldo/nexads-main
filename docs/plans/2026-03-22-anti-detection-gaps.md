@@ -38,7 +38,7 @@ Replace all `page.evaluate("window.scrollBy()")` calls with `page.mouse.wheel(0,
 
 ---
 
-## Gap 2: No pre-hover on ad before clicking
+## Gap 2: No pre-hover on ad before clicking — DONE
 
 ### Risk: HIGH
 
