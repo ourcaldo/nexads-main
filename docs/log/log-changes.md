@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T16:30:00+00:00
+- Short description: Scenario 2 same-tab ad landing — replace bare sleep with real browsing activity
+- What you do: Created _browse_ad_landing() function that runs lightweight random activity (scroll, hover with humanized mouse movement, read pauses with mouse jitter) on same-tab ad landing pages. Replaced bare asyncio.sleep(ad_stay) in _attempt_ad_interaction() with _browse_ad_landing() call. Now Scenario 2 (same-tab ad click) matches Scenario 1 (new-tab ad click via process_ads_tabs) in realism — both perform scroll/hover/read instead of just sleeping.
+- File path that changes: app/browser/activities.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T16:00:00+00:00
 - Short description: Gap 8 — Add mouse micro-jitter during ad click outcome monitoring
 - What you do: Added cursor micro-movement (2-6px drift every ~700ms) during the evaluate_ad_click_outcome() poll loop. Simulates a real user's hand resting on mouse while watching the ad landing page load. Jitter starts at a random viewport position and drifts slightly each cycle. Does not interfere with navigation detection — only mouse.move, no clicks or scrolls.

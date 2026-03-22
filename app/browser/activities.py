@@ -338,6 +338,90 @@ async def random_click(
         return False
 
 
+async def _browse_ad_landing(page, worker_id: int, duration: float,
+                             interaction_state: dict | None = None):
+    """Run lightweight random activity on a same-tab ad landing page.
+
+    Uses only primitives available in this module (no ensure_correct_tab_fn
+    or smart_click_fn callbacks).  Mirrors the browsing behaviour of
+    process_ads_tabs (Scenario 1) but without tab management overhead.
+    """
+    if duration <= 0:
+        return
+
+    start = time.time()
+    interaction_state = interaction_state or {}
+    is_mobile = interaction_state.get("is_mobile", False)
+
+    while True:
+        remaining = duration - (time.time() - start)
+        if remaining <= 0:
+            break
+
+        roll = random.random()
+
+        # --- Scroll (50% chance) ---
+        if roll < 0.50:
+            try:
+                viewport = page.viewport_size or {"width": 1280, "height": 720}
+                vh = viewport["height"]
+                direction = 1 if random.random() > 0.25 else -1
+                distance = int(vh * random.uniform(0.25, 0.85))
+                steps = random.randint(3, 8)
+                step_size = (distance * direction) / steps
+                for _ in range(steps):
+                    jitter = max(10, abs(step_size) * 0.3)
+                    await page.mouse.wheel(0, int(step_size + random.gauss(0, jitter)))
+                    await page.wait_for_timeout(timing_ms("scroll_step"))
+                print(f"Worker {worker_id}: Ad landing scroll {'down' if direction > 0 else 'up'} {distance}px")
+            except Exception:
+                pass
+
+        # --- Hover / mouse movement (25% chance) ---
+        elif roll < 0.75:
+            try:
+                elements = await page.query_selector_all(
+                    'a, button, img, p, h1, h2, h3, li, span'
+                )
+                visible = []
+                for el in elements:
+                    try:
+                        if await el.is_visible():
+                            visible.append(el)
+                    except Exception:
+                        continue
+                if visible:
+                    target_el = random.choice(visible)
+                    await target_el.scroll_into_view_if_needed(timeout=5000)
+                    box = await target_el.bounding_box()
+                    if box:
+                        try:
+                            tag = await target_el.evaluate("el => el.tagName")
+                        except Exception:
+                            tag = ""
+                        tx, ty = choose_click_point(box, tag)
+                        sx, sy = get_cursor_start(page, interaction_state)
+                        await move_mouse_humanly(page, (sx, sy), (tx, ty), is_mobile=is_mobile)
+                        set_cursor_position(interaction_state, tx, ty)
+                        await page.wait_for_timeout(timing_ms("hover_dwell"))
+                        print(f"Worker {worker_id}: Ad landing hover at {tx:.0f},{ty:.0f}")
+            except Exception:
+                pass
+
+        # --- Read pause (25% chance) ---
+        else:
+            read_time = min(timing_seconds("read_pause"), remaining)
+            if read_time > 0:
+                await _idle_mouse_jitter(page, interaction_state, read_time)
+
+        # Inter-activity gap
+        remaining = duration - (time.time() - start)
+        if remaining > 0:
+            gap = min(timing_seconds("activity_gap"), remaining)
+            if gap > 0:
+                await _idle_mouse_jitter(page, interaction_state, gap)
+
+
 async def _attempt_ad_interaction(
     page, browser, worker_id, config, interaction_state,
     interact_with_ads_fn, extract_domain_fn, expected_url,
@@ -373,8 +457,8 @@ async def _attempt_ad_interaction(
             ad_stay = max(0, min(ad_stay, time_left - 3))
 
             if ad_stay > 0:
-                print(f"Worker {worker_id}: Staying on same-tab ad landing for {ad_stay}s")
-                await asyncio.sleep(ad_stay)
+                print(f"Worker {worker_id}: Browsing same-tab ad landing for {ad_stay}s")
+                await _browse_ad_landing(page, worker_id, ad_stay, interaction_state)
 
             try:
                 await page.goto(expected_url, timeout=30000, wait_until="domcontentloaded")
