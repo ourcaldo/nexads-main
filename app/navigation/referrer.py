@@ -73,13 +73,27 @@ def get_social_referrer(target_url: str = "", is_mobile: bool = False) -> dict:
 
 
 async def navigate_social_referrer(page, target_url: str, worker_id: int,
-                                   is_mobile: bool = False) -> bool:
-    """Pick a random social platform and navigate to target with appropriate referer.
-
-    Dispatches to platform-specific handlers (Facebook, Instagram) or falls back
-    to generic header-based approach for other platforms.
-    """
-    social = get_social_referrer(target_url, is_mobile)
+                                   is_mobile: bool = False,
+                                   platform: str = "") -> bool:
+    """Navigate to target with social referer. Uses given platform or picks randomly."""
+    if platform:
+        social = get_social_referrer(target_url, is_mobile)
+        social["platform"] = platform
+        # Re-resolve referer for the forced platform
+        if platform not in _PLATFORM_HANDLERS:
+            try:
+                with open(_REFERRERS_PATH, 'r') as f:
+                    referrers = json.load(f)
+                social_data = referrers['social'].get(platform, [])
+                urls = social_data if isinstance(social_data, list) else social_data.get("urls", [])
+                referer_url = random.choice(urls) if urls else ""
+                if referer_url and not referer_url.startswith('http'):
+                    referer_url = f"https://{referer_url}"
+                social["referer"] = referer_url
+            except Exception:
+                pass
+    else:
+        social = get_social_referrer(target_url, is_mobile)
     platform = social["platform"]
 
     print(f"Worker {worker_id}: Using {platform} social referrer")

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T10:40:00+00:00
+- Short description: Fix platform mismatch in social referrer + warm-up search input timeout
+- What you do: Fixed two bugs: (1) navigate_social_referrer() now accepts optional platform param so session.py can pass the pre-determined platform — prevents mismatch where pre-visit is Facebook but handler picks Snapchat. (2) warm_google_profile() now retries finding the search input if consent dialog blocks it — tries accept_google_cookies again, reloads Google if needed, breaks gracefully if still blocked.
+- File path that changes: app/navigation/referrer.py; app/core/session.py; app/navigation/organic.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T10:30:00+00:00
 - Short description: Add social platform visit for cookies between warm-up and session
 - What you do: After Google warm-up and before the URL processing loop, determine the referrer type early. If social, visit the platform homepage (Facebook, Instagram, LinkedIn, etc.) briefly to acquire that platform's cookies — scroll twice, then continue. The existing referrer handlers remain unchanged (they still set headers + tracking params). The URL loop now reuses the pre-determined referrer type instead of picking a new random one.

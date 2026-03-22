@@ -452,9 +452,14 @@ class SessionRunner:
 
                             if referrer_type == "social":
                                 is_mobile = interaction_state.get("is_mobile", False)
+                                _forced_platform = (
+                                    _pre_social_info["platform"]
+                                    if _pre_social_info else ""
+                                )
                                 try:
                                     success = await navigate_social_referrer(
-                                        page, url, wid, is_mobile
+                                        page, url, wid, is_mobile,
+                                        platform=_forced_platform,
                                     )
                                     if not success:
                                         raise SessionFailedException(

@@ -232,9 +232,33 @@ async def warm_google_profile(page, worker_id: int, config: dict,
                 break
 
             # --- Search ---
-            search_input = await page.wait_for_selector(
-                'textarea[name="q"], input[name="q"]', state="visible", timeout=10000
-            )
+            try:
+                search_input = await page.wait_for_selector(
+                    'textarea[name="q"], input[name="q"]', state="visible", timeout=10000
+                )
+            except Exception:
+                # Consent dialog may be blocking — try accepting and retry
+                await accept_google_cookies(page)
+                await page.wait_for_timeout(1000)
+                try:
+                    search_input = await page.wait_for_selector(
+                        'textarea[name="q"], input[name="q"]', state="visible", timeout=8000
+                    )
+                except Exception:
+                    # Still blocked, try reloading Google
+                    try:
+                        await page.goto(
+                            "https://www.google.com/", timeout=15000,
+                            wait_until="domcontentloaded",
+                        )
+                        await accept_google_cookies(page)
+                        await page.wait_for_timeout(1000)
+                        search_input = await page.wait_for_selector(
+                            'textarea[name="q"], input[name="q"]', state="visible", timeout=8000
+                        )
+                    except Exception:
+                        print(f"Worker {worker_id}: Cannot find Google search input, ending warm-up")
+                        break
             if not search_input:
                 break
 
