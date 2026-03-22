@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T11:10:00+00:00
+- Short description: Add anti-detection gaps implementation plan
+- What you do: Created detailed implementation plan for 9 identified anti-detection gaps. Each gap includes: problem description with exact file/line references, fix strategy, implementation details with code snippets, files to change, and acceptance criteria. Gaps ranked by detection risk (HIGH/MEDIUM/LOW) with recommended implementation order.
+- File path that changes: docs/plans/2026-03-22-anti-detection-gaps.md (new); docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T10:55:00+00:00
 - Short description: Config update: threads back to 10, remove Telegram from referrers
 - What you do: User changed config.json threads 5→10. User removed Telegram from referrers.json social platforms.
