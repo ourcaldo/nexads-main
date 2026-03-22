@@ -304,7 +304,7 @@ class SessionRunner:
 
             try:
                 # Find the element on page by matching href
-                link_elements = await page.query_selector_all(f'a[href]')
+                link_elements = await page.query_selector_all('a[href]')
                 click_target = None
                 for el in link_elements:
                     try:
@@ -357,7 +357,9 @@ class SessionRunner:
         ctx = self.ctx
 
         try:
-            if not ctx.config["urls"]:
+            _explorer_on = (ctx.config.get("explorer", {}).get("enabled", False)
+                            and ctx.config.get("explorer", {}).get("gate_url", "").strip())
+            if not _explorer_on and not ctx.config["urls"]:
                 print(f"Worker {wid}: No URLs configured")
                 return
 
@@ -623,8 +625,8 @@ class SessionRunner:
                         url = url_data["url"].strip()
 
                         next_url = None
-                        if url_index + 1 < len(ctx.config["urls"]):
-                            next_data = ctx.config["urls"][url_index + 1]
+                        if url_index + 1 < len(_explorer_urls):
+                            next_data = _explorer_urls[url_index + 1]
                             next_url = next_data["url"].strip()
 
                         interaction_state.pop("pre_scanned_nav", None)

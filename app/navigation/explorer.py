@@ -41,12 +41,18 @@ def normalize_path(url: str) -> str:
         return "/"
 
 
+def _strip_www(domain: str) -> str:
+    """Remove leading www. prefix from domain."""
+    d = domain.lower()
+    return d[4:] if d.startswith("www.") else d
+
+
 def _is_same_domain(href_domain: str, gate_domain: str) -> bool:
     """Check if href domain matches gate domain (including subdomains)."""
     if not href_domain or not gate_domain:
         return False
-    href_clean = href_domain.lower().lstrip("www.")
-    gate_clean = gate_domain.lower().lstrip("www.")
+    href_clean = _strip_www(href_domain)
+    gate_clean = _strip_www(gate_domain)
     return href_clean == gate_clean or href_clean.endswith(f".{gate_clean}")
 
 

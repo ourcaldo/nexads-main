@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T19:00:00+00:00
+- Short description: Fix 3 bugs found during explorer mode deep review
+- What you do: (1) Fixed _is_same_domain() using lstrip("www.") which strips individual characters, not a prefix — replaced with proper _strip_www() helper using startswith check. (2) Fixed run() early return checking only config["urls"] — now also checks explorer mode so empty URL list doesn't abort when explorer is enabled. (3) Fixed next_url lookup referencing ctx.config["urls"] instead of _explorer_urls. (4) Removed unnecessary f-string on query_selector_all call.
+- File path that changes: app/navigation/explorer.py; app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T18:30:00+00:00
 - Short description: Implement explorer mode — autonomous same-domain browsing
 - What you do: Added explorer mode that replaces fixed URL sequences with autonomous same-domain browsing. User provides one gate URL, automation discovers and clicks internal links to navigate. Changes: (1) New app/navigation/explorer.py with link discovery, quality filtering (blocks login/admin/cart/download links), visited tracking, and weighted link selection. (2) New _run_explorer_session() method in session.py that loops: activity on page → discover links → SmartClick a link → repeat until session ends. Dead-end fallback uses page.go_back(). (3) Config schema: added "explorer" section (enabled, gate_url, min_time, max_time), removed "random_page" field from URLs. (4) GUI: added Explorer Mode checkbox with gate URL input and per-page min/max time; URL table now 4 columns (removed Random Page column); explorer/sequential sections toggle visibility. (5) process_ads_tabs updated to recognize gate domain in explorer mode. (6) Backward compat: old configs with random_page are silently stripped on load.
