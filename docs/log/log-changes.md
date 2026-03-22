@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T07:20:00+00:00
+- Short description: Fix Facebook referrer not being detected by target sites
+- What you do: Facebook's interstitial page strips the Referer header via rel="noreferrer". Changed navigate_facebook_referrer() to extract the destination URL from the interstitial link instead of clicking it, then navigate with Playwright's page.goto(url, referer=...) parameter to explicitly set the Referer header. Also changed fallback path to use goto referer param instead of set_extra_http_headers.
+- File path that changes: app/navigation/facebook.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T07:00:00+00:00
 - Short description: Refactor referrer.py into organic.py, facebook.py, and slim dispatch + restore all social platforms
 - What you do: Split 370-line referrer.py into 3 files: organic.py (Google search, cookies, GDPR, human typing), facebook.py (fbclid generation, l.facebook.com redirect, interstitial handling), and referrer.py (slim dispatch with re-exports for backward compat). Restored all 8 social platforms to referrers.json (Instagram, LinkedIn, Snapchat, Telegram, Threads, TikTok, Twitter) alongside Facebook's h_tokens structure. referrer.py get_social_referrer() handles both list-format (other platforms) and dict-format (Facebook) entries.

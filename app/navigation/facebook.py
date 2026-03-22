@@ -62,11 +62,14 @@ async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
                                      is_mobile: bool = False) -> bool:
     """Navigate through Facebook's l.facebook.com link shim to reach target URL.
 
-    Handles the "Leaving Facebook" interstitial by detecting and clicking through it.
-    Falls back to header-based approach if the redirect fails.
+    Visits l.facebook.com first (realistic browser history), then navigates to
+    the target with an explicit referer header. Facebook's interstitial strips
+    the Referer via rel="noreferrer", so we extract the destination and navigate
+    with Playwright's referer param to preserve it.
     """
     redirect_url = build_facebook_redirect_url(target_url, is_mobile)
     domain = "lm.facebook.com" if is_mobile else "l.facebook.com"
+    referer = f"https://{domain}/"
     target_domain = _extract_target_domain(target_url)
 
     print(f"Worker {worker_id}: Navigating through {domain} link shim")
@@ -77,15 +80,18 @@ async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
 
         current_url = page.url
 
-        # --- Check if we landed on the target already ---
+        # --- Check if we landed on the target already (302 redirect worked) ---
         if target_domain in current_url:
             print(f"Worker {worker_id}: Facebook redirect succeeded directly: {current_url}")
             return True
 
         # --- Handle "Leaving Facebook" interstitial ---
+        # Instead of clicking (which strips referer via rel="noreferrer"),
+        # extract the destination URL and navigate with explicit referer.
         if "facebook.com" in current_url:
-            print(f"Worker {worker_id}: Hit Facebook interstitial, attempting to click through")
+            print(f"Worker {worker_id}: Hit Facebook interstitial, extracting destination")
 
+            destination_url = None
             interstitial_selectors = [
                 f'a[href*="{target_domain}"]',
                 'a:has-text("Follow Link")',
@@ -101,47 +107,48 @@ async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
                 try:
                     link = await page.query_selector(selector)
                     if link and await link.is_visible():
-                        print(f"Worker {worker_id}: Found interstitial link: {selector}")
-                        await link.click(timeout=10000)
-                        await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                        await asyncio.sleep(random.uniform(1.0, 2.0))
-
-                        if target_domain in page.url:
-                            print(f"Worker {worker_id}: Successfully clicked through interstitial: {page.url}")
-                            return True
+                        href = await link.get_attribute("href")
+                        if href and target_domain in href:
+                            destination_url = href
+                            print(f"Worker {worker_id}: Found destination in interstitial: {selector}")
+                            break
                 except Exception:
                     continue
 
-            # Last resort: try clicking any visible link matching target domain
-            try:
-                all_links = await page.query_selector_all("a[href]:visible")
-                for link in all_links:
-                    try:
-                        href = await link.get_attribute("href")
-                        if href and target_domain in href:
-                            await link.click(timeout=10000)
-                            await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                            await asyncio.sleep(1)
-                            if target_domain in page.url:
-                                print(f"Worker {worker_id}: Clicked through via href match: {page.url}")
-                                return True
-                    except Exception:
-                        continue
-            except Exception:
-                pass
+            # Last resort: scan all visible links for target domain
+            if not destination_url:
+                try:
+                    all_links = await page.query_selector_all("a[href]:visible")
+                    for link in all_links:
+                        try:
+                            href = await link.get_attribute("href")
+                            if href and target_domain in href:
+                                destination_url = href
+                                break
+                        except Exception:
+                            continue
+                except Exception:
+                    pass
 
-        # --- Fallback: header-based approach ---
-        print(f"Worker {worker_id}: Facebook redirect failed, falling back to header approach")
-        referer = f"https://{domain}/"
+            if destination_url:
+                print(f"Worker {worker_id}: Navigating to target with Facebook referer")
+                await page.goto(destination_url, timeout=30000,
+                                wait_until="domcontentloaded", referer=referer)
+                await asyncio.sleep(random.uniform(1.5, 3.0))
+                if target_domain in page.url:
+                    print(f"Worker {worker_id}: Successfully reached target via interstitial: {page.url}")
+                    return True
+
+        # --- Fallback: direct navigation with referer ---
+        print(f"Worker {worker_id}: Using direct navigation with Facebook referer")
         fbclid = generate_fbclid()
         separator = "&" if "?" in target_url else "?"
         fallback_url = f"{target_url}{separator}fbclid={fbclid}"
 
-        await page.set_extra_http_headers({"referer": referer})
-        await page.goto(fallback_url, timeout=30000, wait_until="domcontentloaded")
+        await page.goto(fallback_url, timeout=30000,
+                        wait_until="domcontentloaded", referer=referer)
         await asyncio.sleep(random.uniform(1.5, 3.0))
-        await page.set_extra_http_headers({})
-        print(f"Worker {worker_id}: Fallback header approach used: {page.url}")
+        print(f"Worker {worker_id}: Fallback with referer used: {page.url}")
         return True
 
     except Exception as e:
