@@ -73,6 +73,18 @@ python main.py               # Run automation (reads config.json)
 python main.py --config      # Open PyQt5 configuration GUI
 ```
 
+### Deploy Runner (GitHub Actions)
+Manages nexads deployment across multiple GitHub accounts as Actions workflows.
+Requires `tokens.txt` in repo root (format: `name:ghp_token` per line).
+```bash
+python scripts/deploy-runner.py init        # First time: create repos, push workflow, trigger
+python scripts/deploy-runner.py redeploy    # Cancel running + re-trigger
+python scripts/deploy-runner.py update      # Re-push workflow YAML + trigger
+python scripts/deploy-runner.py status      # Check running workflow status
+python scripts/deploy-runner.py stop        # Cancel all running workflows
+# Options: -w <workers> (default 20), -m <minutes> (default 180)
+```
+
 ### Testing
 No test framework is configured. No tests exist. If adding tests, use `pytest`:
 ```bash
