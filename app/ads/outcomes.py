@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import random
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -150,10 +151,29 @@ async def evaluate_ad_click_outcome(page, context,
     poll_ms = timing_ms("ad_poll")
     ceiling_ms = int(max(1.0, max_wait_seconds) * 1000)
     elapsed_ms = 0
+    poll_count = 0
+
+    # Cursor jitter state — simulate hand resting on mouse while watching page load
+    viewport = page.viewport_size or {"width": 1280, "height": 720}
+    jitter_x = float(viewport["width"]) * random.uniform(0.3, 0.7)
+    jitter_y = float(viewport["height"]) * random.uniform(0.3, 0.7)
+
     try:
         while elapsed_ms < ceiling_ms:
             await page.wait_for_timeout(poll_ms)
             elapsed_ms += poll_ms
+            poll_count += 1
+
+            # Small mouse micro-movement every ~700ms (every 2nd poll)
+            if poll_count % 2 == 0:
+                try:
+                    jitter_x += random.uniform(-6, 6)
+                    jitter_y += random.uniform(-4, 4)
+                    jitter_x = max(10, min(jitter_x, viewport["width"] - 10))
+                    jitter_y = max(10, min(jitter_y, viewport["height"] - 10))
+                    await page.mouse.move(jitter_x, jitter_y)
+                except Exception:
+                    pass
 
             tabs_now = len(context.pages)
             try:

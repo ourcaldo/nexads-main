@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T16:00:00+00:00
+- Short description: Gap 8 — Add mouse micro-jitter during ad click outcome monitoring
+- What you do: Added cursor micro-movement (2-6px drift every ~700ms) during the evaluate_ad_click_outcome() poll loop. Simulates a real user's hand resting on mouse while watching the ad landing page load. Jitter starts at a random viewport position and drifts slightly each cycle. Does not interfere with navigation detection — only mouse.move, no clicks or scrolls.
+- File path that changes: app/ads/outcomes.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T15:30:00+00:00
 - Short description: Update CLAUDE.md with centralized timing system documentation
 - What you do: Rewrote CLAUDE.md to document the centralized timing system (app/core/timings.py) as a critical section. Added rules: never hardcode delays, always use timing_ms/timing_seconds, how to add new delays, what exceptions exist (Playwright timeouts, config-based stay times, mouse movement math). Updated repository structure to reflect current files (session.py, timings.py, consent.py, click.py, etc.). Updated Browser Automation Conventions to reference timing_ms/timing_seconds instead of random.randint/random.uniform. Updated dependency injection section to reference SessionRunner.
