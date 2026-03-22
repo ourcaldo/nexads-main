@@ -58,6 +58,14 @@ def _extract_target_domain(target_url: str) -> str:
     return target_url.split("//")[-1].split("/")[0]
 
 
+def _ensure_fbclid(url: str) -> str:
+    """Append a generated fbclid to URL if not already present."""
+    if "fbclid=" in url:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}fbclid={generate_fbclid()}"
+
+
 async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
                                      is_mobile: bool = False) -> bool:
     """Navigate through Facebook's l.facebook.com link shim to reach target URL.
@@ -81,8 +89,15 @@ async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
         current_url = page.url
 
         # --- Check if we landed on the target already (302 redirect worked) ---
+        # Facebook strips fbclid for non-logged-in browsers, so re-append if missing.
         if target_domain in current_url:
-            print(f"Worker {worker_id}: Facebook redirect succeeded directly: {current_url}")
+            if "fbclid=" not in current_url:
+                final_url = _ensure_fbclid(current_url)
+                print(f"Worker {worker_id}: Direct redirect landed without fbclid, re-navigating")
+                await page.goto(final_url, timeout=30000,
+                                wait_until="domcontentloaded", referer=referer)
+                await asyncio.sleep(random.uniform(1.0, 2.0))
+            print(f"Worker {worker_id}: Facebook redirect succeeded: {page.url}")
             return True
 
         # --- Handle "Leaving Facebook" interstitial ---
@@ -131,6 +146,7 @@ async def navigate_facebook_referrer(page, target_url: str, worker_id: int,
                     pass
 
             if destination_url:
+                destination_url = _ensure_fbclid(destination_url)
                 print(f"Worker {worker_id}: Navigating to target with Facebook referer")
                 await page.goto(destination_url, timeout=30000,
                                 wait_until="domcontentloaded", referer=referer)
