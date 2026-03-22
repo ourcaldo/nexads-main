@@ -248,6 +248,9 @@ class SessionRunner:
             interaction_state.pop("ad_attempted_this_page", None)
             interaction_state.pop("ad_min_engagement_ratio", None)
 
+            # Disable random_click during explorer — explorer handles its own navigation
+            interaction_state["explorer_mode"] = True
+
             print(f"Worker {wid}: Explorer staying {stay_time}s on page {page_count}")
             _emit_step(
                 "explorer_page", "started",
@@ -261,6 +264,8 @@ class SessionRunner:
                 is_ads_session, interaction_state,
                 target_url=current_url,
             )
+
+            interaction_state.pop("explorer_mode", None)
 
             _emit_step(
                 "explorer_page", "ok",
@@ -634,7 +639,7 @@ class SessionRunner:
                         interaction_state.pop("ad_min_engagement_ratio", None)
 
                         print(
-                            f"Worker {wid}: [URL {url_index + 1}/{len(ctx.config['urls'])}] Visiting: {url}"
+                            f"Worker {wid}: [URL {url_index + 1}/{len(_explorer_urls)}] Visiting: {url}"
                         )
                         url_step_started = time.time()
                         _emit_step(
