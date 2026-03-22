@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T07:00:00+00:00
+- Short description: Refactor referrer.py into organic.py, facebook.py, and slim dispatch + restore all social platforms
+- What you do: Split 370-line referrer.py into 3 files: organic.py (Google search, cookies, GDPR, human typing), facebook.py (fbclid generation, l.facebook.com redirect, interstitial handling), and referrer.py (slim dispatch with re-exports for backward compat). Restored all 8 social platforms to referrers.json (Instagram, LinkedIn, Snapchat, Telegram, Threads, TikTok, Twitter) alongside Facebook's h_tokens structure. referrer.py get_social_referrer() handles both list-format (other platforms) and dict-format (Facebook) entries.
+- File path that changes: app/navigation/organic.py (new); app/navigation/facebook.py (new); app/navigation/referrer.py; referrers.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T06:40:00+00:00
 - Short description: Implement Facebook referrer via l.facebook.com natural redirect (Option 1)
 - What you do: Added build_facebook_redirect_url() that constructs l.facebook.com/l.php?u=<target_with_fbclid>&h=<real_h> using harvested h tokens from referrers.json. Added async navigate_facebook_referrer() that navigates through the redirect chain and handles the "Leaving Facebook" interstitial by detecting and clicking through it, with fallback to header-based approach. Updated get_social_referrer() to return navigate_fn flag for Facebook. Updated session.py to use navigate_facebook_referrer() for Facebook, header approach for other platforms. Updated referrers.json to store h_tokens pool instead of static URLs.
