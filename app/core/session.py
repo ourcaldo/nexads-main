@@ -10,7 +10,7 @@ import time
 
 from app.browser.setup import configure_browser, cleanup_browser
 from app.browser.activities import perform_random_activity
-from app.browser.humanization import lognormal_seconds
+from app.browser.humanization import gaussian_ms, lognormal_seconds
 from app.navigation.urls import (
     extract_domain,
     check_page_health,
@@ -22,6 +22,7 @@ from app.navigation.referrer import (
     perform_organic_search,
     accept_google_cookies,
     navigate_social_referrer,
+    get_social_referrer,
     warm_google_profile,
 )
 from app.navigation.consent import handle_consent_dialog, try_dismiss_consent
@@ -365,6 +366,49 @@ class SessionRunner:
                     # --- GOOGLE PROFILE WARM-UP (not counted in session time) ---
                     await warm_google_profile(page, wid, ctx.config, max_seconds=60)
 
+                    # --- VISIT SOCIAL PLATFORM FOR COOKIES (if social referrer) ---
+                    referrer_types = ctx.config["referrer"]["types"]
+                    _pre_referrer_type = random.choice(referrer_types)
+                    _pre_social_info = None
+
+                    if _pre_referrer_type == "social":
+                        is_mobile = interaction_state.get("is_mobile", False)
+                        _pre_social_info = get_social_referrer("", is_mobile)
+                        platform = _pre_social_info["platform"]
+                        _PLATFORM_HOMEPAGES = {
+                            "Facebook": "https://www.facebook.com/",
+                            "Instagram": "https://www.instagram.com/",
+                            "Linkedin": "https://www.linkedin.com/",
+                            "Snapchat": "https://www.snapchat.com/",
+                            "Threads": "https://www.threads.net/",
+                            "Tiktok": "https://www.tiktok.com/",
+                            "Twitter": "https://x.com/",
+                        }
+                        homepage = _PLATFORM_HOMEPAGES.get(platform)
+                        if homepage:
+                            print(f"Worker {wid}: Visiting {platform} for cookies")
+                            try:
+                                await page.goto(
+                                    homepage, timeout=20000,
+                                    wait_until="domcontentloaded",
+                                )
+                                await page.wait_for_timeout(
+                                    gaussian_ms(1200, 300, 600, 2200)
+                                )
+                                await page.mouse.wheel(0, random.randint(150, 400))
+                                await page.wait_for_timeout(
+                                    gaussian_ms(500, 120, 250, 900)
+                                )
+                                await page.mouse.wheel(0, random.randint(100, 300))
+                                await page.wait_for_timeout(
+                                    gaussian_ms(400, 100, 200, 800)
+                                )
+                                print(f"Worker {wid}: {platform} cookies acquired")
+                            except Exception as e:
+                                print(
+                                    f"Worker {wid}: {platform} visit error (non-fatal): {str(e)}"
+                                )
+
                     # --- URL PROCESSING ---
                     for url_index, url_data in enumerate(ctx.config["urls"]):
                         if not ctx.running:
@@ -404,8 +448,7 @@ class SessionRunner:
 
                         # --- FIRST URL ---
                         if url_index == 0:
-                            referrer_types = ctx.config["referrer"]["types"]
-                            referrer_type = random.choice(referrer_types)
+                            referrer_type = _pre_referrer_type
 
                             if referrer_type == "social":
                                 is_mobile = interaction_state.get("is_mobile", False)

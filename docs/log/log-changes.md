@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T10:30:00+00:00
+- Short description: Add social platform visit for cookies between warm-up and session
+- What you do: After Google warm-up and before the URL processing loop, determine the referrer type early. If social, visit the platform homepage (Facebook, Instagram, LinkedIn, etc.) briefly to acquire that platform's cookies — scroll twice, then continue. The existing referrer handlers remain unchanged (they still set headers + tracking params). The URL loop now reuses the pre-determined referrer type instead of picking a new random one.
+- File path that changes: app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T10:15:00+00:00
 - Short description: Fix warm-up to cycle multiple keywords quickly and end on Google
 - What you do: Rewrote warm_google_profile() loop — reduced all delays (search results scroll, page visit, go-back), samples up to 5 keywords instead of 3, uses domcontentloaded instead of networkidle for faster page loads, single quick scroll per result page instead of 1-3 long scrolls. Added end-of-warmup check that navigates back to Google if not already there, so the session referrer flow transitions naturally (organic reuses Google page, social navigates away, direct goes straight).
