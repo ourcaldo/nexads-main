@@ -15,9 +15,8 @@ venv/
 .vscode/
 .idea/
 
-# Proxy credentials
-proxy.txt
-socks5.txt
+# Deployment tokens (SENSITIVE)
+tokens.txt
 
 # Runtime data
 data/*.jsonl

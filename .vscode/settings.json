@@ -4,5 +4,6 @@
     "claudeCode.preferredLocation": "sidebar",
     "claudeCode.environmentVariables": [
         
-    ]
+    ],
+    "claudeCode.useTerminal": true
 }

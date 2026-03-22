@@ -1,0 +1,66 @@
+name: Run nexAds
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_workers:
+        description: "Number of parallel runner VMs"
+        required: false
+        default: "20"
+        type: string
+      run_minutes:
+        description: "Run duration in minutes"
+        required: false
+        default: "180"
+        type: string
+
+jobs:
+  prepare:
+    name: Build Worker Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.gen.outputs.matrix }}
+    steps:
+      - name: Generate matrix
+        id: gen
+        run: |
+          python3 -c "
+          import json, os
+          n = int('${{ inputs.num_workers }}')
+          matrix = {'worker_id': list(range(1, n + 1))}
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'matrix={json.dumps(matrix)}\n')
+          print(f'Matrix: {n} worker(s)')
+          "
+
+  run-nexads:
+    name: "Worker ${{ matrix.worker_id }}"
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Clone nexads
+        run: |
+          git clone https://github.com/ourcaldo/nexads-main.git .
+
+      - name: Setup and install dependencies
+        run: |
+          RUN_IN_BACKGROUND=0 bash scripts/setup_ubuntu.sh
+
+      - name: Run nexAds
+        run: |
+          timeout ${{ inputs.run_minutes }}m python3 main.py || echo "Session completed after ${{ inputs.run_minutes }} minutes"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-worker-${{ matrix.worker_id }}-${{ github.run_id }}
+          path: |
+            nexads.log
+            data/
+          if-no-files-found: warn

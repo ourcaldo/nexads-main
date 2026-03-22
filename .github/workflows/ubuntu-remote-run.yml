@@ -1,0 +1,140 @@
+name: Ubuntu Remote Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repository:
+        description: "Target repo in owner/name format (leave empty to use current repo)"
+        required: false
+        default: ""
+        type: string
+      target_repositories:
+        description: "Optional comma/newline-separated owner/name repos to run in one go"
+        required: false
+        default: ""
+        type: string
+      target_ref:
+        description: "Branch, tag, or commit to run"
+        required: true
+        default: "main"
+        type: string
+      run_script:
+        description: "Setup script path inside target repo"
+        required: true
+        default: "scripts/setup_ubuntu.sh"
+        type: string
+      startup_wait_seconds:
+        description: "How long to let main.py run before stopping"
+        required: true
+        default: "30"
+        type: string
+
+jobs:
+  prepare-targets:
+    name: Prepare Target Repository Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+
+    steps:
+      - name: Build matrix from inputs
+        id: build-matrix
+        shell: bash
+        env:
+          INPUT_TARGET_REPOSITORY: ${{ inputs.target_repository }}
+          INPUT_TARGET_REPOSITORIES: ${{ inputs.target_repositories }}
+          CURRENT_REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          current_repo = os.environ.get("CURRENT_REPOSITORY", "").strip()
+          single = os.environ.get("INPUT_TARGET_REPOSITORY", "").strip()
+          bulk = os.environ.get("INPUT_TARGET_REPOSITORIES", "")
+
+          repos = []
+          for raw in bulk.replace("\n", ",").split(","):
+              repo = raw.strip()
+              if repo:
+                  repos.append(repo)
+
+          if not repos:
+              repos = [single or current_repo]
+
+          deduped = []
+          seen = set()
+          for repo in repos:
+              if repo not in seen:
+                  deduped.append(repo)
+                  seen.add(repo)
+
+          matrix = {"repository": deduped}
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"matrix={json.dumps(matrix)}\n")
+
+          print(f"Prepared repositories: {deduped}")
+          PY
+
+  run-on-ubuntu:
+    name: Provision Ubuntu and Run nexAds
+    needs: prepare-targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare-targets.outputs.matrix) }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ inputs.target_ref }}
+          token: ${{ secrets.CROSS_ACCOUNT_PAT || github.token }}
+
+      - name: Show selected target
+        run: |
+          echo "Runner repository: ${{ github.repository }}"
+          echo "Checked out target repository: ${{ matrix.repository }}"
+          echo "Target ref: ${{ inputs.target_ref }}"
+
+      - name: Make scripts executable
+        run: |
+          chmod +x scripts/setup_ubuntu.sh
+          chmod +x scripts/stop_nexads.sh
+
+      - name: Run Ubuntu setup script (no auto background start)
+        run: |
+          RUN_IN_BACKGROUND=0 bash "${{ inputs.run_script }}"
+
+      - name: Start nexAds briefly
+        run: |
+          nohup setsid python3 main.py > nexads.log 2>&1 < /dev/null &
+          MAIN_PID=$!
+          echo "Started main.py with PID: ${MAIN_PID}"
+          sleep "${{ inputs.startup_wait_seconds }}"
+          if kill -0 "${MAIN_PID}" 2>/dev/null; then
+            echo "main.py is running after wait period."
+          else
+            echo "main.py exited early."
+          fi
+
+      - name: Stop nexAds cleanly
+        if: always()
+        run: |
+          bash scripts/stop_nexads.sh || true
+
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexads-run-logs-${{ github.run_id }}-${{ matrix.repository }}
+          path: |
+            nexads.log
+            data/worker_errors.jsonl
+            data/worker_events.jsonl
+            data/telemetry_mobile.jsonl
+          if-no-files-found: warn

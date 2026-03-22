@@ -7,7 +7,8 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\(''ui.py''\\).read\\(\\)\\); print\\(''ui.py: syntax OK''\\)\")",
       "mcp__exa__web_search_exa",
       "Bash(python:*)",
-      "mcp__exa__crawling_exa"
+      "mcp__exa__crawling_exa",
+      "mcp__exa__get_code_context_exa"
     ]
   },
   "enabledPlugins": {
