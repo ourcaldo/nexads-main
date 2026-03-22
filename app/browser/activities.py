@@ -517,11 +517,19 @@ async def perform_random_activity(
             phase = _get_reading_phase(progress)
 
             # --- Priority ad attempt: once per page on ads sessions ---
+            # Require minimum engagement before attempting ad click
+            if "ad_min_engagement_ratio" not in interaction_state:
+                interaction_state["ad_min_engagement_ratio"] = random.uniform(0.15, 0.35)
+            min_ratio = interaction_state["ad_min_engagement_ratio"]
+            time_engaged = time.time() - activity_start
+            enough_engagement = time_engaged >= (stay_time * min_ratio)
+
             if (
                 is_ads_session
                 and interact_with_ads_fn
                 and not interaction_state.get("ad_attempted_this_page")
                 and not interaction_state.get("ad_click_success")
+                and enough_engagement
             ):
                 await _attempt_ad_interaction(
                     page, browser, worker_id, config, interaction_state,

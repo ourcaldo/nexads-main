@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T11:40:00+00:00
+- Short description: Gap 3 DONE — Require minimum engagement before ad click
+- What you do: Added time gate to priority ad attempt in perform_random_activity(). Ad click now requires 15-35% of stay_time to have passed with normal activities (scroll, hover) before attempting. The ratio is randomized per page via interaction_state["ad_min_engagement_ratio"]. Ad is still priority (guaranteed to happen), just delayed so it doesn't fire on the first loop iteration.
+- File path that changes: app/browser/activities.py; docs/plans/2026-03-22-anti-detection-gaps.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T11:30:00+00:00
 - Short description: Gap 2 DONE — Add pre-hover on ads before clicking
 - What you do: Added pre-hover phase in smart_click() for ad clicks (is_ad_activity=True). Before clicking an ad, the mouse now: (1) moves near the ad edge — simulates noticing it, (2) moves into the ad bounding box — simulates reading it with 300-1400ms dwell, (3) optionally moves to a second hover point (40% chance) — simulates scanning, (4) moves to final click point. Normal non-ad clicks are unchanged. All hover points clamped to viewport and ad bounds.

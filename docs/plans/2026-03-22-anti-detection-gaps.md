@@ -78,7 +78,7 @@ When is_ad_activity=True:
 
 ---
 
-## Gap 3: Ad is clicked on first activity loop iteration — no pre-engagement
+## Gap 3: Ad is clicked on first activity loop iteration — no pre-engagement — DONE
 
 ### Risk: HIGH
 
