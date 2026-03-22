@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T08:30:00+00:00
+- Short description: Remove h_tokens from referrers.json — no longer needed with Option 2
+- What you do: Removed h_tokens array from Facebook entry in referrers.json and changed Facebook to list format matching other platforms. h_tokens were only needed for Option 1 (l.facebook.com redirect) which was replaced by Option 2 (direct header approach).
+- File path that changes: referrers.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T08:10:00+00:00
 - Short description: Clean up facebook.py — Option 2 with fbclid, remove dead Option 1 code
 - What you do: Added fbclid parameter to target URL (was missing). Removed all Option 1 dead code: build_facebook_redirect_url, _extract_target_domain, _ensure_fbclid, referrers.json reading, interstitial handling. facebook.py now ~60 lines: generate fbclid, set referer header, goto target?fbclid=..., clear header.
