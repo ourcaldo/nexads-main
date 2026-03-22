@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T10:50:00+00:00
+- Short description: Update config.json (threads, referrer types) + add git check rule to CLAUDE.md
+- What you do: User changed config.json: threads 10→5, removed "direct" from referrer types. Added rule to CLAUDE.md Agent Behaviour: always run git status/diff before pushing to catch user changes.
+- File path that changes: config.json; .claude/CLAUDE.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T10:40:00+00:00
 - Short description: Fix platform mismatch in social referrer + warm-up search input timeout
 - What you do: Fixed two bugs: (1) navigate_social_referrer() now accepts optional platform param so session.py can pass the pre-determined platform — prevents mismatch where pre-visit is Facebook but handler picks Snapchat. (2) warm_google_profile() now retries finding the search input if consent dialog blocks it — tries accept_google_cookies again, reloads Google if needed, breaks gracefully if still blocked.

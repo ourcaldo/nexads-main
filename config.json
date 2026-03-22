@@ -26,7 +26,7 @@
         "min_time": 5,
         "max_time": 10
     },
-    "threads": 10,
+    "threads": 5,
     "os_fingerprint": [
         "windows",
         "macos",
@@ -38,7 +38,6 @@
     },
     "referrer": {
         "types": [
-            "direct",
             "social"
         ],
         "organic_keywords": "How Insurance Adjusters Review Injury Claims Without Missing a Detail\nHow a Lawyer Can Help You Get a Higher Insurance Settlement Offer camar"
