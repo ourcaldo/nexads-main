@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T17:30:00+00:00
+- Short description: Explorer mode implementation plan
+- What you do: Wrote comprehensive implementation plan for explorer mode — autonomous same-domain browsing that replaces fixed URL sequences. Covers: config schema (new explorer section), GUI changes (explorer toggle, gate URL input, remove Random Page column), new link discovery module (app/navigation/explorer.py), explorer session loop, SmartClick integration, process_ads_tabs compatibility, sequential mode cleanup (remove random_page/comma-separated URLs), and backward compatibility. 7 tasks, 7 files affected.
+- File path that changes: docs/plans/2026-03-22-explorer-mode.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T17:00:00+00:00
 - Short description: Gap 6 & Gap 9 — improve social visit realism and randomize initial cursor
 - What you do: Gap 9: Changed get_cursor_start() to return a random position within the central 60% of the viewport instead of exact center. Each session now starts with a unique cursor position. Gap 6: Replaced the fixed 2-scroll social platform visit with realistic browsing — cursor movement to random viewport position, 1-3 varied scroll events, 35% chance to hover on a visible element with humanized mouse movement, and an idle settle period. Added move_mouse_humanly/get_cursor_start/set_cursor_position imports to session.py. All 9 anti-detection gaps now complete.
