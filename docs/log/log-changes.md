@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T08:00:00+00:00
+- Short description: Switch Facebook referrer to Option 2 — direct header approach
+- What you do: Removed l.facebook.com visit and interstitial handling entirely. Camoufox cannot preserve the referer through Facebook's interstitial (tested page.goto referer param and set_extra_http_headers — neither works after visiting facebook.com). Now uses simple Option 2: set_extra_http_headers with referer, goto target directly, clear headers.
+- File path that changes: app/navigation/facebook.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T07:50:00+00:00
 - Short description: Fix Facebook referer not detected — use set_extra_http_headers instead of goto referer param
 - What you do: page.goto(referer=...) does not work in Camoufox (Firefox-based) — the browser Referrer-Policy from the Facebook page overrides it. Replaced with _goto_with_referer() helper that uses page.set_extra_http_headers({"referer": ...}) before navigation (protocol-level injection), then clears after. Removed _ensure_fbclid() from interstitial path since real non-login Facebook traffic has no fbclid.
