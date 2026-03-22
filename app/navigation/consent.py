@@ -245,6 +245,6 @@ async def handle_consent_dialog(page, worker_id: int, max_wait_seconds: int = 12
         if not await _is_any_dialog_visible(page):
             return {"status": "resolved", "reason": f"clicked_{strategy}", "attempts": attempts}
 
-        await asyncio.sleep(min(0.9, max(0.2, random.random() * 0.7 + 0.1)))
+        await asyncio.sleep(timing_seconds("consent_retry"))
 
     return {"status": "unresolved", "reason": "timeout", "attempts": attempts}

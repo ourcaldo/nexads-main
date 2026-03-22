@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T15:15:00+00:00
+- Short description: Fix missed hardcoded delay in consent.py retry loop
+- What you do: Replaced last remaining hardcoded timing (random 0.2-0.9s sleep) in handle_consent_dialog() retry loop with timing_seconds("consent_retry") from centralized timings.
+- File path that changes: app/navigation/consent.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T15:00:00+00:00
 - Short description: Centralized timing system — replace all hardcoded delays with app/core/timings.py
 - What you do: Created app/core/timings.py with ~50 named timing entries (min/max ms, lognormal distribution via geometric mean). Replaced all hardcoded delays (gaussian_ms, lognormal_seconds, random.randint, random.uniform, asyncio.sleep(N)) across the entire codebase with timing_ms()/timing_seconds() calls. Removed config.json "delay" section (page settle timing now in timings.py). Removed Delay Settings group from GUI. Updated desktop.py and mobile.py to use timing_seconds("page_settle") instead of get_random_delay_fn(). Categories: page navigation, activity loop, scroll, hover, click, ad interaction, tab management, natural exit, social platform, referrer, consent, Google warm-up, worker/session.
