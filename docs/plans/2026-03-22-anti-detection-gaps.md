@@ -6,7 +6,7 @@
 
 ---
 
-## Gap 1: Scroll uses JS `window.scrollBy()` instead of `page.mouse.wheel()`
+## Gap 1: Scroll uses JS `window.scrollBy()` instead of `page.mouse.wheel()` — DONE
 
 ### Risk: HIGH
 

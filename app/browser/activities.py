@@ -186,17 +186,13 @@ async def random_scroll(
             if current_step == 0:
                 current_step = 15 if direction > 0 else -15
 
-            await page.evaluate(
-                "(distance) => window.scrollBy(0, distance)", current_step
-            )
+            await page.mouse.wheel(0, current_step)
             await page.wait_for_timeout(gaussian_ms(190, 70, 80, 450))
 
             # Micro-corrections in opposite direction simulate wheel overshoot.
             if random.random() < 0.22:
                 correction = int(-current_step * random.uniform(0.12, 0.28))
-                await page.evaluate(
-                    "(distance) => window.scrollBy(0, distance)", correction
-                )
+                await page.mouse.wheel(0, correction)
                 await page.wait_for_timeout(gaussian_ms(120, 40, 55, 240))
 
         direction_text = "down" if direction > 0 else "up"

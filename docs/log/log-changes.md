@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T11:20:00+00:00
+- Short description: Gap 1 DONE — Replace all JS scroll injection with page.mouse.wheel
+- What you do: Replaced all window.scrollBy/scrollTo JS evaluate calls with page.mouse.wheel() to generate real WheelEvents. Fixed 4 locations: random_scroll() main step and micro-correction (activities.py), natural_exit linger scroll (tabs.py), scroll-to-top before link scanning (urls.py — now scrolls up in steps). Verified zero remaining JS scroll calls in app/.
+- File path that changes: app/browser/activities.py; app/navigation/tabs.py; app/navigation/urls.py; docs/plans/2026-03-22-anti-detection-gaps.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T11:10:00+00:00
 - Short description: Add anti-detection gaps implementation plan
 - What you do: Created detailed implementation plan for 9 identified anti-detection gaps. Each gap includes: problem description with exact file/line references, fix strategy, implementation details with code snippets, files to change, and acceptance criteria. Gaps ranked by detection risk (HIGH/MEDIUM/LOW) with recommended implementation order.

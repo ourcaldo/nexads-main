@@ -170,7 +170,15 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
 
             # Scroll to top so header/nav links are visible and interactable
             try:
-                await page.evaluate("window.scrollTo(0, 0)")
+                current_y = await page.evaluate("window.scrollY")
+                if current_y > 0:
+                    # Scroll up in steps to generate real WheelEvents
+                    remaining = int(current_y)
+                    while remaining > 0:
+                        step = min(remaining, random.randint(400, 800))
+                        await page.mouse.wheel(0, -step)
+                        remaining -= step
+                        await page.wait_for_timeout(random.randint(50, 120))
                 await page.wait_for_timeout(random.randint(300, 700))
             except Exception:
                 pass

@@ -430,10 +430,7 @@ async def natural_exit(browser_context, worker_id: int, get_random_delay_fn):
                         await asyncio.sleep(lognormal_seconds(1.4, 0.4, 0.5, 3.0))
                     elif strategy == "linger":
                         if random.random() < 0.55:
-                            await page.evaluate(
-                                "(distance) => window.scrollBy(0, distance)",
-                                int(random.gauss(220, 90)),
-                            )
+                            await page.mouse.wheel(0, int(random.gauss(220, 90)))
                         await asyncio.sleep(lognormal_seconds(2.8, 0.5, 1.2, 7.0))
                     else:
                         await asyncio.sleep(lognormal_seconds(1.2, 0.4, 0.5, 3.0))
