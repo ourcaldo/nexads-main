@@ -466,7 +466,11 @@ class SessionRunner:
                                         raise SessionFailedException(
                                             "Social referrer navigation failed"
                                         )
-                                    await asyncio.sleep(3)
+                                    _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
+                                    _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
+                                    await asyncio.sleep(lognormal_seconds(
+                                        (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
+                                    ))
                                 except SessionFailedException:
                                     raise
                                 except Exception as e:
@@ -524,7 +528,11 @@ class SessionRunner:
                                     await page.goto(
                                         url, timeout=30000, wait_until="domcontentloaded"
                                     )
-                                    await asyncio.sleep(3)
+                                    _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
+                                    _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
+                                    await asyncio.sleep(lognormal_seconds(
+                                        (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
+                                    ))
                                 except Exception as e:
                                     print(
                                         f"Worker {wid}: Error visiting URL: {str(e)}"
@@ -568,7 +576,11 @@ class SessionRunner:
                                     await page.goto(
                                         url, timeout=30000, wait_until="domcontentloaded"
                                     )
-                                    await asyncio.sleep(3)
+                                    _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
+                                    _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
+                                    await asyncio.sleep(lognormal_seconds(
+                                        (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
+                                    ))
                                 except Exception as e:
                                     print(
                                         f"Worker {wid}: Error visiting URL: {str(e)}"
@@ -747,8 +759,13 @@ class SessionRunner:
                         if remaining_budget < float("inf") and stay_time > remaining_budget:
                             stay_time = max(1, int(remaining_budget))
 
-                        print(f"Worker {wid}: Waiting 3s for page to settle...")
-                        await asyncio.sleep(3)
+                        _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
+                        _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
+                        _settle_delay = lognormal_seconds(
+                            (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
+                        )
+                        print(f"Worker {wid}: Waiting {_settle_delay:.1f}s for page to settle...")
+                        await asyncio.sleep(_settle_delay)
 
                         print(
                             f"Worker {wid}: Staying on page for {stay_time} seconds"

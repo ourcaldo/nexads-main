@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T12:00:00+00:00
+- Short description: Gap 4 DONE — Replace all fixed 3s sleeps with config-based randomized delay
+- What you do: Replaced all 4 hardcoded asyncio.sleep(3) in session.py with lognormal delay using config["delay"]["min_time"] and config["delay"]["max_time"]. Fixed locations: after social referrer nav, after direct nav (first URL), after fallback direct nav (subsequent URLs), and page settle before activity loop. None of these delays count toward stay time.
+- File path that changes: app/core/session.py; docs/plans/2026-03-22-anti-detection-gaps.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T11:50:00+00:00
 - Short description: Reset ad engagement ratio per URL for varied timing
 - What you do: Added pop of ad_min_engagement_ratio in session.py between URLs so each page gets a fresh random engagement delay (15-35% of stay time). Previously the ratio was set once and reused across all URLs in a session.

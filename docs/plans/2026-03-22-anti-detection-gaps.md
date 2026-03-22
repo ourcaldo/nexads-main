@@ -126,7 +126,7 @@ After:
 
 ---
 
-## Gap 4: Fixed 3s sleep after every navigation
+## Gap 4: Fixed 3s sleep after every navigation — DONE
 
 ### Risk: MEDIUM
 
