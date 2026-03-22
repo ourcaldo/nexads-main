@@ -11,6 +11,8 @@ import asyncio
 import json
 import pathlib
 
+from app.core.timings import timing_seconds
+
 from app.navigation.organic import (  # noqa: F401
     get_random_keyword,
     perform_organic_search,
@@ -106,7 +108,7 @@ async def navigate_social_referrer(page, target_url: str, worker_id: int,
         if social["referer"]:
             await page.set_extra_http_headers({"referer": social["referer"]})
         await page.goto(target_url, timeout=30000, wait_until="domcontentloaded")
-        await asyncio.sleep(random.uniform(1.5, 3.0))
+        await asyncio.sleep(timing_seconds("referrer_settle"))
         await page.set_extra_http_headers({})
 
         print(f"Worker {worker_id}: Navigated with {platform} referer: {page.url}")

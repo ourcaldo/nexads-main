@@ -10,11 +10,11 @@ import random
 from app.browser.humanization import (
     clamp,
     choose_click_point,
-    gaussian_ms,
     get_cursor_start,
     move_mouse_humanly,
     set_cursor_position,
 )
+from app.core.timings import timing_ms
 
 
 async def smart_click(page, worker_id: int, current_domain: str,
@@ -100,7 +100,7 @@ async def smart_click(page, worker_id: int, current_domain: str,
             )
             await move_mouse_humanly(page, (start_x, start_y), (near_x, near_y), is_mobile=is_mobile)
             set_cursor_position(interaction_state, near_x, near_y)
-            await page.wait_for_timeout(gaussian_ms(400, 120, 200, 800))
+            await page.wait_for_timeout(timing_ms("ad_notice"))
 
             # 2. Move into the ad — first hover point (reading the ad)
             hover1_x = clamp(
@@ -113,7 +113,7 @@ async def smart_click(page, worker_id: int, current_domain: str,
             )
             await move_mouse_humanly(page, (near_x, near_y), (hover1_x, hover1_y), is_mobile=is_mobile)
             set_cursor_position(interaction_state, hover1_x, hover1_y)
-            await page.wait_for_timeout(gaussian_ms(600, 200, 300, 1400))
+            await page.wait_for_timeout(timing_ms("ad_read_hover"))
 
             # 3. Optional second hover point within the ad (40% chance — scanning)
             if random.random() < 0.40:
@@ -129,23 +129,23 @@ async def smart_click(page, worker_id: int, current_domain: str,
                     page, (hover1_x, hover1_y), (hover2_x, hover2_y), is_mobile=is_mobile
                 )
                 set_cursor_position(interaction_state, hover2_x, hover2_y)
-                await page.wait_for_timeout(gaussian_ms(300, 100, 150, 600))
+                await page.wait_for_timeout(timing_ms("ad_scan_hover"))
 
             # 4. Move to final click point
             click_x, click_y = choose_click_point(box, tag)
             prev_x, prev_y = get_cursor_start(page, interaction_state)
             await move_mouse_humanly(page, (prev_x, prev_y), (click_x, click_y), is_mobile=is_mobile)
             set_cursor_position(interaction_state, click_x, click_y)
-            await page.wait_for_timeout(gaussian_ms(360, 100, 160, 820))
+            await page.wait_for_timeout(timing_ms("click_dwell"))
 
         else:
             # --- Normal click: direct move to click point ---
             click_x, click_y = choose_click_point(box, tag)
             await move_mouse_humanly(page, (start_x, start_y), (click_x, click_y), is_mobile=is_mobile)
             set_cursor_position(interaction_state, click_x, click_y)
-            await page.wait_for_timeout(gaussian_ms(360, 100, 160, 820))
+            await page.wait_for_timeout(timing_ms("click_dwell"))
 
-        click_delay = gaussian_ms(110, 35, 45, 240)
+        click_delay = timing_ms("click_delay")
 
         try:
             if is_ad_activity:

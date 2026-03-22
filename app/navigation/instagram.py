@@ -7,6 +7,8 @@ import random
 import asyncio
 import base64
 
+from app.core.timings import timing_seconds
+
 
 def generate_igshid() -> str:
     """Generate a realistic Instagram Share ID.
@@ -32,7 +34,7 @@ async def navigate_instagram_referrer(page, target_url: str, worker_id: int,
 
         await page.set_extra_http_headers({"referer": referer})
         await page.goto(url_with_igshid, timeout=30000, wait_until="domcontentloaded")
-        await asyncio.sleep(random.uniform(1.5, 3.0))
+        await asyncio.sleep(timing_seconds("referrer_settle"))
         await page.set_extra_http_headers({})
 
         print(f"Worker {worker_id}: Navigated with Instagram referer: {page.url}")

@@ -10,7 +10,7 @@ import time
 
 from app.ads.outcomes import evaluate_ad_click_outcome, persist_ad_click_event
 from app.browser.click import smart_click
-from app.browser.humanization import lognormal_seconds
+from app.core.timings import timing_seconds
 
 # Known Adsterra ad iframe host domains (publisher-managed)
 _ADSTERRA_IFRAME_HOSTS = [
@@ -298,11 +298,11 @@ async def interact_with_adsterra_ads(page, browser, worker_id: int, extract_doma
                     break
 
                 print(f"Worker {worker_id}: Adsterra ad click not accepted")
-                await asyncio.sleep(lognormal_seconds(0.8, 0.4, 0.35, 2.0))
+                await asyncio.sleep(timing_seconds("ad_retry"))
 
         except Exception as e:
             print(f"Worker {worker_id}: Error in Adsterra ad interaction: {str(e)}")
-            await asyncio.sleep(lognormal_seconds(0.8, 0.4, 0.35, 2.0))
+            await asyncio.sleep(timing_seconds("ad_retry"))
             continue
 
     return clicked

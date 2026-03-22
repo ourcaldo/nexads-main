@@ -21,10 +21,6 @@ DEFAULT_CONFIG = {
         "auto_accept_cookies": True,
         "prevent_redirects": True
     },
-    "delay": {
-        "min_time": 3,
-        "max_time": 10
-    },
     "session": {
         "enabled": False,
         "count": 0,

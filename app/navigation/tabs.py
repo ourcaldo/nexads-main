@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 from app.browser.humanization import clamp, lognormal_seconds
+from app.core.timings import timing_ms, timing_seconds
 from app.navigation.urls import extract_domain
 
 
@@ -142,7 +143,7 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
                 last_error = e
 
             try:
-                await candidate_page.wait_for_timeout(1200)
+                await candidate_page.wait_for_timeout(timing_ms("tab_wait"))
             except Exception:
                 pass
 
@@ -219,7 +220,7 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
                                 f"Worker {worker_id}: New-tab recovery budget exhausted "
                                 f"(intent={resolved_intent.intent_type}, max={max_new_tabs})"
                             )
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(timing_seconds("tab_wait"))
                             continue
                     new_page = await context.new_page()
                     if isinstance(budget_state, dict):
@@ -248,7 +249,7 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
                             pass
 
                 # Continue retry loop instead of failing immediately.
-                await asyncio.sleep(1)
+                await asyncio.sleep(timing_seconds("tab_wait"))
                 continue
 
             else:
@@ -262,12 +263,12 @@ async def ensure_correct_tab(browser, page, target_url: str, worker_id: int,
                 _set_reason("focused_existing_target")
                 return target_page, True
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(timing_seconds("tab_wait"))
 
         except Exception as e:
             _set_reason("unexpected_tab_guard_error")
             print(f"Worker {worker_id}: Unexpected error in ensure_correct_tab: {e}")
-            await asyncio.sleep(1)
+            await asyncio.sleep(timing_seconds("tab_wait"))
 
     _set_reason("redirect_timeout")
     print(f"Worker {worker_id}: Timeout ensuring correct tab for {target_url}")
@@ -330,7 +331,7 @@ async def process_ads_tabs(browser_context, worker_id: int, config: dict,
 
                 # Realistic quick bounce behavior on some ad landings.
                 if random.random() < 0.18:
-                    stay_time = int(round(lognormal_seconds(8, 0.45, 5, 15)))
+                    stay_time = int(round(timing_seconds("tab_dwell")))
 
                 interaction_state = {"cursor_position": None}
                 print(
@@ -348,7 +349,7 @@ async def process_ads_tabs(browser_context, worker_id: int, config: dict,
                         page, browser_context, worker_id, remaining, True, interaction_state
                     )
 
-                    idle_delay = min(lognormal_seconds(1.5, 0.45, 0.7, 3.8), remaining)
+                    idle_delay = min(timing_seconds("tab_idle"), remaining)
                     if idle_delay > 0:
                         await asyncio.sleep(idle_delay)
 
@@ -385,7 +386,7 @@ async def natural_exit(browser_context, worker_id: int, get_random_delay_fn):
                 if not page.is_closed():
                     await page.close()
                 pages = browser_context.pages
-                await asyncio.sleep(get_random_delay_fn(1, 2))
+                await asyncio.sleep(timing_seconds("tab_close_gap"))
             except Exception as e:
                 print(f"Worker {worker_id}: Error closing tab during natural exit: {str(e)}")
                 # Refresh page list and continue closing remaining tabs instead of breaking
@@ -414,7 +415,7 @@ async def natural_exit(browser_context, worker_id: int, get_random_delay_fn):
 
                     if strategy == "google":
                         await page.goto("https://www.google.com", timeout=45000, wait_until="networkidle")
-                        await asyncio.sleep(lognormal_seconds(2.5, 0.45, 1.2, 6.0))
+                        await asyncio.sleep(timing_seconds("exit_read"))
                     elif strategy == "random_site":
                         site = random.choice([
                             "https://duckduckgo.com/",
@@ -424,16 +425,16 @@ async def natural_exit(browser_context, worker_id: int, get_random_delay_fn):
                             "https://www.reddit.com/",
                         ])
                         await page.goto(site, timeout=45000, wait_until="networkidle")
-                        await asyncio.sleep(lognormal_seconds(2.2, 0.45, 1.0, 5.5))
+                        await asyncio.sleep(timing_seconds("exit_scroll_pre"))
                     elif strategy == "new_tab":
                         await page.goto("about:blank", timeout=20000, wait_until="domcontentloaded")
-                        await asyncio.sleep(lognormal_seconds(1.4, 0.4, 0.5, 3.0))
+                        await asyncio.sleep(timing_seconds("exit_scroll_post"))
                     elif strategy == "linger":
                         if random.random() < 0.55:
                             await page.mouse.wheel(0, int(random.gauss(220, 90)))
-                        await asyncio.sleep(lognormal_seconds(2.8, 0.5, 1.2, 7.0))
+                        await asyncio.sleep(timing_seconds("exit_cursor"))
                     else:
-                        await asyncio.sleep(lognormal_seconds(1.2, 0.4, 0.5, 3.0))
+                        await asyncio.sleep(timing_seconds("exit_hesitation"))
 
                     await page.close()
             except Exception as e:

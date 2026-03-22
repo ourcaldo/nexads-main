@@ -11,12 +11,12 @@ from app.navigation.urls import check_page_health
 from app.browser.humanization import (
     clamp,
     choose_click_point,
-    gaussian_ms,
     get_cursor_start,
     lognormal_seconds,
     move_mouse_humanly,
     set_cursor_position,
 )
+from app.core.timings import timing_ms, timing_seconds
 
 
 def _get_reading_phase(progress: float) -> str:
@@ -43,7 +43,7 @@ async def _idle_mouse_jitter(
         if remaining <= 0:
             break
 
-        pause = min(lognormal_seconds(2.1, 0.5, 0.8, 4.2), remaining)
+        pause = min(timing_seconds("jitter_pause"), remaining)
         if pause > 0:
             await asyncio.sleep(pause)
 
@@ -187,13 +187,13 @@ async def random_scroll(
                 current_step = 15 if direction > 0 else -15
 
             await page.mouse.wheel(0, current_step)
-            await page.wait_for_timeout(gaussian_ms(190, 70, 80, 450))
+            await page.wait_for_timeout(timing_ms("scroll_step"))
 
             # Micro-corrections in opposite direction simulate wheel overshoot.
             if random.random() < 0.22:
                 correction = int(-current_step * random.uniform(0.12, 0.28))
                 await page.mouse.wheel(0, correction)
-                await page.wait_for_timeout(gaussian_ms(120, 40, 55, 240))
+                await page.wait_for_timeout(timing_ms("scroll_correction"))
 
         direction_text = "down" if direction > 0 else "up"
         print(
@@ -266,8 +266,7 @@ async def random_hover(
             await move_mouse_humanly(page, (start_x, start_y), (target_x, target_y), is_mobile=is_mobile)
             set_cursor_position(interaction_state, target_x, target_y)
 
-        hover_time = lognormal_seconds(1.0, 0.45, 0.35, 3.4)
-        await page.wait_for_timeout(int(hover_time * 1000))
+        await page.wait_for_timeout(timing_ms("hover_dwell"))
 
         print(
             f"Worker {worker_id}: Hovered at {target_x:.0f},{target_y:.0f} for {hover_time:.1f}s"
@@ -329,7 +328,7 @@ async def random_click(
         if await smart_click_fn(
             page, worker_id, current_domain, element, is_ads_session, interaction_state
         ):
-            await asyncio.sleep(lognormal_seconds(0.9, 0.45, 0.35, 2.8))
+            await asyncio.sleep(timing_seconds("click_settle"))
             return page.url != original_url
 
         return False
@@ -557,7 +556,7 @@ async def perform_random_activity(
             )
 
             if not weighted_activities:
-                backoff = min(lognormal_seconds(1.2, 0.45, 0.5, 2.4), remaining_time)
+                backoff = min(timing_seconds("activity_backoff"), remaining_time)
                 if backoff > 0:
                     await _idle_mouse_jitter(page, interaction_state, backoff)
                 elapsed = time.time() - activity_start
@@ -591,14 +590,7 @@ async def perform_random_activity(
                     running, interaction_state, expected_url,
                 )
             elif selected == "read":
-                delay_cfg = config.get("delay", {})
-                read_min = delay_cfg.get("min_time", 3)
-                read_max = delay_cfg.get("max_time", 10)
-                read_median = (read_min + read_max) / 2
-                read_duration = min(
-                    lognormal_seconds(read_median, 0.5, read_min, read_max),
-                    remaining_time,
-                )
+                read_duration = min(timing_seconds("read_pause"), remaining_time)
                 if read_duration > 0:
                     await _idle_mouse_jitter(page, interaction_state, read_duration)
 
@@ -614,7 +606,7 @@ async def perform_random_activity(
             remaining_time = stay_time - elapsed
 
             if remaining_time > 0:
-                delay = min(lognormal_seconds(1.9, 0.5, 0.7, 4.8), remaining_time)
+                delay = min(timing_seconds("activity_gap"), remaining_time)
                 if delay > 0:
                     await _idle_mouse_jitter(page, interaction_state, delay)
                     elapsed = time.time() - activity_start

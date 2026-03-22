@@ -7,6 +7,8 @@ import random
 import asyncio
 from urllib.parse import urlparse
 
+from app.core.timings import timing_ms, timing_seconds
+
 
 def extract_domain(url: str) -> str:
     """Extract normalized domain from a URL (no port, no www.)."""
@@ -131,7 +133,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                             await element.scroll_into_view_if_needed(timeout=5000)
                         except Exception:
                             pass
-                        await page.wait_for_timeout(random.randint(300, 800))
+                        await page.wait_for_timeout(timing_ms("nav_scroll_step"))
                         current_domain = extract_domain(page.url)
                         if await smart_click_fn(page, worker_id, current_domain, element):
                             try:
@@ -142,7 +144,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                                 print(f"Worker {worker_id}: Successfully navigated via pre-scanned link")
                                 if interaction_state:
                                     interaction_state.pop("pre_scanned_nav", None)
-                                await asyncio.sleep(3)
+                                await asyncio.sleep(timing_seconds("nav_post_click"))
                                 if config['browser']['auto_accept_cookies']:
                                     await accept_cookies_fn(page)
                                 await check_vignette_fn(page, worker_id)
@@ -178,8 +180,8 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                         step = min(remaining, random.randint(400, 800))
                         await page.mouse.wheel(0, -step)
                         remaining -= step
-                        await page.wait_for_timeout(random.randint(50, 120))
-                await page.wait_for_timeout(random.randint(300, 700))
+                        await page.wait_for_timeout(timing_ms("nav_scroll_micro"))
+                await page.wait_for_timeout(timing_ms("nav_scroll_gap"))
             except Exception:
                 pass
 
@@ -209,9 +211,9 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                             scroll_attempts += 1
                             if scroll_attempts == 2:
                                 raise
-                            await asyncio.sleep(0.5)
+                            await asyncio.sleep(timing_seconds("nav_load_check"))
 
-                    await page.wait_for_timeout(random.randint(500, 1500))
+                    await page.wait_for_timeout(timing_ms("nav_click_settle"))
 
                     current_domain = extract_domain(page.url)
                     if await smart_click_fn(page, worker_id, current_domain, link):
@@ -224,7 +226,7 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
                         post_click_domain = extract_domain(page.url)
                         if post_click_domain == target_domain:
                             print(f"Worker {worker_id}: Successfully clicked {match_type} match")
-                            await asyncio.sleep(3)
+                            await asyncio.sleep(timing_seconds("nav_post_click"))
 
                             if config['browser']['auto_accept_cookies']:
                                 await accept_cookies_fn(page)
@@ -247,13 +249,13 @@ async def navigate_to_url_by_click(page, target_url: str, worker_id: int,
             retry_count += 1
             print(f"Worker {worker_id}: Navigation retry {retry_count}/{max_retries}")
             if retry_count < max_retries:
-                await asyncio.sleep(2)
+                await asyncio.sleep(timing_seconds("nav_retry"))
 
         except Exception as e:
             print(f"Worker {worker_id}: Error during URL click navigation: {str(e)}")
             retry_count += 1
             if retry_count < max_retries:
-                await asyncio.sleep(2)
+                await asyncio.sleep(timing_seconds("nav_retry"))
             continue
 
     print(f"Worker {worker_id}: Failed to navigate to {target_url} after {max_retries} attempts")
@@ -311,9 +313,9 @@ async def random_navigation(page, worker_id: int, target_domain: str,
                     print(f"Worker {worker_id}: Scroll attempt {attempt + 1} failed: {str(e)}")
                     if attempt == 1:
                         raise
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(timing_seconds("nav_load_check"))
 
-            await page.wait_for_timeout(random.randint(500, 1500))
+            await page.wait_for_timeout(timing_ms("nav_click_settle"))
 
             current_domain = extract_domain(page.url)
             if await smart_click_fn(page, worker_id, current_domain, link):
@@ -343,7 +345,7 @@ async def random_navigation(page, worker_id: int, target_domain: str,
             print(f"Worker {worker_id}: Error during random navigation: {str(e)}")
             retry_count += 1
             if retry_count < max_retries:
-                await asyncio.sleep(2)
+                await asyncio.sleep(timing_seconds("nav_retry"))
             continue
 
     print(f"Worker {worker_id}: Max retries reached for random navigation")

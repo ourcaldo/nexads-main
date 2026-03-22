@@ -16,10 +16,6 @@
             "click"
         ]
     },
-    "delay": {
-        "min_time": 3,
-        "max_time": 10
-    },
     "session": {
         "enabled": true,
         "count": 0,

@@ -10,7 +10,8 @@ import time
 
 from app.browser.setup import configure_browser, cleanup_browser
 from app.browser.activities import perform_random_activity
-from app.browser.humanization import gaussian_ms, lognormal_seconds
+from app.browser.humanization import lognormal_seconds
+from app.core.timings import timing_ms, timing_seconds
 from app.navigation.urls import (
     extract_domain,
     check_page_health,
@@ -42,7 +43,6 @@ from app.core.automation import SessionFailedException
 # After this many consecutive session failures, force-kill all child browser
 # processes and take a longer cooldown before retrying.
 MAX_CONSECUTIVE_FAILURES = 5
-FAILURE_COOLDOWN_SECONDS = 120
 
 
 class SessionRunner:
@@ -66,8 +66,8 @@ class SessionRunner:
 
     def get_delay(self, min_t=None, max_t=None):
         """Compute a human-like delay using lognormal distribution."""
-        min_val = min_t if min_t is not None else self.ctx.config["delay"]["min_time"]
-        max_val = max_t if max_t is not None else self.ctx.config["delay"]["max_time"]
+        min_val = min_t if min_t is not None else 3
+        max_val = max_t if max_t is not None else 10
         if min_val >= max_val:
             return int(min_val)
         median = (min_val + max_val) / 2
@@ -300,7 +300,7 @@ class SessionRunner:
                             reason_code="configure_browser_returned_none",
                             duration_ms=int((time.time() - browser_init_started) * 1000),
                         )
-                        await asyncio.sleep(10)
+                        await asyncio.sleep(timing_seconds("browser_retry"))
                         continue
 
                     is_persistent_context = browser_setup.get("is_persistent_context", False)
@@ -316,7 +316,7 @@ class SessionRunner:
                             reason_code="browser_setup_missing_browser",
                             duration_ms=int((time.time() - browser_init_started) * 1000),
                         )
-                        await asyncio.sleep(10)
+                        await asyncio.sleep(timing_seconds("browser_retry"))
                         continue
 
                     _emit_step(
@@ -393,15 +393,15 @@ class SessionRunner:
                                     wait_until="domcontentloaded",
                                 )
                                 await page.wait_for_timeout(
-                                    gaussian_ms(1200, 300, 600, 2200)
+                                    timing_ms("social_settle")
                                 )
                                 await page.mouse.wheel(0, random.randint(150, 400))
                                 await page.wait_for_timeout(
-                                    gaussian_ms(500, 120, 250, 900)
+                                    timing_ms("social_scroll_gap")
                                 )
                                 await page.mouse.wheel(0, random.randint(100, 300))
                                 await page.wait_for_timeout(
-                                    gaussian_ms(400, 100, 200, 800)
+                                    timing_ms("social_scroll_gap")
                                 )
                                 print(f"Worker {wid}: {platform} cookies acquired")
                             except Exception as e:
@@ -466,11 +466,7 @@ class SessionRunner:
                                         raise SessionFailedException(
                                             "Social referrer navigation failed"
                                         )
-                                    _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
-                                    _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
-                                    await asyncio.sleep(lognormal_seconds(
-                                        (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
-                                    ))
+                                    await asyncio.sleep(timing_seconds("page_settle"))
                                 except SessionFailedException:
                                     raise
                                 except Exception as e:
@@ -528,11 +524,7 @@ class SessionRunner:
                                     await page.goto(
                                         url, timeout=30000, wait_until="domcontentloaded"
                                     )
-                                    _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
-                                    _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
-                                    await asyncio.sleep(lognormal_seconds(
-                                        (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
-                                    ))
+                                    await asyncio.sleep(timing_seconds("page_settle"))
                                 except Exception as e:
                                     print(
                                         f"Worker {wid}: Error visiting URL: {str(e)}"
@@ -576,11 +568,7 @@ class SessionRunner:
                                     await page.goto(
                                         url, timeout=30000, wait_until="domcontentloaded"
                                     )
-                                    _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
-                                    _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
-                                    await asyncio.sleep(lognormal_seconds(
-                                        (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
-                                    ))
+                                    await asyncio.sleep(timing_seconds("page_settle"))
                                 except Exception as e:
                                     print(
                                         f"Worker {wid}: Error visiting URL: {str(e)}"
@@ -759,11 +747,7 @@ class SessionRunner:
                         if remaining_budget < float("inf") and stay_time > remaining_budget:
                             stay_time = max(1, int(remaining_budget))
 
-                        _delay_min = ctx.config.get("delay", {}).get("min_time", 3)
-                        _delay_max = ctx.config.get("delay", {}).get("max_time", 10)
-                        _settle_delay = lognormal_seconds(
-                            (_delay_min + _delay_max) / 2, 0.5, _delay_min, _delay_max
-                        )
+                        _settle_delay = timing_seconds("page_settle")
                         print(f"Worker {wid}: Waiting {_settle_delay:.1f}s for page to settle...")
                         await asyncio.sleep(_settle_delay)
 
@@ -800,7 +784,7 @@ class SessionRunner:
 
                             if remaining_time > 0:
                                 delay = min(
-                                    lognormal_seconds(1.1, 0.4, 0.4, 2.8), remaining_time
+                                    timing_seconds("session_activity"), remaining_time
                                 )
                                 if delay > 0:
                                     await asyncio.sleep(delay)
@@ -868,20 +852,21 @@ class SessionRunner:
                     except Exception as e:
                         print(f"Worker {wid}: Error during cleanup: {str(e)}")
 
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(timing_seconds("session_retry"))
 
                 if session_successful:
                     self.successful_sessions += 1
                     self.consecutive_failures = 0
-                    delay = self.get_delay(10, 30)
-                    print(f"Worker {wid}: Session successful, waiting {delay}s")
+                    delay = timing_seconds("session_success")
+                    print(f"Worker {wid}: Session successful, waiting {delay:.0f}s")
                     _emit_step("session", "ok", reason_code="session_completed")
                 else:
                     self.consecutive_failures += 1
                     if self.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                        cooldown = timing_seconds("failure_cooldown")
                         print(
                             f"Worker {wid}: {self.consecutive_failures} consecutive failures, "
-                            f"killing orphan browsers and cooling down {FAILURE_COOLDOWN_SECONDS}s"
+                            f"killing orphan browsers and cooling down {cooldown:.0f}s"
                         )
                         self._kill_children(wid)
                         _emit_step(
@@ -890,10 +875,10 @@ class SessionRunner:
                             meta={"consecutive_failures": self.consecutive_failures},
                         )
                         self.consecutive_failures = 0
-                        await asyncio.sleep(FAILURE_COOLDOWN_SECONDS)
+                        await asyncio.sleep(cooldown)
                         continue
-                    delay = self.get_delay(30, 60)
-                    print(f"Worker {wid}: Session failed, waiting {delay}s")
+                    delay = timing_seconds("session_failure")
+                    print(f"Worker {wid}: Session failed, waiting {delay:.0f}s")
 
                 emit_mobile_fingerprint_event(
                     worker_id=wid,

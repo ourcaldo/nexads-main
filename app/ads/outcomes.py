@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import json
 import pathlib
-import random
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.ads.signals import load_adsense_signals_payload
+from app.core.timings import timing_ms
 from app.navigation.urls import extract_domain
 
 
@@ -147,7 +147,7 @@ async def evaluate_ad_click_outcome(page, context,
         _on_frame_navigated = None
 
     # Event-driven monitoring: poll for navigation, add tail buffer once detected
-    poll_ms = 350
+    poll_ms = timing_ms("ad_poll")
     ceiling_ms = int(max(1.0, max_wait_seconds) * 1000)
     elapsed_ms = 0
     try:
@@ -163,7 +163,7 @@ async def evaluate_ad_click_outcome(page, context,
 
             if tabs_now > tabs_before or (current_url and current_url != source_url):
                 # Navigation detected — tail buffer for redirect chains to settle
-                tail_ms = random.randint(1000, 3000)
+                tail_ms = timing_ms("ad_tail")
                 await page.wait_for_timeout(tail_ms)
                 elapsed_ms += tail_ms
                 break

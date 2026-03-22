@@ -10,6 +10,8 @@ import time
 import multiprocessing
 import pathlib
 
+from app.core.timings import timing_seconds
+
 from datetime import datetime
 from app.ads.signals import ensure_adsense_signals_updated
 
@@ -137,8 +139,8 @@ class nexAds:
             # Stagger worker startups — avoids simultaneous proxy connections
             # and looks more natural; skip delay after the last worker
             if i < self.config['threads'] - 1:
-                stagger = random.randint(2, 5)
-                print(f"Staggering next worker by {stagger}s...")
+                stagger = timing_seconds("worker_stagger")
+                print(f"Staggering next worker by {stagger:.0f}s...")
                 time.sleep(stagger)
 
         try:

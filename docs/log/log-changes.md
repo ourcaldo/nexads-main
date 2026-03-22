@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T15:00:00+00:00
+- Short description: Centralized timing system — replace all hardcoded delays with app/core/timings.py
+- What you do: Created app/core/timings.py with ~50 named timing entries (min/max ms, lognormal distribution via geometric mean). Replaced all hardcoded delays (gaussian_ms, lognormal_seconds, random.randint, random.uniform, asyncio.sleep(N)) across the entire codebase with timing_ms()/timing_seconds() calls. Removed config.json "delay" section (page settle timing now in timings.py). Removed Delay Settings group from GUI. Updated desktop.py and mobile.py to use timing_seconds("page_settle") instead of get_random_delay_fn(). Categories: page navigation, activity loop, scroll, hover, click, ad interaction, tab management, natural exit, social platform, referrer, consent, Google warm-up, worker/session.
+- File path that changes: app/core/timings.py; app/core/session.py; app/core/automation.py; app/browser/activities.py; app/browser/click.py; app/browser/desktop.py; app/browser/mobile.py; app/navigation/organic.py; app/navigation/referrer.py; app/navigation/facebook.py; app/navigation/instagram.py; app/navigation/tabs.py; app/navigation/urls.py; app/navigation/consent.py; app/ads/adsense.py; app/ads/adsterra.py; app/ads/outcomes.py; app/ui/config_window.py; app/ui/config_io.py; config.json
+
+## Entry
 - Date time: 2026-03-22T13:00:00+00:00
 - Short description: Gap 7 DONE — Add reading pause activity to simulate content reading
 - What you do: Added "read" as a new weighted activity in perform_random_activity(). During a read pause, the mouse holds position with idle jitter for a duration randomized from config["delay"]["min_time"] to config["delay"]["max_time"] using lognormal distribution. Phase weights: arrival=0.05, reading=0.35, exploration=0.15, done=0.10. Read is always available (no capability or config gate). Adjusted scroll/hover weights slightly to accommodate read weight. Reading pause eats into stay_time budget — no visit extension.

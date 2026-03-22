@@ -8,7 +8,7 @@ import random
 import asyncio
 import time
 
-from app.browser.humanization import gaussian_ms
+from app.core.timings import timing_ms
 from app.navigation.consent import handle_consent_dialog
 
 try:
@@ -33,7 +33,7 @@ async def _human_type_keyword(search_input, keyword: str):
             print(f"HumanTyping fallback triggered: {str(e)}")
 
     # Fallback path if package is missing or runtime typing fails.
-    await search_input.type(keyword, delay=gaussian_ms(90, 24, 35, 220))
+    await search_input.type(keyword, delay=timing_ms("warmup_typing"))
 
 
 async def setup_request_interceptor(page):
@@ -157,10 +157,10 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
                     return False
 
                 await target_link.scroll_into_view_if_needed()
-                await page.wait_for_timeout(gaussian_ms(900, 260, 350, 2200))
+                await page.wait_for_timeout(timing_ms("warmup_result_wait"))
 
                 async with page.expect_navigation(timeout=45000):
-                    await target_link.click(delay=gaussian_ms(110, 30, 45, 220))
+                    await target_link.click(delay=timing_ms("warmup_click"))
 
                 await page.wait_for_load_state("networkidle", timeout=45000)
 
@@ -179,7 +179,7 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
                 print(f"Worker {worker_id}: Organic search error (attempt {retry_count + 1}): {str(e)}")
                 retry_count += 1
                 if retry_count < max_retries:
-                    await page.wait_for_timeout(gaussian_ms(2100, 280, 1300, 3200))
+                    await page.wait_for_timeout(timing_ms("warmup_page_dwell"))
                 continue
 
         print(f"Worker {worker_id}: Max retries reached for organic search")
@@ -211,7 +211,7 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             "https://www.google.com/", timeout=20000, wait_until="domcontentloaded"
         )
         await accept_google_cookies(page)
-        await page.wait_for_timeout(gaussian_ms(500, 120, 250, 900))
+        await page.wait_for_timeout(timing_ms("warmup_settle"))
 
         # Pick keywords from the organic config
         all_keywords = []
@@ -239,7 +239,7 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             except Exception:
                 # Consent dialog may be blocking — try accepting and retry
                 await accept_google_cookies(page)
-                await page.wait_for_timeout(1000)
+                await page.wait_for_timeout(timing_ms("warmup_retry"))
                 try:
                     search_input = await page.wait_for_selector(
                         'textarea[name="q"], input[name="q"]', state="visible", timeout=8000
@@ -252,7 +252,7 @@ async def warm_google_profile(page, worker_id: int, config: dict,
                             wait_until="domcontentloaded",
                         )
                         await accept_google_cookies(page)
-                        await page.wait_for_timeout(1000)
+                        await page.wait_for_timeout(timing_ms("warmup_retry"))
                         search_input = await page.wait_for_selector(
                             'textarea[name="q"], input[name="q"]', state="visible", timeout=8000
                         )
@@ -279,7 +279,7 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             try:
                 await page.wait_for_selector("div#search", state="visible", timeout=8000)
                 await page.mouse.wheel(0, random.randint(200, 400))
-                await page.wait_for_timeout(gaussian_ms(400, 100, 200, 700))
+                await page.wait_for_timeout(timing_ms("warmup_scroll_gap"))
             except Exception:
                 continue
 
@@ -302,8 +302,8 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             target = random.choice(clickable[:5])
             try:
                 await target.scroll_into_view_if_needed()
-                await page.wait_for_timeout(gaussian_ms(300, 80, 150, 600))
-                await target.click(delay=gaussian_ms(90, 25, 35, 180))
+                await page.wait_for_timeout(timing_ms("warmup_result_wait"))
+                await target.click(delay=timing_ms("warmup_click"))
                 await page.wait_for_load_state("domcontentloaded", timeout=10000)
             except Exception:
                 pass
@@ -314,7 +314,7 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             # --- Quick scroll on the result page, then go back ---
             try:
                 await page.mouse.wheel(0, random.randint(150, 400))
-                await page.wait_for_timeout(gaussian_ms(400, 100, 200, 800))
+                await page.wait_for_timeout(timing_ms("warmup_scroll_gap"))
             except Exception:
                 pass
 

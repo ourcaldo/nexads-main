@@ -14,6 +14,7 @@ from browserforge.fingerprints import FingerprintGenerator
 
 from app.browser.proxy import build_full_proxy_url
 from app.core.telemetry import emit_mobile_fingerprint_event
+from app.core.timings import timing_seconds
 
 # Track temp user_data_dirs for cleanup.
 # Maps context id -> user_data_dir path.
@@ -156,8 +157,7 @@ async def configure_mobile_browser(
 
         _CLOAKBROWSER_DIRS[id(context)] = user_data_dir
 
-        delay = get_random_delay_fn()
-        await asyncio.sleep(delay)
+        await asyncio.sleep(timing_seconds("page_settle"))
 
         emit_mobile_fingerprint_event(
             worker_id=worker_id,

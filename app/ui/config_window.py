@@ -197,26 +197,6 @@ class ConfigWindow(QMainWindow):
         right_col = QVBoxLayout()
         right_col.setContentsMargins(10, 0, 0, 0)
         
-        # Delay Settings
-        delay_group = QGroupBox("Delay Settings")
-        delay_layout = QVBoxLayout()
-        
-        delay_layout.addWidget(QLabel("Min. Time (seconds):"))
-        self.min_time = QSpinBox()
-        self.min_time.setRange(1, 300)
-        self.min_time.setValue(self.config["delay"]["min_time"])
-        
-        delay_layout.addWidget(self.min_time)
-        
-        delay_layout.addWidget(QLabel("Max. Time (seconds):"))
-        self.max_time = QSpinBox()
-        self.max_time.setRange(1, 300)
-        self.max_time.setValue(self.config["delay"]["max_time"])
-        delay_layout.addWidget(self.max_time)
-        
-        delay_group.setLayout(delay_layout)
-        right_col.addWidget(delay_group)
-        
         # Session Settings
         session_group = QGroupBox("Session Settings")
         session_layout = QVBoxLayout()
@@ -760,12 +740,6 @@ class ConfigWindow(QMainWindow):
                 activities.append("click")
             config["browser"]["activities"] = activities
             
-            # Delay settings
-            config["delay"] = {
-                "min_time": self.min_time.value(),
-                "max_time": self.max_time.value()
-            }
-            
             # Session settings
             config["session"] = {
                 "enabled": self.session_enabled.isChecked(),
@@ -840,8 +814,6 @@ class ConfigWindow(QMainWindow):
 
             # --- Validate min <= max before saving ---
             errors = []
-            if config["delay"]["min_time"] > config["delay"]["max_time"]:
-                errors.append("Delay: min time must be ≤ max time")
             if config["ads"]["min_time"] > config["ads"]["max_time"]:
                 errors.append("Ads time: min time must be ≤ max time")
             if config["session"].get("min_time", 0) > 0 and config["session"]["min_time"] > config["session"]["max_time"]:

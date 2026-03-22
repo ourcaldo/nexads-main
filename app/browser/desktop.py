@@ -11,6 +11,8 @@ from camoufox.async_api import AsyncCamoufox
 from camoufox import DefaultAddons
 from browserforge.fingerprints import Screen
 
+from app.core.timings import timing_seconds
+
 
 async def launch_desktop_browser(
     config: dict,
@@ -37,8 +39,7 @@ async def launch_desktop_browser(
         options["proxy"] = proxy_cfg
 
     browser = await asyncio.wait_for(AsyncCamoufox(**options).start(), timeout=90)
-    delay = get_random_delay_fn()
-    await asyncio.sleep(delay)
+    await asyncio.sleep(timing_seconds("page_settle"))
 
     return {
         "browser": browser,

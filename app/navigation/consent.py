@@ -9,7 +9,7 @@ import asyncio
 import random
 import time
 
-from app.browser.humanization import gaussian_ms
+from app.core.timings import timing_ms, timing_seconds
 
 
 CONSENT_DIALOG_SELECTORS = [
@@ -110,7 +110,7 @@ async def _click_with_fallbacks(page, element, box: dict) -> tuple[bool, str]:
     """Attempt click with increasingly forceful fallback strategies."""
     x = box['x'] + box['width'] / 2
     y = box['y'] + box['height'] / 2
-    delay = gaussian_ms(105, 28, 45, 220)
+    delay = timing_ms("consent_pre")
 
     strategies = [
         "native",
@@ -127,7 +127,7 @@ async def _click_with_fallbacks(page, element, box: dict) -> tuple[bool, str]:
                 await element.click(timeout=3500, force=True, delay=delay)
             elif strategy == "mouse":
                 await page.mouse.move(x, y, steps=random.randint(4, 9))
-                await page.wait_for_timeout(gaussian_ms(180, 60, 90, 360))
+                await page.wait_for_timeout(timing_ms("consent_hover"))
                 await page.mouse.click(x, y, delay=delay)
             else:
                 await page.evaluate("(el) => el.click()", element)
@@ -168,7 +168,7 @@ async def try_dismiss_consent(page, worker_id: int) -> bool:
         clicked, strategy = await _click_with_fallbacks(page, button, box)
         if clicked:
             print(f"Worker {worker_id}: Consent dismissed (background) using {strategy} ({button_selector})")
-            await page.wait_for_timeout(gaussian_ms(350, 100, 150, 700))
+            await page.wait_for_timeout(timing_ms("consent_post"))
             return True
 
         return False
@@ -207,7 +207,7 @@ async def handle_consent_dialog(page, worker_id: int, max_wait_seconds: int = 12
 
         if not button:
             attempts += 1
-            await asyncio.sleep(min(0.8, max(0.2, random.random() * 0.7 + 0.1)))
+            await asyncio.sleep(timing_seconds("consent_retry"))
             continue
 
         try:
@@ -218,7 +218,7 @@ async def handle_consent_dialog(page, worker_id: int, max_wait_seconds: int = 12
         box = await button.bounding_box()
         if not box:
             attempts += 1
-            await asyncio.sleep(0.35)
+            await asyncio.sleep(timing_seconds("consent_action"))
             continue
 
         interceptor = await _probe_interceptor(page, box)
@@ -233,7 +233,7 @@ async def handle_consent_dialog(page, worker_id: int, max_wait_seconds: int = 12
         clicked, strategy = await _click_with_fallbacks(page, button, box)
         attempts += 1
         if not clicked:
-            await asyncio.sleep(0.4)
+            await asyncio.sleep(timing_seconds("consent_action"))
             continue
 
         print(
@@ -241,7 +241,7 @@ async def handle_consent_dialog(page, worker_id: int, max_wait_seconds: int = 12
             f"({button_selector})"
         )
 
-        await page.wait_for_timeout(gaussian_ms(420, 120, 180, 900))
+        await page.wait_for_timeout(timing_ms("consent_settle"))
         if not await _is_any_dialog_visible(page):
             return {"status": "resolved", "reason": f"clicked_{strategy}", "attempts": attempts}
 

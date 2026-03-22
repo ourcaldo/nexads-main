@@ -12,7 +12,7 @@ import time
 from app.ads.outcomes import evaluate_ad_click_outcome, persist_ad_click_event
 from app.ads.signals import load_adsense_cosmetic_selectors
 from app.browser.click import smart_click
-from app.browser.humanization import gaussian_ms, lognormal_seconds
+from app.core.timings import timing_ms, timing_seconds
 
 
 _DEFAULT_AD_SELECTORS = [
@@ -232,7 +232,7 @@ async def check_and_handle_vignette(page, worker_id: int, extract_domain_fn) -> 
         success = await interact_with_vignette_ad(page, worker_id, extract_domain_fn)
         if success:
             print(f"Worker {worker_id}: Successfully interacted with vignette ad")
-            await page.wait_for_timeout(gaussian_ms(1900, 280, 1200, 3200))
+            await page.wait_for_timeout(timing_ms("ad_vignette"))
             return True
 
         return False
@@ -309,11 +309,11 @@ async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn,
                     break
 
                 print(f"Worker {worker_id}: Ad click not accepted by confidence threshold")
-                await asyncio.sleep(lognormal_seconds(0.8, 0.4, 0.35, 2.0))
+                await asyncio.sleep(timing_seconds("ad_retry"))
 
         except Exception as e:
             print(f"Worker {worker_id}: Error clicking visible ad: {str(e)}")
-            await asyncio.sleep(lognormal_seconds(0.8, 0.4, 0.35, 2.0))
+            await asyncio.sleep(timing_seconds("ad_retry"))
             continue
 
     return clicked
