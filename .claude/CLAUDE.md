@@ -1,4 +1,6 @@
-# AGENTS.md - nexAds
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Context Recovery
 
@@ -22,20 +24,38 @@ proxy.txt                    # Proxy list (user:pass@host:port)
 requirements.txt             # pip dependencies (no pyproject.toml)
 app/
   core/
+    timings.py                # CENTRALIZED timing config — ALL delays/pauses defined here
     automation.py             # nexAds class: config loading, session distribution, worker orchestration
-    worker.py                 # WorkerContext dataclass, worker_session() async loop, run_worker() entry
+    session.py                # SessionRunner: per-worker session loop and bound helpers
+    worker.py                 # WorkerContext dataclass, run_worker() multiprocessing entry
+    telemetry.py              # JSONL event/heartbeat emission
   browser/
-    setup.py                  # configure_browser(), cleanup_browser() via Camoufox
-    activities.py             # Human-like activities: scroll, hover, click
+    setup.py                  # Thin orchestrator: picks desktop or mobile, delegates
+    desktop.py                # Camoufox launch + cleanup
+    mobile.py                 # CloakBrowser launch + cleanup (Android fingerprint via binary flags)
+    activities.py             # Human-like activities: scroll, hover, click, read
+    click.py                  # Smart click: curved mouse movement, pre-hover, fallback chain
+    humanization.py           # Mouse movement curves, gaussian_ms/lognormal_seconds primitives
+    proxy.py                  # Proxy string parsing and config resolution
+    geoip.py                  # Proxy IP geolocation lookup
   ads/
-    adsense.py                # AdSense detection, interaction, vignette handling, smart_click
+    adsense.py                # AdSense detection, interaction, vignette handling
+    adsterra.py               # Adsterra detection (direct DOM, iframe, external URL fallback)
+    outcomes.py               # Ad click outcome tracking, classification, confidence scoring
+    dispatcher.py             # Ad provider dispatch (routes to adsense/adsterra)
+    signals.py                # EasyList-derived ad selector cache
   navigation/
-    referrer.py               # Organic search, Google cookies, GDPR consent, social referrers
+    organic.py                # Google organic search, warm-up, cookie/consent handling
+    referrer.py               # Social referrer dispatch, re-exports organic functions
+    facebook.py               # Facebook referrer: fbclid generation
+    instagram.py              # Instagram referrer: igshid generation
+    consent.py                # Universal consent dialog detection and dismissal
     tabs.py                   # Tab management: ensure_correct_tab, process_ads_tabs, natural_exit
     urls.py                   # URL navigation: extract_domain, navigate_to_url_by_click
   ui/
     config_window.py          # PyQt5 ConfigWindow (dark mode, 3 tabs)
-.archive/legacy/main.py      # Pre-refactor monolithic original (reference only)
+    config_io.py              # Config file I/O and defaults
+    config_theme.py           # Dark mode styling
 ```
 
 ## Build / Run / Test Commands
@@ -59,7 +79,6 @@ No test framework is configured. No tests exist. If adding tests, use `pytest`:
 pip install pytest pytest-asyncio
 pytest                        # Run all tests
 pytest tests/test_foo.py      # Run a single test file
-pytest tests/test_foo.py::test_bar  # Run a single test function
 pytest -k "keyword"           # Run tests matching a keyword
 ```
 
@@ -76,6 +95,30 @@ ruff format .                 # Format
 python -m py_compile app/core/worker.py    # Check single file syntax
 python -c "import ast; ast.parse(open('app/core/worker.py').read())"
 ```
+
+## Centralized Timing System (CRITICAL)
+
+**All timing/delay values live in `app/core/timings.py`.** Never hardcode delays anywhere else.
+
+### How it works
+- `TIMINGS` dict maps named keys to `{"min": ms, "max": ms}` ranges
+- `timing_ms(key)` returns a randomized int in milliseconds (for `page.wait_for_timeout()`)
+- `timing_seconds(key)` returns a randomized float in seconds (for `asyncio.sleep()`)
+- Randomization uses lognormal distribution with geometric mean of min×max, sigma=0.4
+
+### Rules for any timing/delay changes
+- **NEVER** use `random.randint()`, `random.uniform()`, `gaussian_ms()`, or hardcoded `asyncio.sleep(N)` for timing delays in any file
+- **ALWAYS** use `timing_ms("key_name")` or `timing_seconds("key_name")` from `app.core.timings`
+- To add a new delay: add an entry to the `TIMINGS` dict in `timings.py`, then call `timing_ms("your_key")` or `timing_seconds("your_key")`
+- To change a delay value: edit the min/max in `timings.py` — the change propagates everywhere automatically
+- `gaussian_ms()` and `lognormal_seconds()` in `humanization.py` are ONLY for mouse movement math and config-based stay times (url min/max, ads min/max) — not for timing delays
+
+### Exceptions (NOT managed by timings.py)
+- **Playwright operation timeouts** (`timeout=45000` in `wait_for_selector`, `goto`, etc.) — these are failure ceilings, not human-like delays
+- **Per-URL stay time** (`url_data["min_time"]` / `url_data["max_time"]`) — user-configured in config.json
+- **Per-ads stay time** (`config["ads"]["min_time"]` / `config["ads"]["max_time"]`) — user-configured
+- **Mouse movement timing** in `humanization.py` — internal to curve generation math
+- **Process monitoring** (`time.sleep(1)` in automation.py worker poll loop)
 
 ## Agent Behaviour
 
@@ -144,7 +187,7 @@ When a user asks for a plan, write a comprehensive markdown file with step-by-st
 ### Error Handling
 - **Outer try/except pattern:** Wrap entire async function bodies in `try/except Exception as e` with a `print()` log and a safe return (`False`, `None`, `[]`).
 - **Bare `except:` with `continue`** is used in loops over DOM elements where individual failures are expected and non-critical.
-- **`SessionFailedException`** is raised to abort a session early; caught in the worker loop in `worker_session()`.
+- **`SessionFailedException`** is raised to abort a session early; caught in the worker loop in `SessionRunner.run()`.
 - **Never crash the worker.** Errors are logged and execution continues. Use `sys.exit(1)` only for truly fatal config errors in `main.py`.
 
 ### Logging
@@ -159,10 +202,10 @@ When a user asks for a plan, write a comprehensive markdown file with step-by-st
 - **`# noqa: F401`** for intentional unused re-exports (see `ui.py`).
 
 ### Dependency Injection Pattern
-Functions accept dependencies as callback parameters (`_fn` suffix) rather than importing directly. The `worker_session()` function in `worker.py` is the **composition root** -- it creates bound closures over `WorkerContext` and passes them down:
+Functions accept dependencies as callback parameters (`_fn` suffix) rather than importing directly. `SessionRunner` in `session.py` is the **composition root** -- it creates bound methods and passes them down:
 ```python
-async def _ensure_tab(browser, page, url, wid, timeout=60):
-    return await ensure_correct_tab(browser, page, url, wid, ctx.config, timeout)
+async def _ensure_tab_target(self, browser, page, url, wid, timeout=60):
+    return await self.ensure_tab(browser, page, url, wid, timeout, "target_page_intent")
 ```
 Follow this pattern when adding new functionality that needs access to shared state.
 
@@ -174,18 +217,17 @@ Follow this pattern when adding new functionality that needs access to shared st
 - Windows-compatible: uses `freeze_support()` and `set_start_method('spawn')`.
 
 ### Configuration
-- All config in `config.json`, loaded with `json.load()`.
-- Config is a plain `dict` passed through function parameters.
+- User config in `config.json`, loaded with `json.load()`. Config is a plain `dict` passed through function parameters.
+- **Timing/delay config** in `app/core/timings.py` (NOT in config.json). All delay values are centralized there.
 - Use `.get(key, default)` for backward-compatible optional keys.
 - Path resolution via `pathlib.Path(__file__).resolve().parent` chains.
 
 ### Browser Automation Conventions
-- **Navigation:** `page.goto(url, timeout=90000, wait_until="networkidle")`
-- **Element queries:** `page.query_selector_all('selector:visible')` with Playwright CSS selectors
+- **Navigation:** `page.goto(url, timeout=30000, wait_until="domcontentloaded")`
+- **Element queries:** `page.query_selector_all('selector')` with Playwright CSS selectors
 - **Waits:** `page.wait_for_selector(selector, state="visible", timeout=45000)`
-- **Delays:** `await asyncio.sleep(seconds)` or `await page.wait_for_timeout(milliseconds)`
+- **Delays:** `await asyncio.sleep(timing_seconds("key"))` or `await page.wait_for_timeout(timing_ms("key"))`
 - **Click fallback chain:** mouse click -> native `.click()` -> JS `evaluate("el.click()")`
-- **Random human-like delays** injected everywhere via `random.randint()` / `random.uniform()`
 
 ### Dual-Browser Architecture (Critical)
 
@@ -226,18 +268,3 @@ Camoufox does NOT support mobile device emulation. The project uses two separate
 #### Key Architectural Rule
 - Never use raw `playwright` or `playwright-stealth` for any browser session. Desktop uses Camoufox. Mobile uses CloakBrowser.
 - BrowserForge is only used by Camoufox for `Screen` constraints. CloakBrowser handles its own fingerprinting at binary level.
-
-#### Browser Module Structure
-```
-app/browser/
-  setup.py          # Thin orchestrator: picks desktop or mobile, delegates
-  proxy.py          # Proxy string parsing and config resolution (shared)
-  desktop.py        # Camoufox launch + cleanup
-  mobile.py         # CloakBrowser launch + cleanup (Android fingerprint via binary flags)
-  activities.py     # Human-like scroll, hover, click
-  humanization.py   # Mouse movement, timing helpers
-  geoip.py          # Proxy IP geolocation lookup (used by proxy.py for URL building)
-```
-
-### Known Issues / Tech Debt
-- `RateLimiter` class in `automation.py` is defined but `wait_if_needed()` is never called anywhere.

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T15:30:00+00:00
+- Short description: Update CLAUDE.md with centralized timing system documentation
+- What you do: Rewrote CLAUDE.md to document the centralized timing system (app/core/timings.py) as a critical section. Added rules: never hardcode delays, always use timing_ms/timing_seconds, how to add new delays, what exceptions exist (Playwright timeouts, config-based stay times, mouse movement math). Updated repository structure to reflect current files (session.py, timings.py, consent.py, click.py, etc.). Updated Browser Automation Conventions to reference timing_ms/timing_seconds instead of random.randint/random.uniform. Updated dependency injection section to reference SessionRunner.
+- File path that changes: .claude/CLAUDE.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T15:15:00+00:00
 - Short description: Fix missed hardcoded delay in consent.py retry loop
 - What you do: Replaced last remaining hardcoded timing (random 0.2-0.9s sleep) in handle_consent_dialog() retry loop with timing_seconds("consent_retry") from centralized timings.
