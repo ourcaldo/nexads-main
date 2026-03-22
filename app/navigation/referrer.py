@@ -16,6 +16,7 @@ from app.navigation.organic import (  # noqa: F401
     perform_organic_search,
     accept_google_cookies,
     handle_gdpr_consent,
+    warm_google_profile,
 )
 from app.navigation.facebook import navigate_facebook_referrer
 from app.navigation.instagram import navigate_instagram_referrer

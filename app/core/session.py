@@ -22,6 +22,7 @@ from app.navigation.referrer import (
     perform_organic_search,
     accept_google_cookies,
     navigate_social_referrer,
+    warm_google_profile,
 )
 from app.navigation.consent import handle_consent_dialog, try_dismiss_consent
 from app.navigation.tabs import (
@@ -360,6 +361,9 @@ class SessionRunner:
                             self._check_vignette,
                             ctx.config,
                         )
+
+                    # --- GOOGLE PROFILE WARM-UP (not counted in session time) ---
+                    await warm_google_profile(page, wid, max_seconds=60)
 
                     # --- URL PROCESSING ---
                     for url_index, url_data in enumerate(ctx.config["urls"]):

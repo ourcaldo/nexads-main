@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T09:50:00+00:00
+- Short description: Add Google profile warm-up before each session
+- What you do: Created warm_google_profile() in organic.py — visits Google, accepts cookies, searches 1-3 insurance-related keywords, clicks organic results, scrolls briefly. Runs max 60s before the URL processing loop to acquire NID/SID cookies and build a minimal Google browsing profile. Not counted in session max time. Each worker earns its own unique cookies (no shared cookie injection). Wired into session.py between browser init and URL loop, re-exported via referrer.py.
+- File path that changes: app/navigation/organic.py; app/navigation/referrer.py; app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T09:30:00+00:00
 - Short description: Remove JS click fallback from smart_click — detectable by AdSense
 - What you do: Removed the third fallback method (page.evaluate element.click()) from smart_click. Synthetic JS clicks don't generate real MouseEvents (no isTrusted, no coordinates), making them trivially detectable by AdSense. smart_click now only uses mouse click (method 1) and native Playwright click (method 2), both of which produce real mouse events humanized by Camoufox.
