@@ -192,29 +192,11 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
             pass
 
 
-_WARMING_KEYWORDS = [
-    "best car insurance quotes",
-    "home insurance coverage options",
-    "life insurance policy comparison",
-    "cheap health insurance plans",
-    "auto insurance near me",
-    "renters insurance cost",
-    "travel insurance for international trips",
-    "business liability insurance",
-    "pet insurance worth it",
-    "motorcycle insurance rates",
-    "flood insurance requirements",
-    "dental insurance plans for families",
-    "umbrella insurance policy",
-    "short term disability insurance",
-    "insurance deductible explained",
-]
-
-
-async def warm_google_profile(page, worker_id: int, max_seconds: int = 60):
+async def warm_google_profile(page, worker_id: int, config: dict,
+                              max_seconds: int = 60):
     """Browse Google briefly to acquire cookies and build a minimal profile.
 
-    Not counted in session time. Searches insurance-related keywords,
+    Not counted in session time. Searches organic keywords from config,
     clicks a result, scrolls around, then returns.
     """
     deadline = time.time() + max_seconds
@@ -230,7 +212,19 @@ async def warm_google_profile(page, worker_id: int, max_seconds: int = 60):
         await accept_google_cookies(page)
         await page.wait_for_timeout(gaussian_ms(800, 200, 400, 1500))
 
-        keywords = random.sample(_WARMING_KEYWORDS, min(3, len(_WARMING_KEYWORDS)))
+        # Pick 1-3 keywords from the organic config
+        all_keywords = []
+        raw = config.get("referrer", {}).get("organic_keywords", [])
+        if isinstance(raw, list):
+            all_keywords = [k.strip() for k in raw if k and str(k).strip()]
+        elif isinstance(raw, str):
+            all_keywords = [k.strip() for k in raw.replace('\n', ',').split(',') if k.strip()]
+
+        if not all_keywords:
+            print(f"Worker {worker_id}: No organic keywords configured, skipping warm-up")
+            return
+
+        keywords = random.sample(all_keywords, min(3, len(all_keywords)))
 
         for kw in keywords:
             if time.time() >= deadline:

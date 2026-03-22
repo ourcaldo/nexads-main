@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T10:00:00+00:00
+- Short description: Use organic config keywords for warm-up instead of hardcoded list
+- What you do: Replaced hardcoded _WARMING_KEYWORDS list with keywords from config["referrer"]["organic_keywords"]. warm_google_profile() now takes a config parameter and picks 1-3 keywords from the user's configured organic keywords. Skips warm-up gracefully if no keywords configured. Updated session.py call to pass ctx.config.
+- File path that changes: app/navigation/organic.py; app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T09:50:00+00:00
 - Short description: Add Google profile warm-up before each session
 - What you do: Created warm_google_profile() in organic.py — visits Google, accepts cookies, searches 1-3 insurance-related keywords, clicks organic results, scrolls briefly. Runs max 60s before the URL processing loop to acquire NID/SID cookies and build a minimal Google browsing profile. Not counted in session max time. Each worker earns its own unique cookies (no shared cookie injection). Wired into session.py between browser init and URL loop, re-exported via referrer.py.

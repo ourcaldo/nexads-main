@@ -363,7 +363,7 @@ class SessionRunner:
                         )
 
                     # --- GOOGLE PROFILE WARM-UP (not counted in session time) ---
-                    await warm_google_profile(page, wid, max_seconds=60)
+                    await warm_google_profile(page, wid, ctx.config, max_seconds=60)
 
                     # --- URL PROCESSING ---
                     for url_index, url_data in enumerate(ctx.config["urls"]):
