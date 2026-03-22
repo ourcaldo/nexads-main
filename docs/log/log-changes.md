@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T06:20:00+00:00
+- Short description: Use actual session device type for social referrer selection
+- What you do: Changed social referrer is_mobile flag to read from interaction_state["is_mobile"] (set by actual browser fingerprint_mode) instead of config device_type percentage. Mobile sessions now correctly use lm.facebook.com, desktop sessions use l.facebook.com.
+- File path that changes: app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T06:10:00+00:00
 - Short description: Implement Facebook social referrer with generated fbclid
 - What you do: Added generate_fbclid() that produces realistic Facebook Click IDs (Iw + ~120 chars base64url + _aem_ + ~20 chars). Added build_facebook_referrer() that returns origin-only referer header (l.facebook.com or lm.facebook.com) plus target URL with fbclid appended. Refactored get_social_referrer() to return a dict with referer/url/platform and handle Facebook specially. Updated session.py social referrer flow to use new dict API, navigate to URL with fbclid, and clear referer header after navigation. Cleaned up referrers.json to use origin-only URLs instead of hardcoded l.php URLs with third-party targets.

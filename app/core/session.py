@@ -404,7 +404,7 @@ class SessionRunner:
                             referrer_type = random.choice(referrer_types)
 
                             if referrer_type == "social":
-                                is_mobile = ctx.config.get("device_type", {}).get("mobile", 0) > 0
+                                is_mobile = interaction_state.get("is_mobile", False)
                                 social = get_social_referrer(url, is_mobile)
                                 if social["referer"]:
                                     await page.set_extra_http_headers({"referer": social["referer"]})
