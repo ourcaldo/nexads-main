@@ -291,11 +291,12 @@ async def process_ads_tabs(browser_context, worker_id: int, config: dict,
         print(f"Worker {worker_id}: Processing {len(pages)-1} ad tabs")
         config_urls = []
 
-        for url_data in config['urls']:
-            if url_data['random_page']:
-                urls = [u.strip() for u in url_data['url'].split(',')]
-                config_urls.extend(urls)
-            else:
+        # Explorer mode: gate URL is the config URL
+        explorer_cfg = config.get("explorer", {})
+        if explorer_cfg.get("enabled") and explorer_cfg.get("gate_url"):
+            config_urls.append(explorer_cfg["gate_url"].strip())
+        else:
+            for url_data in config['urls']:
                 config_urls.append(url_data['url'].strip())
 
         ad_tabs_processed = 0

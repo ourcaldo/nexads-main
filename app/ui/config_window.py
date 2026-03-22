@@ -362,61 +362,105 @@ class ConfigWindow(QMainWindow):
         referrer_group.setLayout(referrer_layout)
         layout.addWidget(referrer_group)
         
-        # URL List
-        url_list_group = QGroupBox("URL List")
+        # Explorer Mode
+        explorer_group = QGroupBox("Explorer Mode")
+        explorer_layout = QVBoxLayout()
+
+        self.explorer_enabled = QCheckBox("Enable Explorer Mode (autonomous same-domain browsing)")
+        explorer_cfg = self.config.get("explorer", {})
+        self.explorer_enabled.setChecked(explorer_cfg.get("enabled", False))
+        self.explorer_enabled.stateChanged.connect(self.toggle_explorer_mode)
+        explorer_layout.addWidget(self.explorer_enabled)
+
+        # Explorer options container
+        self.explorer_options = QWidget()
+        explorer_opts_layout = QVBoxLayout()
+        explorer_opts_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.explorer_gate_url = QLineEdit()
+        self.explorer_gate_url.setPlaceholderText("Enter gate URL (e.g. https://example.com)")
+        self.explorer_gate_url.setText(explorer_cfg.get("gate_url", ""))
+        explorer_opts_layout.addWidget(QLabel("Gate URL:"))
+        explorer_opts_layout.addWidget(self.explorer_gate_url)
+
+        explorer_time_layout = QHBoxLayout()
+        explorer_time_layout.addWidget(QLabel("Per-Page Min Time (s):"))
+        self.explorer_min_time = QSpinBox()
+        self.explorer_min_time.setRange(1, 3600)
+        self.explorer_min_time.setValue(explorer_cfg.get("min_time", 30))
+        explorer_time_layout.addWidget(self.explorer_min_time)
+
+        explorer_time_layout.addWidget(QLabel("Max Time (s):"))
+        self.explorer_max_time = QSpinBox()
+        self.explorer_max_time.setRange(1, 3600)
+        self.explorer_max_time.setValue(explorer_cfg.get("max_time", 60))
+        explorer_time_layout.addWidget(self.explorer_max_time)
+        explorer_opts_layout.addLayout(explorer_time_layout)
+
+        self.explorer_options.setLayout(explorer_opts_layout)
+        explorer_layout.addWidget(self.explorer_options)
+
+        explorer_group.setLayout(explorer_layout)
+        layout.addWidget(explorer_group)
+
+        # URL List (Sequential Mode)
+        self.url_list_group = QGroupBox("URL List (Sequential Mode)")
         url_list_layout = QVBoxLayout()
-        
+
         # URL Input
         url_input_layout = QHBoxLayout()
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("Enter URL (use comma to separate multiple URLs for random selection)")
+        self.url_input.setPlaceholderText("Enter URL")
         self.add_url_btn = QPushButton("Add URL")
         self.add_url_btn.clicked.connect(lambda: self.add_url_to_table())
         self.url_input.returnPressed.connect(self.add_url_to_table)
-        
+
         # Delete button - moved here next to Add button
         self.delete_url_btn = QPushButton("Delete URL")
         self.delete_url_btn.clicked.connect(self.delete_selected_url)
-        
+
         url_input_layout.addWidget(self.url_input)
         url_input_layout.addWidget(self.add_url_btn)
         url_input_layout.addWidget(self.delete_url_btn)
         url_list_layout.addLayout(url_input_layout)
-        
+
         # URL Table
         self.url_table = QTableWidget()
-        self.url_table.setColumnCount(5)
-        self.url_table.setHorizontalHeaderLabels(["#", "URL", "Random Page", "Min Time", "Max Time"])
+        self.url_table.setColumnCount(4)
+        self.url_table.setHorizontalHeaderLabels(["#", "URL", "Min Time", "Max Time"])
         self.url_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.url_table.horizontalHeader().setMinimumHeight(34)
         self.url_table.verticalHeader().setDefaultSectionSize(34)
         self.url_table.verticalHeader().setVisible(False)
-        
+
         # Configure table for deletion
         self.url_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.url_table.setSelectionMode(QTableWidget.SingleSelection)
         self.url_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.url_table.installEventFilter(self)
-        
+
         # Add keyboard shortcuts
         delete_action = QAction(self)
         delete_action.setShortcut(QKeySequence.Delete)
         delete_action.triggered.connect(self.delete_selected_url)
         self.addAction(delete_action)
-        
+
         backspace_action = QAction(self)
         backspace_action.setShortcut(QKeySequence.Backspace)
         backspace_action.triggered.connect(self.delete_selected_url)
         self.addAction(backspace_action)
-        
+
         # Populate table with existing URLs
         for i, url_data in enumerate(self.config["urls"], 1):
             self.add_url_to_table(url_data, i)
-        
+
         url_list_layout.addWidget(self.url_table)
-        
-        url_list_group.setLayout(url_list_layout)
-        layout.addWidget(url_list_group)
+
+        self.url_list_group.setLayout(url_list_layout)
+        layout.addWidget(self.url_list_group)
+
+        # Set initial explorer/sequential visibility
+        self.toggle_explorer_mode()
         
         tab.setLayout(layout)
         return tab
@@ -585,6 +629,12 @@ class ConfigWindow(QMainWindow):
             else:
                 self.random_check.setChecked(False)
 
+    def toggle_explorer_mode(self):
+        """Show/hide explorer vs sequential mode controls."""
+        is_explorer = self.explorer_enabled.isChecked()
+        self.explorer_options.setVisible(is_explorer)
+        self.url_list_group.setVisible(not is_explorer)
+
     def toggle_activity_options(self):
         """Show/hide random activity options based on checkbox state."""
         self.activity_options_group.setVisible(self.random_activity.isChecked())
@@ -622,51 +672,40 @@ class ConfigWindow(QMainWindow):
             url_text = self.url_input.text().strip()
             if not url_text:
                 return
-                
-            urls = [u.strip() for u in url_text.split(',') if u.strip()]
-            if not urls:
-                return
-                
+
             url_data = {
-                "url": ",".join(urls),
-                "random_page": len(urls) > 1,
+                "url": url_text,
                 "min_time": 30,
                 "max_time": 60
             }
             self.url_input.clear()
-        
+
         row = self.url_table.rowCount()
         self.url_table.insertRow(row)
-        
+
         # Numbering
         if row_num is None:
             row_num = row + 1
         num_item = QTableWidgetItem(str(row_num))
         num_item.setFlags(num_item.flags() ^ Qt.ItemIsEditable)
         self.url_table.setItem(row, 0, num_item)
-        
+
         # URL
         url_item = QTableWidgetItem(url_data["url"])
         self.url_table.setItem(row, 1, url_item)
-        
-        # Random Page checkbox
-        random_check = QCheckBox()
-        random_check.setChecked(url_data["random_page"])
-        random_check.setStyleSheet("margin-left:50%; margin-right:50%;")
-        self.url_table.setCellWidget(row, 2, random_check)
-        
+
         # Min Time
         min_time = QSpinBox()
         min_time.setRange(1, 3600)
-        min_time.setValue(url_data["min_time"])
-        self.url_table.setCellWidget(row, 3, min_time)
-        
+        min_time.setValue(url_data.get("min_time", 30))
+        self.url_table.setCellWidget(row, 2, min_time)
+
         # Max Time
         max_time = QSpinBox()
         max_time.setRange(1, 3600)
-        max_time.setValue(url_data["max_time"])
-        self.url_table.setCellWidget(row, 4, max_time)
-        
+        max_time.setValue(url_data.get("max_time", 60))
+        self.url_table.setCellWidget(row, 3, max_time)
+
         # Update numbering for all rows
         self.update_table_numbering()
 
@@ -784,14 +823,21 @@ class ConfigWindow(QMainWindow):
                 "organic_keywords": self.organic_keywords_input.toPlainText()
             }
             
+            # Explorer settings
+            config["explorer"] = {
+                "enabled": self.explorer_enabled.isChecked(),
+                "gate_url": self.explorer_gate_url.text().strip(),
+                "min_time": self.explorer_min_time.value(),
+                "max_time": self.explorer_max_time.value()
+            }
+
             # URL list
             config["urls"] = []
             for row in range(self.url_table.rowCount()):
                 url_data = {
                     "url": self.url_table.item(row, 1).text(),
-                    "random_page": self.url_table.cellWidget(row, 2).isChecked(),
-                    "min_time": self.url_table.cellWidget(row, 3).value(),
-                    "max_time": self.url_table.cellWidget(row, 4).value()
+                    "min_time": self.url_table.cellWidget(row, 2).value(),
+                    "max_time": self.url_table.cellWidget(row, 3).value()
                 }
                 config["urls"].append(url_data)
             
@@ -818,6 +864,10 @@ class ConfigWindow(QMainWindow):
                 errors.append("Ads time: min time must be ≤ max time")
             if config["session"].get("min_time", 0) > 0 and config["session"]["min_time"] > config["session"]["max_time"]:
                 errors.append("Session: min time must be ≤ max time")
+            if config["explorer"]["enabled"] and not config["explorer"]["gate_url"]:
+                errors.append("Explorer mode: gate URL is required")
+            if config["explorer"]["min_time"] > config["explorer"]["max_time"]:
+                errors.append("Explorer: min time must be ≤ max time")
             for i, url_data in enumerate(config["urls"]):
                 if url_data["min_time"] > url_data["max_time"]:
                     errors.append(f"URL row {i + 1}: min time must be ≤ max time")

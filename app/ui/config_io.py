@@ -36,10 +36,15 @@ DEFAULT_CONFIG = {
         "types": ["random"],
         "organic_keywords": "example\nsearch terms\nkeywords"
     },
+    "explorer": {
+        "enabled": False,
+        "gate_url": "",
+        "min_time": 30,
+        "max_time": 60
+    },
     "urls": [
         {
             "url": "https://example.com",
-            "random_page": False,
             "min_time": 30,
             "max_time": 60
         }
@@ -74,6 +79,12 @@ def load_config(config_path: str) -> dict:
                 else:
                     config["referrer"]["types"] = [old_type]
                 del config["referrer"]["type"]
+            # Backward compatibility: add explorer section if missing
+            if "explorer" not in config:
+                config["explorer"] = default["explorer"]
+            # Backward compatibility: strip random_page from old URL entries
+            for url_entry in config.get("urls", []):
+                url_entry.pop("random_page", None)
             return config
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             print(f"Warning: Config file is invalid ({e}), falling back to defaults.")

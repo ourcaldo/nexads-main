@@ -42,6 +42,7 @@ from app.core.telemetry import emit_worker_event, emit_mobile_fingerprint_event,
 from app.ads.adsense import check_and_handle_vignette
 from app.browser.click import smart_click
 from app.ads.dispatcher import dispatch_ad_interaction
+from app.navigation.explorer import discover_internal_links, select_next_link, normalize_path
 from app.core.automation import SessionFailedException
 
 
@@ -203,6 +204,150 @@ class SessionRunner:
             interact_with_ads_fn=ads_fn,
             next_url=next_url,
         )
+
+    # --- Explorer mode ---
+
+    async def _run_explorer_session(
+        self, page, browser, wid, ctx, interaction_state,
+        is_ads_session, gate_url, explorer_cfg,
+        _session_expired, _session_remaining, _emit_step,
+    ):
+        """Autonomous same-domain browsing from a gate URL."""
+        gate_domain = extract_domain(gate_url)
+        visited_paths: set[str] = {normalize_path(gate_url)}
+        page_count = 0
+        min_stay = int(explorer_cfg.get("min_time", 30))
+        max_stay = int(explorer_cfg.get("max_time", 60))
+        back_count = 0
+        max_back = 3
+
+        while ctx.running and not _session_expired():
+            page_count += 1
+            current_url = page.url
+            print(f"Worker {wid}: [Explorer page {page_count}] {current_url}")
+
+            # --- Consent + vignette ---
+            await try_dismiss_consent(page, wid)
+            await self._check_vignette(page, wid)
+
+            # --- Stay time ---
+            if min_stay >= max_stay:
+                stay_time = min_stay
+            else:
+                stay_time = int(round(
+                    lognormal_seconds((min_stay + max_stay) / 2, 0.5, min_stay, max_stay)
+                ))
+            remaining_budget = _session_remaining()
+            if remaining_budget < float("inf") and stay_time > remaining_budget:
+                stay_time = max(1, int(remaining_budget))
+
+            _settle = timing_seconds("page_settle")
+            await asyncio.sleep(_settle)
+
+            # Reset per-page ad state
+            interaction_state.pop("ad_attempted_this_page", None)
+            interaction_state.pop("ad_min_engagement_ratio", None)
+
+            print(f"Worker {wid}: Explorer staying {stay_time}s on page {page_count}")
+            _emit_step(
+                "explorer_page", "started",
+                url_value=current_url,
+                url_idx=page_count,
+                duration_ms=stay_time * 1000,
+            )
+
+            await self._perform_activity(
+                page, browser, wid, stay_time,
+                is_ads_session, interaction_state,
+                target_url=current_url,
+            )
+
+            _emit_step(
+                "explorer_page", "ok",
+                url_value=current_url,
+                url_idx=page_count,
+            )
+
+            if _session_expired() or not ctx.running:
+                break
+
+            # --- Discover and navigate to next page ---
+            candidates = await discover_internal_links(page, gate_domain, visited_paths)
+            selected = select_next_link(candidates)
+
+            if not selected:
+                # Dead end — go back
+                back_count += 1
+                if back_count > max_back:
+                    print(f"Worker {wid}: Explorer exhausted back attempts, ending session")
+                    break
+                print(f"Worker {wid}: Explorer dead end, going back ({back_count}/{max_back})")
+                try:
+                    await page.go_back(timeout=15000, wait_until="domcontentloaded")
+                    await asyncio.sleep(timing_seconds("page_settle"))
+                except Exception as e:
+                    print(f"Worker {wid}: Explorer go_back failed: {e}")
+                    break
+                # Re-discover after going back
+                candidates = await discover_internal_links(page, gate_domain, visited_paths)
+                selected = select_next_link(candidates)
+                if not selected:
+                    print(f"Worker {wid}: Explorer no links after go_back, ending session")
+                    break
+            else:
+                back_count = 0
+
+            # --- Click the selected link ---
+            target_href = selected["href"]
+            target_path = normalize_path(target_href)
+            print(f"Worker {wid}: Explorer navigating to: {target_href}")
+
+            try:
+                # Find the element on page by matching href
+                link_elements = await page.query_selector_all(f'a[href]')
+                click_target = None
+                for el in link_elements:
+                    try:
+                        el_href = await el.get_attribute("href")
+                        if not el_href:
+                            continue
+                        # Match by full resolved URL or raw href
+                        el_resolved = await el.evaluate("el => el.href")
+                        if el_resolved == target_href:
+                            if await el.is_visible():
+                                click_target = el
+                                break
+                    except Exception:
+                        continue
+
+                if not click_target:
+                    print(f"Worker {wid}: Explorer could not find link element, skipping")
+                    visited_paths.add(target_path)
+                    continue
+
+                clicked = await self._smart_click(
+                    page, wid, gate_domain, click_target, False, interaction_state
+                )
+
+                if clicked:
+                    # Wait for navigation
+                    try:
+                        await page.wait_for_load_state("domcontentloaded", timeout=30000)
+                    except Exception:
+                        pass
+                    await asyncio.sleep(timing_seconds("page_settle"))
+                    visited_paths.add(target_path)
+                    # Also add the actual URL we landed on (may differ due to redirects)
+                    visited_paths.add(normalize_path(page.url))
+                else:
+                    print(f"Worker {wid}: Explorer click failed, marking as visited")
+                    visited_paths.add(target_path)
+
+            except Exception as e:
+                print(f"Worker {wid}: Explorer navigation error: {e}")
+                visited_paths.add(target_path)
+
+        print(f"Worker {wid}: Explorer session done — visited {page_count} pages")
 
     # --- Main session loop ---
 
@@ -457,7 +602,17 @@ class SessionRunner:
                                 )
 
                     # --- URL PROCESSING ---
-                    for url_index, url_data in enumerate(ctx.config["urls"]):
+                    explorer_cfg = ctx.config.get("explorer", {})
+                    explorer_enabled = explorer_cfg.get("enabled", False) and explorer_cfg.get("gate_url", "").strip()
+
+                    if explorer_enabled:
+                        _explorer_urls = [{"url": explorer_cfg["gate_url"].strip(),
+                                           "min_time": int(explorer_cfg.get("min_time", 30)),
+                                           "max_time": int(explorer_cfg.get("max_time", 60))}]
+                    else:
+                        _explorer_urls = ctx.config["urls"]
+
+                    for url_index, url_data in enumerate(_explorer_urls):
                         if not ctx.running:
                             break
 
@@ -465,19 +620,12 @@ class SessionRunner:
                             print(f"Worker {wid}: Max session time reached ({session_max_seconds}s)")
                             break
 
-                        if url_data["random_page"]:
-                            urls = [
-                                u.strip() for u in url_data["url"].split(",") if u.strip()
-                            ]
-                            url = random.choice(urls) if urls else url_data["url"].strip()
-                        else:
-                            url = url_data["url"].strip()
+                        url = url_data["url"].strip()
 
                         next_url = None
                         if url_index + 1 < len(ctx.config["urls"]):
                             next_data = ctx.config["urls"][url_index + 1]
-                            if not next_data["random_page"]:
-                                next_url = next_data["url"].strip()
+                            next_url = next_data["url"].strip()
 
                         interaction_state.pop("pre_scanned_nav", None)
                         interaction_state.pop("ad_attempted_this_page", None)
@@ -851,6 +999,20 @@ class SessionRunner:
                             url_idx=url_index + 1,
                             duration_ms=int((time.time() - url_step_started) * 1000),
                         )
+
+                    # --- EXPLORER MODE: continue autonomous browsing ---
+                    if explorer_enabled and not _session_expired() and ctx.running:
+                        _emit_step("explorer_session", "started",
+                                   url_value=explorer_cfg["gate_url"].strip())
+                        await self._run_explorer_session(
+                            page, browser, wid, ctx, interaction_state,
+                            is_ads_session,
+                            explorer_cfg["gate_url"].strip(),
+                            explorer_cfg,
+                            _session_expired, _session_remaining, _emit_step,
+                        )
+                        _emit_step("explorer_session", "ok",
+                                   url_value=explorer_cfg["gate_url"].strip())
 
                     if is_ads_session:
                         if interaction_state.get("ad_click_success"):

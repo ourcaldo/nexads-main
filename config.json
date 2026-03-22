@@ -5,7 +5,7 @@
         "file": "proxy.txt"
     },
     "browser": {
-        "headless_mode": "virtual",
+        "headless_mode": "False",
         "disable_ublock": true,
         "random_activity": true,
         "auto_accept_cookies": true,
@@ -22,7 +22,7 @@
         "min_time": 5,
         "max_time": 10
     },
-    "threads": 10,
+    "threads": 1,
     "os_fingerprint": [
         "windows",
         "macos",
@@ -38,34 +38,35 @@
         ],
         "organic_keywords": "How Insurance Adjusters Review Injury Claims Without Missing a Detail\nHow a Lawyer Can Help You Get a Higher Insurance Settlement Offer camar"
     },
+    "explorer": {
+        "enabled": false,
+        "gate_url": "",
+        "min_time": 30,
+        "max_time": 60
+    },
     "urls": [
         {
             "url": "https://app.camarjaya.co.id/",
-            "random_page": false,
             "min_time": 5,
             "max_time": 10
         },
         {
             "url": "https://app.camarjaya.co.id/insights/",
-            "random_page": true,
             "min_time": 10,
             "max_time": 20
         },
         {
             "url": "https://app.camarjaya.co.id/first-time-property-buyer-here-is-what-the-paperwork-is-actually-saying/",
-            "random_page": true,
             "min_time": 30,
             "max_time": 60
         },
         {
             "url": "https://app.camarjaya.co.id/why-small-businesses-are-the-most-legally-vulnerable-and-what-to-do-about-it/",
-            "random_page": true,
             "min_time": 30,
             "max_time": 60
         },
         {
             "url": "https://app.camarjaya.co.id/what-an-attorney-actually-does-and-why-it-matters-before-you-ever-need-one/",
-            "random_page": true,
             "min_time": 10,
             "max_time": 20
         }
