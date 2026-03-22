@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T06:10:00+00:00
+- Short description: Implement Facebook social referrer with generated fbclid
+- What you do: Added generate_fbclid() that produces realistic Facebook Click IDs (Iw + ~120 chars base64url + _aem_ + ~20 chars). Added build_facebook_referrer() that returns origin-only referer header (l.facebook.com or lm.facebook.com) plus target URL with fbclid appended. Refactored get_social_referrer() to return a dict with referer/url/platform and handle Facebook specially. Updated session.py social referrer flow to use new dict API, navigate to URL with fbclid, and clear referer header after navigation. Cleaned up referrers.json to use origin-only URLs instead of hardcoded l.php URLs with third-party targets.
+- File path that changes: app/navigation/referrer.py; app/core/session.py; referrers.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-21T10:35:00+00:00
 - Short description: Split config_window.py into theme, I/O, and UI modules (P2-13)
 - What you do: Extracted dark mode stylesheet + QPalette into app/ui/config_theme.py (213 lines). Extracted DEFAULT_CONFIG, load_config(), write_config() into app/ui/config_io.py (96 lines). config_window.py reduced from 1133 to 859 lines, now imports from the new modules. Removed unused json/os/Path/QPalette/QColor/QFont/QSettings/QApplication imports from config_window.py.

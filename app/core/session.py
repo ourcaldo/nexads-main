@@ -404,18 +404,22 @@ class SessionRunner:
                             referrer_type = random.choice(referrer_types)
 
                             if referrer_type == "social":
-                                referrer = get_social_referrer()
-                                if referrer:
-                                    await page.set_extra_http_headers({"referer": referrer})
+                                is_mobile = ctx.config.get("device_type", {}).get("mobile", 0) > 0
+                                social = get_social_referrer(url, is_mobile)
+                                if social["referer"]:
+                                    await page.set_extra_http_headers({"referer": social["referer"]})
                                     print(
-                                        f"Worker {wid}: Using social referrer: {referrer}"
+                                        f"Worker {wid}: Using {social['platform']} referrer: {social['referer']}"
                                     )
+                                nav_url = social["url"]
                                 print(f"Worker {wid}: Loading initial URL directly")
                                 try:
                                     await page.goto(
-                                        url, timeout=30000, wait_until="domcontentloaded"
+                                        nav_url, timeout=30000, wait_until="domcontentloaded"
                                     )
                                     await asyncio.sleep(3)
+                                    # Clear the referer header so subsequent requests don't carry it
+                                    await page.set_extra_http_headers({})
                                 except Exception as e:
                                     print(
                                         f"Worker {wid}: Error visiting URL: {str(e)}"

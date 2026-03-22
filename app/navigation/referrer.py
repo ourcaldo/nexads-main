@@ -1,13 +1,15 @@
 """
 nexads/navigation/referrer.py
 Referrer handling: organic search, Google cookie acceptance, GDPR consent,
-request interception, and keyword selection.
+request interception, keyword selection, and social referrer generation.
 """
 
 import random
 import asyncio
 import json
 import pathlib
+import string
+import base64
 
 from app.browser.humanization import gaussian_ms
 from app.navigation.consent import handle_consent_dialog
@@ -195,17 +197,71 @@ async def perform_organic_search(page, keyword: str, target_domain: str,
             pass
 
 
-def get_social_referrer() -> str:
-    """Pick a random social referrer URL from referrers.json."""
+def _random_base64url(length: int) -> str:
+    """Generate a random base64url string of approximately the given length."""
+    num_bytes = (length * 3) // 4 + 1
+    raw = bytes(random.getrandbits(8) for _ in range(num_bytes))
+    encoded = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+    return encoded[:length]
+
+
+def generate_fbclid() -> str:
+    """Generate a realistic Facebook Click ID.
+
+    Format: Iw + ~120 chars base64url + _aem_ + ~20 chars base64url
+    Real fbclids are opaque encrypted blobs; no external party validates them.
+    """
+    body = _random_base64url(random.randint(115, 130))
+    suffix = _random_base64url(random.randint(18, 26))
+    return f"Iw{body}_aem_{suffix}"
+
+
+def build_facebook_referrer(target_url: str, is_mobile: bool = False) -> dict:
+    """Build a Facebook social referrer for the given target URL.
+
+    Returns a dict with:
+      - referer: origin-only Facebook referer header value
+      - url: target URL with fbclid appended
+    """
+    if is_mobile:
+        referer = "https://lm.facebook.com/"
+    else:
+        referer = "https://l.facebook.com/"
+
+    fbclid = generate_fbclid()
+    separator = "&" if "?" in target_url else "?"
+    url_with_fbclid = f"{target_url}{separator}fbclid={fbclid}"
+
+    return {"referer": referer, "url": url_with_fbclid}
+
+
+def get_social_referrer(target_url: str = "", is_mobile: bool = False) -> dict:
+    """Pick a random social referrer from referrers.json.
+
+    Returns a dict with:
+      - referer: the referrer header value (origin-only for platforms that use it)
+      - url: the target URL (possibly with tracking params like fbclid)
+      - platform: the platform name (e.g. "Facebook", "Twitter")
+    """
     try:
         with open(_REFERRERS_PATH, 'r') as f:
             referrers = json.load(f)
-        social = random.choice(list(referrers['social'].values()))
-        url = random.choice(social)
-        # Only prepend scheme if not already present
-        if not url.startswith('http://') and not url.startswith('https://'):
-            url = f"https://{url}"
-        return url
+
+        platforms = list(referrers['social'].keys())
+        platform = random.choice(platforms)
+
+        if platform == "Facebook":
+            fb = build_facebook_referrer(target_url, is_mobile)
+            return {"referer": fb["referer"], "url": fb["url"], "platform": platform}
+
+        # For non-Facebook platforms, use simple origin-only referer
+        urls = referrers['social'][platform]
+        referer_url = random.choice(urls)
+        if not referer_url.startswith('http://') and not referer_url.startswith('https://'):
+            referer_url = f"https://{referer_url}"
+
+        return {"referer": referer_url, "url": target_url, "platform": platform}
+
     except Exception as e:
         print(f"Error loading referrers: {str(e)}")
-        return ""
+        return {"referer": "", "url": target_url, "platform": "unknown"}
