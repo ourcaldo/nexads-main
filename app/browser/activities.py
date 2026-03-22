@@ -389,9 +389,10 @@ async def _attempt_ad_interaction(
 def _build_weighted_activities(config, capabilities, blocked_activities, phase):
     """Build weighted activity list based on capabilities, config, and reading phase."""
     phase_weights = {
-        "scroll": {"arrival": 0.65, "reading": 0.60, "exploration": 0.35, "done": 0.55},
+        "scroll": {"arrival": 0.65, "reading": 0.55, "exploration": 0.35, "done": 0.55},
         "click":  {"arrival": 0.10, "reading": 0.10, "exploration": 0.30, "done": 0.25},
-        "hover":  {"arrival": 0.25, "reading": 0.30, "exploration": 0.35, "done": 0.20},
+        "hover":  {"arrival": 0.25, "reading": 0.25, "exploration": 0.30, "done": 0.15},
+        "read":   {"arrival": 0.05, "reading": 0.35, "exploration": 0.15, "done": 0.10},
     }
     capability_map = {
         "scroll": "can_scroll",
@@ -407,6 +408,9 @@ def _build_weighted_activities(config, capabilities, blocked_activities, phase):
             and activity not in blocked_activities
         ):
             weighted.append((activity, phase_weights[activity][phase]))
+
+    # "read" is always available — no capability or config gate needed
+    weighted.append(("read", phase_weights["read"][phase]))
     return weighted
 
 
@@ -586,6 +590,17 @@ async def perform_random_activity(
                     page, browser, worker_id, ensure_correct_tab_fn,
                     running, interaction_state, expected_url,
                 )
+            elif selected == "read":
+                delay_cfg = config.get("delay", {})
+                read_min = delay_cfg.get("min_time", 3)
+                read_max = delay_cfg.get("max_time", 10)
+                read_median = (read_min + read_max) / 2
+                read_duration = min(
+                    lognormal_seconds(read_median, 0.5, read_min, read_max),
+                    remaining_time,
+                )
+                if read_duration > 0:
+                    await _idle_mouse_jitter(page, interaction_state, read_duration)
 
             # Hard re-anchor after each activity
             page, success = await ensure_correct_tab_fn(

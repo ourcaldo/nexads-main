@@ -222,7 +222,7 @@ Replace the current 2-scroll block with:
 
 ---
 
-## Gap 7: No reading pause simulation
+## Gap 7: No reading pause simulation — DONE
 
 ### Risk: MEDIUM
 

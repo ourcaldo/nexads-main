@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T13:00:00+00:00
+- Short description: Gap 7 DONE — Add reading pause activity to simulate content reading
+- What you do: Added "read" as a new weighted activity in perform_random_activity(). During a read pause, the mouse holds position with idle jitter for a duration randomized from config["delay"]["min_time"] to config["delay"]["max_time"] using lognormal distribution. Phase weights: arrival=0.05, reading=0.35, exploration=0.15, done=0.10. Read is always available (no capability or config gate). Adjusted scroll/hover weights slightly to accommodate read weight. Reading pause eats into stay_time budget — no visit extension.
+- File path that changes: app/browser/activities.py; docs/plans/2026-03-22-anti-detection-gaps.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T12:30:00+00:00
 - Short description: Gap 5 DONE — Event-driven ad click monitoring with randomized tail
 - What you do: Replaced fixed 5s sleep in evaluate_ad_click_outcome() with event-driven polling loop. Polls every 350ms for navigation (URL change or new tab). Once detected, adds 1-3s random tail buffer for redirect chains to settle. Max ceiling 8s. Removed hardcoded monitor_seconds=5.0 from adsense.py and adsterra.py callers. Updated timings_ms to report ceiling and actual elapsed time.
