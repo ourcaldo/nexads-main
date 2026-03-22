@@ -434,6 +434,7 @@ class SessionRunner:
 
                         interaction_state.pop("pre_scanned_nav", None)
                         interaction_state.pop("ad_attempted_this_page", None)
+                        interaction_state.pop("ad_min_engagement_ratio", None)
 
                         print(
                             f"Worker {wid}: [URL {url_index + 1}/{len(ctx.config['urls'])}] Visiting: {url}"

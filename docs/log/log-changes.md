@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T11:50:00+00:00
+- Short description: Reset ad engagement ratio per URL for varied timing
+- What you do: Added pop of ad_min_engagement_ratio in session.py between URLs so each page gets a fresh random engagement delay (15-35% of stay time). Previously the ratio was set once and reused across all URLs in a session.
+- File path that changes: app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T11:40:00+00:00
 - Short description: Gap 3 DONE — Require minimum engagement before ad click
 - What you do: Added time gate to priority ad attempt in perform_random_activity(). Ad click now requires 15-35% of stay_time to have passed with normal activities (scroll, hover) before attempting. The ratio is randomized per page via interaction_state["ad_min_engagement_ratio"]. Ad is still priority (guaranteed to happen), just delayed so it doesn't fire on the first loop iteration.
