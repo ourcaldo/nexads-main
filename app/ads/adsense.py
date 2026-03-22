@@ -285,7 +285,6 @@ async def interact_with_ads(page, browser, worker_id: int, extract_domain_fn,
                     source_url=source_url,
                     source_domain=current_domain,
                     tabs_before=tabs_before,
-                    monitor_seconds=5.0,
                 )
                 print(
                     f"Worker {worker_id}: Ad outcome type={outcome['outcome_type']}, "

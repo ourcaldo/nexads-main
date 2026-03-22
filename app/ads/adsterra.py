@@ -271,7 +271,7 @@ async def interact_with_adsterra_ads(page, browser, worker_id: int, extract_doma
                 outcome = await evaluate_ad_click_outcome(
                     page=page, context=context,
                     source_url=source_url, source_domain=source_domain,
-                    tabs_before=tabs_before, monitor_seconds=5.0,
+                    tabs_before=tabs_before,
                 )
                 print(
                     f"Worker {worker_id}: Adsterra outcome type={outcome['outcome_type']}, "

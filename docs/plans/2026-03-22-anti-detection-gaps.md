@@ -153,7 +153,7 @@ Replace fixed `asyncio.sleep(3)` with a randomized delay using `lognormal_second
 
 ---
 
-## Gap 5: Fixed 5s monitoring window after ad click
+## Gap 5: Fixed 5s monitoring window after ad click — DONE
 
 ### Risk: MEDIUM
 

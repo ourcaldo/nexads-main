@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import random
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -127,7 +128,7 @@ async def evaluate_ad_click_outcome(page, context,
                                     source_url: str,
                                     source_domain: str,
                                     tabs_before: int,
-                                    monitor_seconds: float = 5.0) -> dict:
+                                    max_wait_seconds: float = 8.0) -> dict:
     """Track navigation outcome after click and return normalized event payload."""
     click_id = f"clk_{uuid4().hex}"
     started_at = datetime.now(timezone.utc)
@@ -145,8 +146,27 @@ async def evaluate_ad_click_outcome(page, context,
     except Exception:
         _on_frame_navigated = None
 
+    # Event-driven monitoring: poll for navigation, add tail buffer once detected
+    poll_ms = 350
+    ceiling_ms = int(max(1.0, max_wait_seconds) * 1000)
+    elapsed_ms = 0
     try:
-        await page.wait_for_timeout(int(max(0.5, monitor_seconds) * 1000))
+        while elapsed_ms < ceiling_ms:
+            await page.wait_for_timeout(poll_ms)
+            elapsed_ms += poll_ms
+
+            tabs_now = len(context.pages)
+            try:
+                current_url = page.url or ""
+            except Exception:
+                current_url = ""
+
+            if tabs_now > tabs_before or (current_url and current_url != source_url):
+                # Navigation detected — tail buffer for redirect chains to settle
+                tail_ms = random.randint(1000, 3000)
+                await page.wait_for_timeout(tail_ms)
+                elapsed_ms += tail_ms
+                break
     except Exception:
         pass
     finally:
@@ -215,6 +235,7 @@ async def evaluate_ad_click_outcome(page, context,
         "confidence_score": confidence_score,
         "reason_codes": reason_codes,
         "timings_ms": {
-            "monitor_window": int(max(0.5, monitor_seconds) * 1000),
+            "monitor_ceiling_ms": ceiling_ms,
+            "actual_elapsed_ms": elapsed_ms,
         },
     }
