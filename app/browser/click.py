@@ -147,16 +147,10 @@ async def smart_click(page, worker_id: int, current_domain: str,
 
             except Exception as e2:
                 print(
-                    f"Worker {worker_id}: Native click failed, trying JS click: {str(e2)}\n"
+                    f"Worker {worker_id}: All click methods failed: {str(e2)}\n"
                     f"Element: {element_info}"
                 )
-                try:
-                    await page.evaluate("(element) => { element.click(); }", element)
-                    print(f"Worker {worker_id}: Clicked element via JS: {href}\nElement: {element_info}")
-                    return True
-                except Exception as e3:
-                    print(f"Worker {worker_id}: All click methods failed: {str(e3)}\nElement: {element_info}")
-                    return False
+                return False
 
     except Exception as e:
         print(f"Worker {worker_id}: Error performing smart click: {str(e)}")
