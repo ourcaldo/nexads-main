@@ -10,7 +10,12 @@ import time
 
 from app.browser.setup import configure_browser, cleanup_browser
 from app.browser.activities import perform_random_activity
-from app.browser.humanization import lognormal_seconds
+from app.browser.humanization import (
+    lognormal_seconds,
+    get_cursor_start,
+    move_mouse_humanly,
+    set_cursor_position,
+)
 from app.core.timings import timing_ms, timing_seconds
 from app.navigation.urls import (
     extract_domain,
@@ -395,13 +400,55 @@ class SessionRunner:
                                 await page.wait_for_timeout(
                                     timing_ms("social_settle")
                                 )
-                                await page.mouse.wheel(0, random.randint(150, 400))
+
+                                # Move cursor to a random starting spot
+                                sx, sy = get_cursor_start(page, interaction_state)
+                                viewport = page.viewport_size or {"width": 1280, "height": 720}
+                                tx = random.uniform(viewport["width"] * 0.15, viewport["width"] * 0.85)
+                                ty = random.uniform(viewport["height"] * 0.2, viewport["height"] * 0.7)
+                                is_mobile = interaction_state.get("is_mobile", False)
+                                await move_mouse_humanly(page, (sx, sy), (tx, ty), is_mobile=is_mobile)
+                                set_cursor_position(interaction_state, tx, ty)
+
+                                # 1-3 scroll events with varied distances
+                                num_scrolls = random.randint(1, 3)
+                                for _ in range(num_scrolls):
+                                    await page.mouse.wheel(0, random.randint(100, 450))
+                                    await page.wait_for_timeout(
+                                        timing_ms("social_scroll_gap")
+                                    )
+
+                                # 35% chance: hover on a visible element
+                                if random.random() < 0.35:
+                                    try:
+                                        elements = await page.query_selector_all(
+                                            'a, img, span, p, h1, h2, h3'
+                                        )
+                                        visible = []
+                                        for el in elements[:30]:
+                                            try:
+                                                if await el.is_visible():
+                                                    visible.append(el)
+                                                    if len(visible) >= 8:
+                                                        break
+                                            except Exception:
+                                                continue
+                                        if visible:
+                                            target_el = random.choice(visible)
+                                            box = await target_el.bounding_box()
+                                            if box:
+                                                hx = box["x"] + box["width"] * random.uniform(0.2, 0.8)
+                                                hy = box["y"] + box["height"] * random.uniform(0.2, 0.8)
+                                                cx, cy = get_cursor_start(page, interaction_state)
+                                                await move_mouse_humanly(page, (cx, cy), (hx, hy), is_mobile=is_mobile)
+                                                set_cursor_position(interaction_state, hx, hy)
+                                                await page.wait_for_timeout(timing_ms("hover_dwell"))
+                                    except Exception:
+                                        pass
+
+                                # Brief idle with mouse jitter
                                 await page.wait_for_timeout(
-                                    timing_ms("social_scroll_gap")
-                                )
-                                await page.mouse.wheel(0, random.randint(100, 300))
-                                await page.wait_for_timeout(
-                                    timing_ms("social_scroll_gap")
+                                    timing_ms("social_settle")
                                 )
                                 print(f"Worker {wid}: {platform} cookies acquired")
                             except Exception as e:

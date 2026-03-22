@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T17:00:00+00:00
+- Short description: Gap 6 & Gap 9 — improve social visit realism and randomize initial cursor
+- What you do: Gap 9: Changed get_cursor_start() to return a random position within the central 60% of the viewport instead of exact center. Each session now starts with a unique cursor position. Gap 6: Replaced the fixed 2-scroll social platform visit with realistic browsing — cursor movement to random viewport position, 1-3 varied scroll events, 35% chance to hover on a visible element with humanized mouse movement, and an idle settle period. Added move_mouse_humanly/get_cursor_start/set_cursor_position imports to session.py. All 9 anti-detection gaps now complete.
+- File path that changes: app/browser/humanization.py; app/core/session.py; docs/plans/2026-03-22-anti-detection-gaps.md; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T16:30:00+00:00
 - Short description: Scenario 2 same-tab ad landing — replace bare sleep with real browsing activity
 - What you do: Created _browse_ad_landing() function that runs lightweight random activity (scroll, hover with humanized mouse movement, read pauses with mouse jitter) on same-tab ad landing pages. Replaced bare asyncio.sleep(ad_stay) in _attempt_ad_interaction() with _browse_ad_landing() call. Now Scenario 2 (same-tab ad click) matches Scenario 1 (new-tab ad click via process_ads_tabs) in realism — both perform scroll/hover/read instead of just sleeping.

@@ -52,7 +52,10 @@ def get_cursor_start(page, interaction_state: MutableMapping | None = None) -> t
             return float(stored[0]), float(stored[1])
 
     viewport = page.viewport_size or {"width": 1280, "height": 720}
-    return float(viewport["width"] / 2), float(viewport["height"] / 2)
+    w, h = viewport["width"], viewport["height"]
+    x = random.uniform(w * 0.2, w * 0.8)
+    y = random.uniform(h * 0.2, h * 0.8)
+    return float(x), float(y)
 
 
 def set_cursor_position(interaction_state: MutableMapping | None,

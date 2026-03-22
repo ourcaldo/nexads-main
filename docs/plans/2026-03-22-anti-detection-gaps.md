@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-22
 **Goal:** Fix 9 identified gaps that AdSense / Google IVT systems can use to detect bot traffic.
-**Status:** Planning
+**Status:** Complete (all 9 gaps implemented)
 
 ---
 
@@ -186,7 +186,7 @@ After:
 
 ---
 
-## Gap 6: Social platform visit is too brief and synthetic
+## Gap 6: Social platform visit is too brief and synthetic — DONE
 
 ### Risk: MEDIUM
 
@@ -262,7 +262,7 @@ New "read" activity:
 
 ---
 
-## Gap 8: No interaction on ad landing page after clicking
+## Gap 8: No interaction on ad landing page after clicking — DONE
 
 ### Risk: MEDIUM
 
@@ -304,7 +304,7 @@ activity:
 
 ---
 
-## Gap 9: Cursor always starts at viewport center
+## Gap 9: Cursor always starts at viewport center — DONE
 
 ### Risk: LOW-MEDIUM
 
