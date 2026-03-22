@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T08:10:00+00:00
+- Short description: Clean up facebook.py — Option 2 with fbclid, remove dead Option 1 code
+- What you do: Added fbclid parameter to target URL (was missing). Removed all Option 1 dead code: build_facebook_redirect_url, _extract_target_domain, _ensure_fbclid, referrers.json reading, interstitial handling. facebook.py now ~60 lines: generate fbclid, set referer header, goto target?fbclid=..., clear header.
+- File path that changes: app/navigation/facebook.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T08:00:00+00:00
 - Short description: Switch Facebook referrer to Option 2 — direct header approach
 - What you do: Removed l.facebook.com visit and interstitial handling entirely. Camoufox cannot preserve the referer through Facebook's interstitial (tested page.goto referer param and set_extra_http_headers — neither works after visiting facebook.com). Now uses simple Option 2: set_extra_http_headers with referer, goto target directly, clear headers.
