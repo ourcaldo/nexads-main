@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T10:15:00+00:00
+- Short description: Fix warm-up to cycle multiple keywords quickly and end on Google
+- What you do: Rewrote warm_google_profile() loop — reduced all delays (search results scroll, page visit, go-back), samples up to 5 keywords instead of 3, uses domcontentloaded instead of networkidle for faster page loads, single quick scroll per result page instead of 1-3 long scrolls. Added end-of-warmup check that navigates back to Google if not already there, so the session referrer flow transitions naturally (organic reuses Google page, social navigates away, direct goes straight).
+- File path that changes: app/navigation/organic.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T10:00:00+00:00
 - Short description: Use organic config keywords for warm-up instead of hardcoded list
 - What you do: Replaced hardcoded _WARMING_KEYWORDS list with keywords from config["referrer"]["organic_keywords"]. warm_google_profile() now takes a config parameter and picks 1-3 keywords from the user's configured organic keywords. Skips warm-up gracefully if no keywords configured. Updated session.py call to pass ctx.config.

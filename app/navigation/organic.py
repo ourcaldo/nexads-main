@@ -196,10 +196,11 @@ async def warm_google_profile(page, worker_id: int, config: dict,
                               max_seconds: int = 60):
     """Browse Google briefly to acquire cookies and build a minimal profile.
 
-    Not counted in session time. Searches organic keywords from config,
-    clicks a result, scrolls around, then returns.
+    Searches multiple organic keywords quickly, clicks results, brief scroll,
+    then returns with the page on Google ready for the next navigation step.
     """
     deadline = time.time() + max_seconds
+    start = time.time()
     print(f"Worker {worker_id}: Starting Google profile warm-up ({max_seconds}s max)")
 
     interceptor_handler = await setup_request_interceptor(page)
@@ -210,9 +211,9 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             "https://www.google.com/", timeout=20000, wait_until="domcontentloaded"
         )
         await accept_google_cookies(page)
-        await page.wait_for_timeout(gaussian_ms(800, 200, 400, 1500))
+        await page.wait_for_timeout(gaussian_ms(500, 120, 250, 900))
 
-        # Pick 1-3 keywords from the organic config
+        # Pick keywords from the organic config
         all_keywords = []
         raw = config.get("referrer", {}).get("organic_keywords", [])
         if isinstance(raw, list):
@@ -224,7 +225,7 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             print(f"Worker {worker_id}: No organic keywords configured, skipping warm-up")
             return
 
-        keywords = random.sample(all_keywords, min(3, len(all_keywords)))
+        keywords = random.sample(all_keywords, min(len(all_keywords), 5))
 
         for kw in keywords:
             if time.time() >= deadline:
@@ -243,19 +244,22 @@ async def warm_google_profile(page, worker_id: int, config: dict,
             await search_input.press("Enter")
 
             try:
-                await page.wait_for_load_state("networkidle", timeout=15000)
+                await page.wait_for_load_state("domcontentloaded", timeout=12000)
             except Exception:
-                await page.wait_for_timeout(3000)
+                pass
 
             if time.time() >= deadline:
                 break
 
-            # --- Click a random organic result ---
+            # --- Scroll the search results briefly ---
             try:
-                await page.wait_for_selector("div#search", state="visible", timeout=10000)
+                await page.wait_for_selector("div#search", state="visible", timeout=8000)
+                await page.mouse.wheel(0, random.randint(200, 400))
+                await page.wait_for_timeout(gaussian_ms(400, 100, 200, 700))
             except Exception:
                 continue
 
+            # --- Click a random organic result ---
             links = await page.query_selector_all("div#search a[href]")
             clickable = []
             for link in links:
@@ -268,41 +272,53 @@ async def warm_google_profile(page, worker_id: int, config: dict,
                     continue
 
             if not clickable:
+                # No results to click, move to next keyword
                 continue
 
             target = random.choice(clickable[:5])
             try:
                 await target.scroll_into_view_if_needed()
-                await page.wait_for_timeout(gaussian_ms(600, 180, 250, 1400))
-                await target.click(delay=gaussian_ms(100, 30, 40, 200))
-                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                await page.wait_for_timeout(gaussian_ms(300, 80, 150, 600))
+                await target.click(delay=gaussian_ms(90, 25, 35, 180))
+                await page.wait_for_load_state("domcontentloaded", timeout=10000)
             except Exception:
                 pass
 
             if time.time() >= deadline:
                 break
 
-            # --- Brief scroll on the result page ---
+            # --- Quick scroll on the result page, then go back ---
             try:
-                for _ in range(random.randint(1, 3)):
-                    await page.mouse.wheel(0, random.randint(200, 500))
-                    await page.wait_for_timeout(gaussian_ms(700, 200, 300, 1500))
+                await page.mouse.wheel(0, random.randint(150, 400))
+                await page.wait_for_timeout(gaussian_ms(400, 100, 200, 800))
             except Exception:
                 pass
 
             # --- Go back to Google for next keyword ---
-            if time.time() < deadline:
+            try:
+                await page.go_back(timeout=10000)
+                await page.wait_for_load_state("domcontentloaded", timeout=8000)
+            except Exception:
                 try:
-                    await page.go_back(timeout=15000)
-                    await page.wait_for_load_state("domcontentloaded", timeout=10000)
-                    await page.wait_for_timeout(gaussian_ms(500, 150, 200, 1000))
-                except Exception:
                     await page.goto(
-                        "https://www.google.com/", timeout=15000,
+                        "https://www.google.com/", timeout=10000,
                         wait_until="domcontentloaded",
                     )
+                except Exception:
+                    break
 
-        elapsed = time.time() - (deadline - max_seconds)
+        # --- Ensure we end on Google so session navigation flows naturally ---
+        try:
+            current = page.url or ""
+            if "google." not in current:
+                await page.goto(
+                    "https://www.google.com/", timeout=10000,
+                    wait_until="domcontentloaded",
+                )
+        except Exception:
+            pass
+
+        elapsed = time.time() - start
         print(f"Worker {worker_id}: Google warm-up complete ({elapsed:.1f}s)")
 
     except Exception as e:
