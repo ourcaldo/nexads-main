@@ -26,7 +26,7 @@
         "min_time": 5,
         "max_time": 10
     },
-    "threads": 5,
+    "threads": 10,
     "os_fingerprint": [
         "windows",
         "macos",

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T10:55:00+00:00
+- Short description: Config update: threads back to 10, remove Telegram from referrers
+- What you do: User changed config.json threads 5→10. User removed Telegram from referrers.json social platforms.
+- File path that changes: config.json; referrers.json; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T10:50:00+00:00
 - Short description: Update config.json (threads, referrer types) + add git check rule to CLAUDE.md
 - What you do: User changed config.json: threads 10→5, removed "direct" from referrer types. Added rule to CLAUDE.md Agent Behaviour: always run git status/diff before pushing to catch user changes.
