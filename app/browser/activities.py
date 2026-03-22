@@ -266,10 +266,11 @@ async def random_hover(
             await move_mouse_humanly(page, (start_x, start_y), (target_x, target_y), is_mobile=is_mobile)
             set_cursor_position(interaction_state, target_x, target_y)
 
-        await page.wait_for_timeout(timing_ms("hover_dwell"))
+        _hover_ms = timing_ms("hover_dwell")
+        await page.wait_for_timeout(_hover_ms)
 
         print(
-            f"Worker {worker_id}: Hovered at {target_x:.0f},{target_y:.0f} for {hover_time:.1f}s"
+            f"Worker {worker_id}: Hovered at {target_x:.0f},{target_y:.0f} for {_hover_ms / 1000:.1f}s"
         )
 
     except Exception as e:
@@ -578,6 +579,9 @@ async def perform_random_activity(
             blocked_activities = (
                 set(raw_blocked) if isinstance(raw_blocked, list) else set()
             )
+            # Explorer mode handles its own navigation — block random_click
+            if interaction_state.get("explorer_mode"):
+                blocked_activities.add("click")
             if capabilities.get("can_scroll", True) and "scroll" in blocked_activities:
                 blocked_activities.discard("scroll")
 
