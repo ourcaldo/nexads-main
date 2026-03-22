@@ -21,8 +21,7 @@ from app.navigation.referrer import (
     get_random_keyword,
     perform_organic_search,
     accept_google_cookies,
-    get_social_referrer,
-    navigate_facebook_referrer,
+    navigate_social_referrer,
 )
 from app.navigation.consent import handle_consent_dialog, try_dismiss_consent
 from app.navigation.tabs import (
@@ -406,75 +405,35 @@ class SessionRunner:
 
                             if referrer_type == "social":
                                 is_mobile = interaction_state.get("is_mobile", False)
-                                social = get_social_referrer(url, is_mobile)
-                                print(
-                                    f"Worker {wid}: Using {social['platform']} social referrer"
-                                )
-
-                                if social["navigate_fn"]:
-                                    # Facebook: navigate through l.facebook.com redirect
-                                    try:
-                                        success = await navigate_facebook_referrer(
-                                            page, url, wid, is_mobile
-                                        )
-                                        if not success:
-                                            raise SessionFailedException(
-                                                "Facebook referrer navigation failed"
-                                            )
-                                        await asyncio.sleep(3)
-                                    except SessionFailedException:
-                                        raise
-                                    except Exception as e:
-                                        print(
-                                            f"Worker {wid}: Error with Facebook referrer: {str(e)}"
-                                        )
-                                        _emit_step(
-                                            "url_navigation",
-                                            "failed",
-                                            url_value=url,
-                                            url_idx=url_index + 1,
-                                            reason_code="fb_referrer_failed",
-                                            error=e,
-                                            duration_ms=int(
-                                                (time.time() - url_step_started) * 1000
-                                            ),
-                                        )
+                                try:
+                                    success = await navigate_social_referrer(
+                                        page, url, wid, is_mobile
+                                    )
+                                    if not success:
                                         raise SessionFailedException(
-                                            "Failed to visit initial URL via Facebook referrer"
+                                            "Social referrer navigation failed"
                                         )
-                                else:
-                                    # Other platforms: header-based approach
-                                    if social["referer"]:
-                                        await page.set_extra_http_headers(
-                                            {"referer": social["referer"]}
-                                        )
-                                    print(f"Worker {wid}: Loading initial URL directly")
-                                    try:
-                                        await page.goto(
-                                            social["url"],
-                                            timeout=30000,
-                                            wait_until="domcontentloaded",
-                                        )
-                                        await asyncio.sleep(3)
-                                        await page.set_extra_http_headers({})
-                                    except Exception as e:
-                                        print(
-                                            f"Worker {wid}: Error visiting URL: {str(e)}"
-                                        )
-                                        _emit_step(
-                                            "url_navigation",
-                                            "failed",
-                                            url_value=url,
-                                            url_idx=url_index + 1,
-                                            reason_code="initial_direct_goto_failed",
-                                            error=e,
-                                            duration_ms=int(
-                                                (time.time() - url_step_started) * 1000
-                                            ),
-                                        )
-                                        raise SessionFailedException(
-                                            "Failed to visit initial URL"
-                                        )
+                                    await asyncio.sleep(3)
+                                except SessionFailedException:
+                                    raise
+                                except Exception as e:
+                                    print(
+                                        f"Worker {wid}: Error with social referrer: {str(e)}"
+                                    )
+                                    _emit_step(
+                                        "url_navigation",
+                                        "failed",
+                                        url_value=url,
+                                        url_idx=url_index + 1,
+                                        reason_code="social_referrer_failed",
+                                        error=e,
+                                        duration_ms=int(
+                                            (time.time() - url_step_started) * 1000
+                                        ),
+                                    )
+                                    raise SessionFailedException(
+                                        "Failed to visit initial URL via social referrer"
+                                    )
 
                             elif referrer_type == "organic":
                                 keyword = get_random_keyword(ctx.config)

@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-22T08:45:00+00:00
+- Short description: Add Instagram referrer with igshid + refactor social referrer dispatch
+- What you do: Created instagram.py with generate_igshid() and navigate_instagram_referrer() (sets referer header + appends igsh= param). Refactored referrer.py: added navigate_social_referrer() dispatcher with _PLATFORM_HANDLERS dict mapping platforms to their async handlers. Session.py social referrer block simplified from 40+ lines (Facebook-specific + generic) to a single navigate_social_referrer() call. Adding new platform handlers now only requires adding to _PLATFORM_HANDLERS dict.
+- File path that changes: app/navigation/instagram.py (new); app/navigation/referrer.py; app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T08:30:00+00:00
 - Short description: Remove h_tokens from referrers.json — no longer needed with Option 2
 - What you do: Removed h_tokens array from Facebook entry in referrers.json and changed Facebook to list format matching other platforms. h_tokens were only needed for Option 1 (l.facebook.com redirect) which was replaced by Option 2 (direct header approach).
