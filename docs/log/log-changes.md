@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-24T13:25:44.2837177-07:00
+- Short description: Push repo updates and schedule runner workflow every 3 hours
+- What you do: Added GitHub Actions cron schedule to run nexAds automatically every 3 hours and made workflow inputs compatible with both scheduled and manual dispatch runs using fallback defaults. Prepared repository update push while excluding cache/runtime generated files.
+- File path that changes: .github/workflows/run-nexads.yml; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-22T20:00:00+00:00
 - Short description: Fix 4 runtime bugs from explorer mode testing
 - What you do: (1) AdSense false positive detection: removed raw iframe selectors (iframe[src*="doubleclick.net"] etc.) from _DEFAULT_AD_SELECTORS — these matched tracking/measurement iframes, not real ads. Rewrote _has_rendered_content() to reject raw iframe elements, require data-ad-status="filled" on INS elements, and verify ad creative iframes by ID pattern (aswift_*, google_ads_iframe_*) or ancestor INS[data-ad-status="filled"]. (2) URL count display: changed len(ctx.config['urls']) to len(_explorer_urls) in print statement. (3) random_click navigating away during explorer: added explorer_mode flag to interaction_state, blocked "click" activity in perform_random_activity when flag is set. (4) hover_time not defined: already fixed in prior session.

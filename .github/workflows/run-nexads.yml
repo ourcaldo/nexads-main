@@ -1,6 +1,8 @@
 name: Run nexAds
 
 on:
+  schedule:
+    - cron: "0 */3 * * *"
   workflow_dispatch:
     inputs:
       num_workers:
@@ -26,7 +28,7 @@ jobs:
         run: |
           python3 -c "
           import json, os
-          n = int('${{ inputs.num_workers }}')
+          n = int('${{ github.event.inputs.num_workers || '20' }}')
           matrix = {'worker_id': list(range(1, n + 1))}
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f'matrix={json.dumps(matrix)}\n')
@@ -53,7 +55,7 @@ jobs:
 
       - name: Run nexAds
         run: |
-          timeout ${{ inputs.run_minutes }}m python3 main.py || echo "Session completed after ${{ inputs.run_minutes }} minutes"
+          timeout ${{ github.event.inputs.run_minutes || '180' }}m python3 main.py || echo "Session completed after ${{ github.event.inputs.run_minutes || '180' }} minutes"
 
       - name: Upload logs
         if: always()

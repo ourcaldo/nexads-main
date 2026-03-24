@@ -22,7 +22,7 @@
         "min_time": 4,
         "max_time": 5
     },
-    "threads": 1,
+    "threads": 10,
     "os_fingerprint": [
         "windows",
         "macos",
