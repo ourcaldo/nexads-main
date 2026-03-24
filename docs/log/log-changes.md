@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-03-24T13:30:00-07:00
+- Short description: Remediate leaked token file from zip artifact
+- What you do: Rebuilt nexads-project.zip excluding tokens.txt and validated that tokens.txt is not present in the archive, then prepared and pushed a remediation commit.
+- File path that changes: nexads-project.zip; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-24T13:25:44.2837177-07:00
 - Short description: Push repo updates and schedule runner workflow every 3 hours
 - What you do: Added GitHub Actions cron schedule to run nexAds automatically every 3 hours and made workflow inputs compatible with both scheduled and manual dispatch runs using fallback defaults. Prepared repository update push while excluding cache/runtime generated files.
