@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-04-08T00:10:00+00:00
+- Short description: Disable mouse wheel value changes on numeric config fields
+- What you do: Added a UI-wide event filter for QAbstractSpinBox controls to block wheel events so scrolling the page no longer accidentally changes numeric values. Applied the guard to all existing numeric fields and to dynamically added URL min/max time spinboxes.
+- File path that changes: app/ui/config_window.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-04-08T00:00:00+00:00
 - Short description: Make session count global across threads and remove 1000 UI cap
 - What you do: Updated session handling so session.count is a global budget shared by all workers instead of per-thread. Added an atomic global session counter and lock shared through multiprocessing Manager to prevent over-allocation across concurrent workers. Updated UI session input to support large values (up to int32 max) and relabeled it as Global Session Count.

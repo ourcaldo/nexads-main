@@ -10,8 +10,8 @@ from PyQt5.QtWidgets import (QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBo
                             QSpinBox, QTextEdit, QTableWidget, QTableWidgetItem, QHeaderView,
                             QFileDialog, QDoubleSpinBox, QRadioButton, QButtonGroup, QAction,
                             QMessageBox, QSlider, QFrame, QScrollArea, QListWidget, QListWidgetItem,
-                            QAbstractItemView)
-from PyQt5.QtCore import Qt
+                            QAbstractItemView, QAbstractSpinBox)
+from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QKeySequence
 
 from app.ui.config_theme import apply_dark_mode
@@ -68,6 +68,14 @@ class ConfigWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
+
+        # Prevent accidental value changes when scrolling over numeric fields.
+        self._install_number_input_wheel_guards()
+
+    def _install_number_input_wheel_guards(self):
+        """Block mouse-wheel edits on all number inputs in this window."""
+        for spin in self.findChildren(QAbstractSpinBox):
+            spin.installEventFilter(self)
 
     def wrap_in_scroll_area(self, content_widget: QWidget):
         """Wrap a tab content widget in a scroll area so content is never clipped."""
@@ -698,12 +706,14 @@ class ConfigWindow(QMainWindow):
         min_time = QSpinBox()
         min_time.setRange(1, 3600)
         min_time.setValue(url_data.get("min_time", 30))
+        min_time.installEventFilter(self)
         self.url_table.setCellWidget(row, 2, min_time)
 
         # Max Time
         max_time = QSpinBox()
         max_time.setRange(1, 3600)
         max_time.setValue(url_data.get("max_time", 60))
+        max_time.installEventFilter(self)
         self.url_table.setCellWidget(row, 3, max_time)
 
         # Update numbering for all rows
@@ -730,8 +740,12 @@ class ConfigWindow(QMainWindow):
         self.update_table_numbering()
 
     def eventFilter(self, source, event):
-        """Handle keyboard events for the URL table."""
-        if event.type() == event.KeyPress and source is self.url_table:
+        """Handle keyboard events for URL table and wheel events for number inputs."""
+        if event.type() == QEvent.Wheel and isinstance(source, QAbstractSpinBox):
+            event.ignore()
+            return True
+
+        if event.type() == QEvent.KeyPress and source is self.url_table:
             if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
                 self.delete_selected_url()
                 return True
