@@ -64,14 +64,13 @@ class nexAds:
             sys.exit(1)
 
     def calculate_session_distribution(self):
-        """Calculate how many sessions should include ad interactions based on CTR."""
+        """Calculate global session budget and ad-interaction distribution."""
         session_enabled = self.config['session']['enabled']
         session_count = self.config['session']['count']
-        threads = self.config['threads']
 
         if session_enabled and session_count > 0:
-            # Finite session mode: count is explicit
-            self.total_sessions = threads * session_count
+            # Finite session mode: count is global across all workers.
+            self.total_sessions = session_count
         else:
             # session.count == 0 means unlimited sessions.
             self.total_sessions = 0  # 0 = unlimited; ads_sessions used as rolling budget
@@ -111,6 +110,8 @@ class nexAds:
             'successful_sessions': self.manager.dict(),
             'ads_session_counts': self.manager.dict(),
             'successful_ads_sessions': self.manager.dict(),
+            'global_session_count': self.manager.Value('i', 0),
+            'global_session_lock': self.manager.Lock(),
         }
 
         print(f"Starting nexAds with {self.config['threads']} threads")
@@ -132,7 +133,9 @@ class nexAds:
                       shared['session_counts'],
                       shared['successful_sessions'],
                       shared['ads_session_counts'],
-                      shared['successful_ads_sessions'])
+                        shared['successful_ads_sessions'],
+                        shared['global_session_count'],
+                        shared['global_session_lock'])
             )
             p.start()
             self.workers.append(p)

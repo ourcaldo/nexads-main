@@ -375,10 +375,13 @@ class SessionRunner:
                 if (
                     ctx.config["session"]["enabled"]
                     and ctx.config["session"]["count"] > 0
-                    and self.session_count >= ctx.config["session"]["count"]
                 ):
-                    print(f"Worker {wid}: Session count limit reached")
-                    break
+                    # Reserve one slot atomically from the global session budget.
+                    with ctx.global_session_lock:
+                        if ctx.global_session_count.value >= ctx.config["session"]["count"]:
+                            print(f"Worker {wid}: Global session count limit reached")
+                            break
+                        ctx.global_session_count.value += 1
 
                 ads_ctr = ctx.config.get("ads", {}).get("ctr", 0)
                 is_ads_session = random.random() * 100 < ads_ctr

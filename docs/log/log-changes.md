@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-04-08T00:00:00+00:00
+- Short description: Make session count global across threads and remove 1000 UI cap
+- What you do: Updated session handling so session.count is a global budget shared by all workers instead of per-thread. Added an atomic global session counter and lock shared through multiprocessing Manager to prevent over-allocation across concurrent workers. Updated UI session input to support large values (up to int32 max) and relabeled it as Global Session Count.
+- File path that changes: app/ui/config_window.py; app/core/automation.py; app/core/worker.py; app/core/session.py; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-03-24T13:30:00-07:00
 - Short description: Remediate leaked token file from zip artifact
 - What you do: Rebuilt nexads-project.zip excluding tokens.txt and validated that tokens.txt is not present in the archive, then prepared and pushed a remediation commit.

@@ -22,6 +22,8 @@ class WorkerContext:
     successful_sessions: object  # multiprocessing.Manager dict proxy
     ads_session_counts: object  # multiprocessing.Manager dict proxy
     successful_ads_sessions: object  # multiprocessing.Manager dict proxy
+    global_session_count: object  # multiprocessing.Manager Value proxy
+    global_session_lock: object  # multiprocessing.Manager Lock proxy
 
 
 def _kill_child_browser_processes(worker_id: int):
@@ -48,6 +50,8 @@ async def run_worker_async(
     successful_sessions,
     ads_session_counts,
     successful_ads_sessions,
+    global_session_count,
+    global_session_lock,
 ):
     """Top-level async entry point for a multiprocessing worker."""
     import json
@@ -63,6 +67,8 @@ async def run_worker_async(
             successful_sessions=successful_sessions,
             ads_session_counts=ads_session_counts,
             successful_ads_sessions=successful_ads_sessions,
+            global_session_count=global_session_count,
+            global_session_lock=global_session_lock,
         )
         runner = SessionRunner(ctx, worker_id, _kill_child_browser_processes)
         await runner.run()
@@ -77,6 +83,8 @@ def run_worker(
     successful_sessions,
     ads_session_counts,
     successful_ads_sessions,
+    global_session_count,
+    global_session_lock,
 ):
     """Wrapper to run async worker in a fresh event loop (called by multiprocessing)."""
     loop = asyncio.new_event_loop()
@@ -89,6 +97,8 @@ def run_worker(
             successful_sessions,
             ads_session_counts,
             successful_ads_sessions,
+            global_session_count,
+            global_session_lock,
         )
     )
     loop.close()

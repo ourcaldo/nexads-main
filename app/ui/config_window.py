@@ -208,9 +208,9 @@ class ConfigWindow(QMainWindow):
         session_layout.addWidget(self.session_enabled)
         
         self.session_count = QSpinBox()
-        self.session_count.setRange(0, 1000)  # 0 means unlimited
+        self.session_count.setRange(0, 2147483647)  # 0 means unlimited
         self.session_count.setValue(self.config["session"]["count"])
-        session_layout.addWidget(QLabel("Session Count (0=unlimited):"))
+        session_layout.addWidget(QLabel("Global Session Count (0=unlimited):"))
         session_layout.addWidget(self.session_count)
         
         self.session_min_time = QSpinBox()
