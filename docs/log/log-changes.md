@@ -1,6 +1,12 @@
 # Log Changes
 
 ## Entry
+- Date time: 2026-04-08T00:20:00+00:00
+- Short description: Append 10,000 NetNut US sticky proxy entries
+- What you do: Appended 10,000 new proxy lines to proxy.txt using gw.netnut.net:5959 with indexnow-res-us-sid-<random> usernames and the provided password format.
+- File path that changes: proxy.txt; docs/log/log-changes.md
+
+## Entry
 - Date time: 2026-04-08T00:10:00+00:00
 - Short description: Disable mouse wheel value changes on numeric config fields
 - What you do: Added a UI-wide event filter for QAbstractSpinBox controls to block wheel events so scrolling the page no longer accidentally changes numeric values. Applied the guard to all existing numeric fields and to dynamically added URL min/max time spinboxes.
